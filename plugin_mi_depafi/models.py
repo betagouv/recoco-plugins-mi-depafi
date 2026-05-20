@@ -1,4 +1,6 @@
 from django.db import models
+from django.urls import reverse
+from markdownx.utils import markdownify
 
 
 class Realisation(models.Model):
@@ -46,6 +48,14 @@ class Realisation(models.Model):
         verbose_name = "Réalisation"
         verbose_name_plural = "Réalisations"
         ordering = ["-created_at"]
+
+    def get_absolute_url(self):
+        return reverse("plugin_mi_depafi:realisation-detail", kwargs={"pk": self.pk})
+
+    @property
+    def description_rendered(self):
+        # FIXME Security: does it need a sanity postprocessing?
+        return markdownify(self.description)
 
     def __str__(self):
         return str(self.resource)

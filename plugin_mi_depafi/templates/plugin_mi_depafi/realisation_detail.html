@@ -1,0 +1,62 @@
+{% load static %}
+{% load humanize %}
+
+<div class="plugin-mi-depafi-realisation-detail fr-p-4w">
+
+    <!-- Title -->
+    <h1 class="fr-h3 fr-mb-2w">{{ realisation.resource.title }}</h1>
+
+    <!-- Metadata -->
+    <ul class="list-unstyled fr-text--sm fr-mb-3w" style="color: #555;">
+        <li class="fr-mb-1v">
+            <span class="fr-icon-calendar-event-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+            Mise à jour le {{ realisation.updated_at|date:"d/m/Y" }}
+        </li>
+        {% if realisation.partners %}
+        <li class="fr-mb-1v">
+            <span class="fr-icon-group-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+            Partenaires : {{ realisation.partners }}
+        </li>
+        {% endif %}
+        <li class="fr-mb-1v">
+            <span class="fr-icon-map-pin-2-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+            {{ realisation.project.name }}
+        </li>
+    </ul>
+
+    <!-- Resource summary -->
+    {% if realisation.resource.summary %}
+    <p class="fr-mb-4w">{{ realisation.resource.summary }}</p>
+    {% endif %}
+
+    <!-- Description -->
+    {% if realisation.description %}
+    <section class="fr-mb-4w">
+        <h2 class="fr-h6 text-uppercase fr-mb-2w" style="letter-spacing: .05em;">Description du projet</h2>
+        <div class="fr-text--sm">
+            {{ realisation.description_rendered|safe }}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Photos -->
+    {% with photos=realisation.photos.all %}
+    {% if photos %}
+    <section>
+        <h2 class="fr-h6 text-uppercase fr-mb-2w" style="letter-spacing: .05em;">Photos</h2>
+        <div class="fr-grid-row fr-grid-row--gutters">
+            {% for photo in photos %}
+            <div class="fr-col-6">
+                <div style="aspect-ratio: 4/3; overflow: hidden; border-radius: 4px;">
+                    <img src="{{ photo.image.url }}"
+                         alt=""
+                         style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+    {% endwith %}
+
+</div>

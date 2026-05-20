@@ -65,6 +65,10 @@ def create_url(project):
     return reverse(f"{PLUGIN_NAME}:realisation-create", kwargs={"project_id": project.pk})
 
 
+def detail_url(realisation):
+    return reverse(f"{PLUGIN_NAME}:realisation-detail", kwargs={"pk": realisation.pk})
+
+
 # ---------------------------------------------------------------------------
 # Realisation list
 # ---------------------------------------------------------------------------
@@ -260,3 +264,72 @@ def test_realisation_create_invalid_form_returns_200(request, client):
 
     assert response.status_code == 200
     assert response.context["form"].errors
+
+
+# ---------------------------------------------------------------------------
+# Realisation detail
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_realisation_detail_redirects_unauthenticated(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource)
+    response = client.get(detail_url(realisation))
+    assert response.status_code == 302
+    assert "/login" in response["Location"] or "/accounts" in response["Location"]
+
+
+@pytest.mark.django_db
+def test_realisation_detail_accessible_for_any_logged_in_user(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource)
+    with login(client):
+        response = client.get(detail_url(realisation))
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_realisation_detail_shows_resource_title(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource, title="Mon action vélo")
+    realisation = baker.make(Realisation, project=project, resource=resource)
+    with login(client):
+        response = client.get(detail_url(realisation))
+    assert b"Mon action v\xc3\xa9lo" in response.content
+
+
+@pytest.mark.django_db
+def test_realisation_detail_shows_partners(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, partners="Fondation Jean-Moulin"
+    )
+    with login(client):
+        response = client.get(detail_url(realisation))
+    assert b"Fondation Jean-Moulin" in response.content
+
+
+@pytest.mark.django_db
+def test_realisation_detail_shows_project_name(request, client):
+    project = make_project_on_site(request)
+    project.name = "ATE Doubs"
+    project.save()
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource)
+    with login(client):
+        response = client.get(detail_url(realisation))
+    assert b"ATE Doubs" in response.content
+
+
+@pytest.mark.django_db
+def test_realisation_detail_context_has_realisation(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource)
+    with login(client):
+        response = client.get(detail_url(realisation))
+    assert response.context["realisation"] == realisation

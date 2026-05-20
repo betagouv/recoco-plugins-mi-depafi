@@ -1,5 +1,7 @@
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.views.generic import DetailView
 
 from recoco.apps.projects.views.detail import ProjectDetailBaseView
 
@@ -58,3 +60,10 @@ class RealisationCreateView(ProjectDetailBaseView):
 
         context = self.get_context_data(form=form)
         return self.render_to_response(context)
+
+
+class RealisationDetailView(LoginRequiredMixin, DetailView):
+    # FIXME needs permissions handling
+    model = Realisation
+    template_name = "plugin_mi_depafi/realisation_detail.html"
+    context_object_name = "realisation"

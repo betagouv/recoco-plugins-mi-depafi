@@ -6,7 +6,9 @@
         <!-- Header: title + draft badge -->
         <div class="d-flex align-items-center gap-2 fr-mb-2w">
             <h3 class="fr-h5 fr-mb-0">
-                <a href="#" class="fr-link">{{ realisation.resource.title }}</a>
+                <a href="{{ realisation.get_absolute_url }}"
+               class="fr-link"
+               @click.prevent="openModal('{{ realisation.get_absolute_url }}')">{{ realisation.resource.title }}</a>
             </h3>
             {% if realisation.status == 'draft' %}
             <span class="fr-badge fr-badge--info fr-badge--sm">Brouillon</span>
@@ -43,9 +45,11 @@
                     disabled>
                 0
             </button>
-            <a href="#" class="fr-btn fr-btn--sm">
+            <button type="button"
+                    class="fr-btn fr-btn--sm"
+                    @click="openModal('{{ realisation.get_absolute_url }}')">
                 Voir la réalisation
-            </a>
+            </button>
         </div>
 
     </div>

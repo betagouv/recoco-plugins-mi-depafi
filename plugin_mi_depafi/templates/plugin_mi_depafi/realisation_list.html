@@ -7,10 +7,27 @@
 {% block title %}Réalisations - {{ block.super }}{% endblock title %}
 {% block og_title %}Réalisations - {{ block.super }}{% endblock og_title %}
 
+{% block js %}
+{{ block.super }}
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('realisationList', () => ({
+        async openModal(url) {
+            const response = await fetch(url, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            document.getElementById('realisation-modal-content').innerHTML = await response.text();
+            window.dsfr(document.getElementById('realisation-modal')).modal.disclose();
+        }
+    }));
+});
+</script>
+{% endblock js %}
+
 {% block project_detail %}
 {% get_obj_perms request.user for request.site as "user_site_perms" %}
 {% get_obj_perms request.user for project as "user_project_perms" %}
-<div x-data
+<div x-data="realisationList()"
      x-init="$nextTick(() => $store.showRole.init())"
      class="col-12">
 
@@ -151,5 +168,30 @@
 
     {% include "projects/project/fragments/project_banner/banner_wrapper.html" with part='close' %}
     {% include "projects/project/onboarding_tutorial.html" %}
+
+    <dialog id="realisation-modal"
+            class="fr-modal"
+            aria-labelledby="realisation-modal-title"
+            role="dialog">
+        <div class="fr-container fr-container--fluid fr-container-md">
+            <div class="fr-grid-row fr-grid-row--center">
+                <div class="fr-col-12 fr-col-md-10 fr-col-lg-8">
+                    <div class="fr-modal__body">
+                        <div class="fr-modal__header">
+                            <button class="fr-btn--close fr-btn"
+                                    title="Fermer"
+                                    aria-controls="realisation-modal"
+                                    type="button">
+                                Fermer
+                            </button>
+                        </div>
+                        <div class="fr-modal__content" id="realisation-modal-content">
+                            {# Filled by HTMX on demand #}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </dialog>
 </div>
 {% endblock project_detail %}
