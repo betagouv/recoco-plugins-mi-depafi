@@ -1,0 +1,72 @@
+{% extends "projects/project/detail.html" %}
+{% load static %}
+{% load django_vite %}
+
+{% block title %}Réalisations - {{ block.super }}{% endblock title %}
+{% block og_title %}Réalisations - {{ block.super }}{% endblock og_title %}
+
+{% block project_detail %}
+<div x-data
+     x-init="$nextTick(() => $store.showRole.init())"
+     class="col-12">
+
+    {% include "projects/project/navigation.html" %}
+    {% include "projects/project/fragments/project_banner/banner_wrapper.html" with part='open' %}
+
+    <div class="fr-container fr-py-4w">
+        <div class="d-flex justify-content-between align-items-center fr-mb-4w">
+            <h2 class="fr-h3 fr-mb-0">Réalisations</h2>
+            <a href="{% url 'plugin_mi_depafi:realisation-create' project_id=project.pk %}"
+               class="fr-btn fr-btn--primary fr-btn--sm">
+                Déclarer une action réalisée
+            </a>
+        </div>
+
+        {% if realisations %}
+        <div class="fr-grid-row fr-grid-row--gutters">
+            {% for realisation in realisations %}
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+                <div class="fr-card fr-card--shadow">
+                    {% with first_photo=realisation.photos.first %}
+                    {% if first_photo %}
+                    <div class="fr-card__header">
+                        <div class="fr-card__img">
+                            <img class="fr-responsive-img"
+                                 src="{{ first_photo.image.url }}"
+                                 alt="">
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                    <div class="fr-card__body">
+                        <div class="fr-card__content">
+                            <h3 class="fr-card__title">{{ realisation.resource.title }}</h3>
+                            {% if realisation.partners %}
+                            <p class="fr-card__desc fr-text--sm fr-mb-1w">
+                                <span class="fr-icon-team-line fr-icon--sm" aria-hidden="true"></span>
+                                {{ realisation.partners }}
+                            </p>
+                            {% endif %}
+                            <p class="fr-badge {% if realisation.status == 'published' %}fr-badge--success{% else %}fr-badge--info{% endif %} fr-mt-1w">
+                                {{ realisation.get_status_display }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="fr-callout fr-mt-2w">
+            <p class="fr-callout__text">
+                Aucune réalisation déclarée pour ce dossier.
+                <a href="{% url 'plugin_mi_depafi:realisation-create' project_id=project.pk %}">Déclarez la première !</a>
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+    {% include "projects/project/fragments/project_banner/banner_wrapper.html" with part='close' %}
+    {% include "projects/project/onboarding_tutorial.html" %}
+</div>
+{% endblock project_detail %}
