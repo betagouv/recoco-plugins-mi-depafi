@@ -13,9 +13,14 @@ class RealisationListView(ProjectDetailBaseView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["realisations"] = (
-            Realisation.objects.filter(project=self.object).select_related("resource")
+        base_qs = (
+            Realisation.objects.filter(project=self.object)
+            .select_related("resource")
+            .prefetch_related("photos")
         )
+        context["draft_realisations"] = base_qs.filter(status=Realisation.DRAFT)
+        context["published_realisations"] = base_qs.filter(status=Realisation.PUBLISHED)
+        context["realisations"] = base_qs
         return context
 
 

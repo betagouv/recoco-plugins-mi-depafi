@@ -1,69 +1,152 @@
 {% extends "projects/project/detail.html" %}
+{% load humanize %}
 {% load static %}
+{% load guardian_tags %}
 {% load django_vite %}
 
 {% block title %}Réalisations - {{ block.super }}{% endblock title %}
 {% block og_title %}Réalisations - {{ block.super }}{% endblock og_title %}
 
 {% block project_detail %}
+{% get_obj_perms request.user for request.site as "user_site_perms" %}
+{% get_obj_perms request.user for project as "user_project_perms" %}
 <div x-data
      x-init="$nextTick(() => $store.showRole.init())"
      class="col-12">
 
-    {% include "projects/project/navigation.html" %}
+    {% include "projects/project/navigation.html" with realisations=True %}
     {% include "projects/project/fragments/project_banner/banner_wrapper.html" with part='open' %}
 
-    <div class="fr-container fr-py-4w">
-        <div class="d-flex justify-content-between align-items-center fr-mb-4w">
-            <h2 class="fr-h3 fr-mb-0">Réalisations</h2>
-            <a href="{% url 'plugin_mi_depafi:realisation-create' project_id=project.pk %}"
-               class="fr-btn fr-btn--primary fr-btn--sm">
-                Déclarer une action réalisée
-            </a>
-        </div>
+    <div class="container-fluid realisations">
+        <div class="row">
 
-        {% if realisations %}
-        <div class="fr-grid-row fr-grid-row--gutters">
-            {% for realisation in realisations %}
-            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
-                <div class="fr-card fr-card--shadow">
-                    {% with first_photo=realisation.photos.first %}
-                    {% if first_photo %}
-                    <div class="fr-card__header">
-                        <div class="fr-card__img">
-                            <img class="fr-responsive-img"
-                                 src="{{ first_photo.image.url }}"
-                                 alt="">
-                        </div>
+            <!-- Sidebar -->
+            <div class="col-3 realisations__info">
+                <div class="fr-mt-5v fr-px-2w">
+
+                    <!-- Project name -->
+                    <div class="fr-mb-3v">
+                        <strong class="project-info__name">{{ project.name }}</strong>
                     </div>
+
+                    <!-- Basic info -->
+                    <ul class="list-unstyled fr-text--sm fr-mb-3v" style="color: #555;">
+                        {% if project.commune %}
+                        <li class="fr-mb-1v">
+                            <span class="fr-icon-map-pin-2-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                            {{ project.commune.name }}
+                        </li>
+                        {% if project.commune.department %}
+                        <li class="fr-mb-1v">
+                            <span class="fr-icon-community-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                            {{ project.commune.department.name }}
+                        </li>
+                        {% endif %}
+                        {% endif %}
+                        {% if project.updated_on %}
+                        <li class="fr-mb-1v">
+                            <span class="fr-icon-refresh-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                            mis à jour {{ project.updated_on|naturaltime }}
+                        </li>
+                        {% endif %}
+                        {% if project.created_on %}
+                        <li class="fr-mb-1v">
+                            <span class="fr-icon-calendar-event-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                            déposé le {{ project.created_on|date:"d F Y" }}
+                        </li>
+                        {% endif %}
+                        <li class="fr-mb-1v">
+                            <span class="fr-icon-chat-3-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                            {{ project.notes.count }} message{{ project.notes.count|pluralize }}
+                        </li>
+                        <li class="fr-mb-1v">
+                            <span class="fr-icon-group-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                            {{ project.projectmember_set.count }} participant{{ project.projectmember_set.count|pluralize }}
+                        </li>
+                        <li class="fr-mb-1v">
+                            <span class="fr-icon-article-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                            {{ realisations|length }} Déclaration{{ realisations|length|pluralize }}
+                        </li>
+                    </ul>
+
+                    <hr class="info__separator">
+
+                    <!-- Localisation -->
+                    <h6 class="text-uppercase fw-bold fr-mb-2v h6-specific-fontsize-14">Localisation</h6>
+                    {% include "projects/project/fragments/geolocation/location_overview.html" %}
+
+                    <hr class="info__separator">
+
+                    <!-- Référent -->
+                    <h6 class="text-uppercase fw-bold fr-mb-2v h6-specific-fontsize-14">Référent</h6>
+                    {% include "projects/project/fragments/project_owner.html" with project=project %}
+                    {% if project.status != 'PRE_DRAFT' %}
+                        {% include "projects/project/fragments/owner/owner-details.html" with project=project %}
                     {% endif %}
-                    {% endwith %}
-                    <div class="fr-card__body">
-                        <div class="fr-card__content">
-                            <h3 class="fr-card__title">{{ realisation.resource.title }}</h3>
-                            {% if realisation.partners %}
-                            <p class="fr-card__desc fr-text--sm fr-mb-1w">
-                                <span class="fr-icon-team-line fr-icon--sm" aria-hidden="true"></span>
-                                {{ realisation.partners }}
-                            </p>
+
+                    <hr class="info__separator">
+
+                    <!-- Conseillers -->
+                    <h6 class="text-uppercase fw-bold fr-mb-2v h6-specific-fontsize-14">Conseillers</h6>
+                    <ul class="d-flex flex-column list-unstyled fr-mb-0">
+                        {% for advisor in project.switchtender_sites.all %}
+                            {% if advisor.switchtender.is_active %}
+                            <li>{% include "user/user_card.html" with user=advisor.switchtender user_activity=True %}</li>
                             {% endif %}
-                            <p class="fr-badge {% if realisation.status == 'published' %}fr-badge--success{% else %}fr-badge--info{% endif %} fr-mt-1w">
-                                {{ realisation.get_status_display }}
-                            </p>
-                        </div>
-                    </div>
+                        {% endfor %}
+                    </ul>
+
                 </div>
             </div>
-            {% endfor %}
+
+            <!-- Main content -->
+            <div class="col-9 fr-py-4w fr-px-3w">
+
+                <!-- Header -->
+                <div class="d-flex justify-content-between align-items-center fr-mb-4w">
+                    <h2 class="fr-h4 fr-mb-0">
+                        {{ realisations|length }} réalisation{{ realisations|length|pluralize }}
+                    </h2>
+                    <a href="{% url 'plugin_mi_depafi:realisation-create' project_id=project.pk %}"
+                       class="fr-btn fr-btn--primary fr-btn--sm">
+                        Ajouter une réalisation
+                    </a>
+                </div>
+
+                {% if not draft_realisations and not published_realisations %}
+                <div class="fr-callout fr-mt-2w">
+                    <p class="fr-callout__text">
+                        Aucune réalisation déclarée pour ce dossier.
+                        <a href="{% url 'plugin_mi_depafi:realisation-create' project_id=project.pk %}">Déclarez la première !</a>
+                    </p>
+                </div>
+                {% else %}
+
+                <!-- Drafts -->
+                {% if draft_realisations %}
+                <div class="fr-mb-4w">
+                    <p class="fr-text--sm fr-text--bold fr-mb-2v" style="color: #777;">Brouillons</p>
+                    {% for realisation in draft_realisations %}
+                        {% include "plugin_mi_depafi/fragments/realisation_card.html" with realisation=realisation %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Published, grouped by date -->
+                {% regroup published_realisations by created_at.date as grouped %}
+                {% for group in grouped %}
+                <p class="fr-text--sm fr-mb-2v" style="color: #777;">
+                    le {{ group.grouper|date:"d F Y" }}
+                </p>
+                {% for realisation in group.list %}
+                    {% include "plugin_mi_depafi/fragments/realisation_card.html" with realisation=realisation %}
+                {% endfor %}
+                {% endfor %}
+
+                {% endif %}
+
+            </div>
         </div>
-        {% else %}
-        <div class="fr-callout fr-mt-2w">
-            <p class="fr-callout__text">
-                Aucune réalisation déclarée pour ce dossier.
-                <a href="{% url 'plugin_mi_depafi:realisation-create' project_id=project.pk %}">Déclarez la première !</a>
-            </p>
-        </div>
-        {% endif %}
     </div>
 
     {% include "projects/project/fragments/project_banner/banner_wrapper.html" with part='close' %}
