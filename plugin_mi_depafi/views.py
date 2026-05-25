@@ -1,12 +1,13 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Count, Exists, OuterRef
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.generic import DetailView
+from django.views.generic import DetailView, View
 
 from recoco.apps.projects.views.detail import ProjectDetailBaseView
 
 from .forms import RealisationForm
-from .models import Realisation, RealisationPhoto
+from .models import Realisation, RealisationLike, RealisationPhoto
 
 
 class RealisationListView(ProjectDetailBaseView):
@@ -19,6 +20,15 @@ class RealisationListView(ProjectDetailBaseView):
             Realisation.objects.filter(project=self.object)
             .select_related("resource")
             .prefetch_related("photos")
+            .annotate(
+                like_count=Count("likes"),
+                user_liked=Exists(
+                    RealisationLike.objects.filter(
+                        realisation=OuterRef("pk"),
+                        user=self.request.user,
+                    )
+                ),
+            )
         )
         context["draft_realisations"] = base_qs.filter(status=Realisation.DRAFT)
         context["published_realisations"] = base_qs.filter(status=Realisation.PUBLISHED)
@@ -145,6 +155,28 @@ class RealisationDeleteView(ProjectDetailBaseView):
                 "plugin_mi_depafi:realisation-list",
                 kwargs={"project_id": self.object.pk},
             )
+        )
+
+
+class RealisationLikeToggleView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        realisation = get_object_or_404(Realisation, pk=pk, status=Realisation.PUBLISHED)
+        like, created = RealisationLike.objects.get_or_create(
+            realisation=realisation, user=request.user
+        )
+        if not created:
+            like.delete()
+            user_liked = False
+        else:
+            user_liked = True
+        return render(
+            request,
+            "plugin_mi_depafi/fragments/realisation_like_button.html",
+            {
+                "realisation": realisation,
+                "user_liked": user_liked,
+                "like_count": realisation.likes.count(),
+            },
         )
 
 

@@ -4,6 +4,7 @@ from .views import (
     RealisationCreateView,
     RealisationDeleteView,
     RealisationDetailView,
+    RealisationLikeToggleView,
     RealisationListView,
     RealisationUpdateView,
 )
@@ -30,6 +31,11 @@ urlpatterns = [
         "project/<int:project_id>/realisations/<int:pk>/supprimer/",
         RealisationDeleteView.as_view(),
         name="realisation-delete",
+    ),
+    path(
+        "realisations/<int:pk>/aimer/",
+        RealisationLikeToggleView.as_view(),
+        name="realisation-like-toggle",
     ),
     path(
         "realisations/<int:pk>/",

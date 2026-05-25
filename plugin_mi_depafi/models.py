@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.urls import reverse
 from markdownx.utils import markdownify
@@ -59,6 +60,23 @@ class Realisation(models.Model):
 
     def __str__(self):
         return str(self.resource)
+
+
+class RealisationLike(models.Model):
+    realisation = models.ForeignKey(
+        Realisation,
+        on_delete=models.CASCADE,
+        related_name="likes",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="realisation_likes",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("realisation", "user")]
 
 
 def _realisation_photo_upload_path(instance, filename):

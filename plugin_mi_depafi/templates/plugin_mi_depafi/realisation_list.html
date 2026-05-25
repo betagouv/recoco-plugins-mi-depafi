@@ -11,6 +11,11 @@
 {{ block.super }}
 {% vite_asset 'js/apps/projectDetails.js' %}
 <script>
+document.body.addEventListener('htmx:configRequest', (event) => {
+    const token = document.cookie.match(/csrftoken=([^;]+)/)?.[1];
+    if (token) event.detail.headers['X-CSRFToken'] = token;
+});
+
 document.getElementById('realisation-modal-content').addEventListener('htmx:afterSwap', () => {
     window.dsfr(document.getElementById('realisation-modal')).modal.disclose();
 });

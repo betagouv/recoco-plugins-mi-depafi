@@ -1,0 +1,7 @@
+<button type="button"
+        class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-thumb-up-line {% if user_liked %}fr-btn--active{% else %}fr-btn--tertiary{% endif %}"
+        hx-post="{% url 'plugin_mi_depafi:realisation-like-toggle' pk=realisation.pk %}"
+        hx-target="this"
+        hx-swap="outerHTML">
+    {{ like_count }}
+</button>

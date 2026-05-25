@@ -10,7 +10,7 @@ from recoco.apps.projects import utils as project_utils
 from recoco.apps.resources.models import Resource
 from recoco.utils import login
 
-from .models import Realisation, RealisationPhoto
+from .models import Realisation, RealisationLike, RealisationPhoto
 
 PLUGIN_NAME = "plugin_mi_depafi"
 
@@ -75,6 +75,11 @@ def update_url(project, realisation):
 
 def delete_url(project, realisation):
     return reverse(f"{PLUGIN_NAME}:realisation-delete", kwargs={"project_id": project.pk, "pk": realisation.pk})
+
+
+def like_toggle_url(realisation):
+    return reverse(f"{PLUGIN_NAME}:realisation-like-toggle", kwargs={"pk": realisation.pk})
+
 
 
 
@@ -486,6 +491,63 @@ def test_realisation_delete_post_redirects_to_list(request, client):
         project_utils.assign_collaborator(user, project, is_owner=True)
         response = client.post(delete_url(project, realisation))
     assert response["Location"] == list_url(project)
+
+
+# ---------------------------------------------------------------------------
+# Realisation like toggle
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_realisation_like_toggle_redirects_unauthenticated(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.PUBLISHED)
+    response = client.post(like_toggle_url(realisation))
+    assert response.status_code == 302
+
+
+@pytest.mark.django_db
+def test_realisation_like_toggle_creates_like(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.PUBLISHED)
+    with login(client) as user:
+        response = client.post(like_toggle_url(realisation))
+    assert response.status_code == 200
+    assert RealisationLike.objects.filter(realisation=realisation, user=user).exists()
+
+
+@pytest.mark.django_db
+def test_realisation_like_toggle_removes_existing_like(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.PUBLISHED)
+    with login(client) as user:
+        baker.make(RealisationLike, realisation=realisation, user=user)
+        client.post(like_toggle_url(realisation))
+    assert not RealisationLike.objects.filter(realisation=realisation, user=user).exists()
+
+
+@pytest.mark.django_db
+def test_realisation_like_toggle_returns_404_for_draft(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
+    with login(client):
+        response = client.post(like_toggle_url(realisation))
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_realisation_like_toggle_returns_button_fragment(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.PUBLISHED)
+    with login(client):
+        response = client.post(like_toggle_url(realisation))
+    assert response.status_code == 200
+    assert b"fr-icon-thumb-up-line" in response.content
 
 
 # ---------------------------------------------------------------------------
