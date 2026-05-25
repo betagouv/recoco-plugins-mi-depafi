@@ -7,6 +7,7 @@ from .views import (
     RealisationLikeToggleView,
     RealisationListView,
     RealisationUpdateView,
+    RealisationsByResourceView,
 )
 
 app_name = "plugin_mi_depafi"
@@ -41,5 +42,10 @@ urlpatterns = [
         "realisations/<int:pk>/",
         RealisationDetailView.as_view(),
         name="realisation-detail",
+    ),
+    path(
+        "resources/<int:resource_id>/realisations/",
+        RealisationsByResourceView.as_view(),
+        name="realisations-by-resource",
     ),
 ]

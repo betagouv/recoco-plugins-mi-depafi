@@ -2,9 +2,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Exists, OuterRef
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.generic import DetailView, View
+from django.views.generic import DetailView, ListView, View
 
 from recoco.apps.projects.views.detail import ProjectDetailBaseView
+from recoco.apps.resources.models import Resource
 
 from .forms import RealisationForm
 from .models import Realisation, RealisationLike, RealisationPhoto
@@ -185,3 +186,24 @@ class RealisationDetailView(LoginRequiredMixin, DetailView):
     model = Realisation
     template_name = "plugin_mi_depafi/realisation_detail.html"
     context_object_name = "realisation"
+
+
+class RealisationsByResourceView(LoginRequiredMixin, ListView):
+    template_name = "plugin_mi_depafi/realisations_by_resource.html"
+    context_object_name = "realisations"
+    paginate_by = 20
+
+    def get_queryset(self):
+        self.resource = get_object_or_404(Resource, pk=self.kwargs["resource_id"])
+        return (
+            Realisation.objects.filter(resource=self.resource, status=Realisation.PUBLISHED)
+            .select_related("project__commune__department")
+            .prefetch_related("photos")
+            .annotate(like_count=Count("likes"))
+            .order_by("-created_at")
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["resource"] = self.resource
+        return context

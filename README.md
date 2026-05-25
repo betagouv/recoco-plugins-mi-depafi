@@ -34,3 +34,21 @@ python manage.py migrate_tenant --schema=<schema_du_portail> plugin_mi_depafi
 ```
 
 Enfin, activer le plugin dans l'administration via la `SiteConfiguration` du portail concerné en ajoutant `"plugin_mi_depafi"` à la liste `enabled_plugins`.
+
+## Points d'attention
+
+### Jeton CSRF et HTMX (`realisation_modal.html`)
+
+Le fragment `plugin_mi_depafi/fragments/realisation_modal.html` injecte manuellement le jeton CSRF dans les en-têtes HTMX via une lecture du cookie `csrftoken` en JavaScript :
+
+```js
+document.body.addEventListener('htmx:configRequest', (event) => {
+    const token = document.cookie.match(/csrftoken=([^;]+)/)?.[1];
+    if (token) event.detail.headers['X-CSRFToken'] = token;
+});
+```
+
+Cette approche est un contournement temporaire. Deux pistes pour la résoudre proprement :
+
+- Configurer HTMX globalement (via un méta-tag `hx-headers` sur le `<body>`) au niveau du gabarit de base du cœur de Recommandations Collaboratives.
+- Intégrer [`django-htmx`](https://github.com/adamchainz/django-htmx) dans le cœur, qui gère automatiquement l'injection du jeton CSRF et expose des utilitaires côté Django pour détecter les requêtes HTMX.

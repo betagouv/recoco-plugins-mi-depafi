@@ -10,16 +10,6 @@
 {% block js %}
 {{ block.super }}
 {% vite_asset 'js/apps/projectDetails.js' %}
-<script>
-document.body.addEventListener('htmx:configRequest', (event) => {
-    const token = document.cookie.match(/csrftoken=([^;]+)/)?.[1];
-    if (token) event.detail.headers['X-CSRFToken'] = token;
-});
-
-document.getElementById('realisation-modal-content').addEventListener('htmx:afterSwap', () => {
-    window.dsfr(document.getElementById('realisation-modal')).modal.disclose();
-});
-</script>
 {% endblock js %}
 
 {% block project_detail %}
@@ -167,29 +157,6 @@ document.getElementById('realisation-modal-content').addEventListener('htmx:afte
     {% include "projects/project/fragments/project_banner/banner_wrapper.html" with part='close' %}
     {% include "projects/project/onboarding_tutorial.html" %}
 
-    <dialog id="realisation-modal"
-            class="fr-modal"
-            aria-labelledby="realisation-modal-title"
-            role="dialog">
-        <div class="fr-container fr-container--fluid fr-container-md">
-            <div class="fr-grid-row fr-grid-row--center">
-                <div class="fr-col-12 fr-col-md-10 fr-col-lg-8">
-                    <div class="fr-modal__body">
-                        <div class="fr-modal__header">
-                            <button class="fr-btn--close fr-btn"
-                                    title="Fermer"
-                                    aria-controls="realisation-modal"
-                                    type="button">
-                                Fermer
-                            </button>
-                        </div>
-                        <div class="fr-modal__content" id="realisation-modal-content">
-                            {# Filled by HTMX on demand #}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </dialog>
+    {% include "plugin_mi_depafi/fragments/realisation_modal.html" %}
 </div>
 {% endblock project_detail %}
