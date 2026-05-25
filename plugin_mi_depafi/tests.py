@@ -69,6 +69,16 @@ def detail_url(realisation):
     return reverse(f"{PLUGIN_NAME}:realisation-detail", kwargs={"pk": realisation.pk})
 
 
+def update_url(project, realisation):
+    return reverse(f"{PLUGIN_NAME}:realisation-update", kwargs={"project_id": project.pk, "pk": realisation.pk})
+
+
+def delete_url(project, realisation):
+    return reverse(f"{PLUGIN_NAME}:realisation-delete", kwargs={"project_id": project.pk, "pk": realisation.pk})
+
+
+
+
 # ---------------------------------------------------------------------------
 # Realisation list
 # ---------------------------------------------------------------------------
@@ -264,6 +274,218 @@ def test_realisation_create_invalid_form_returns_200(request, client):
 
     assert response.status_code == 200
     assert response.context["form"].errors
+
+
+# ---------------------------------------------------------------------------
+# Realisation update
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_realisation_update_redirects_unauthenticated(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
+    response = client.get(update_url(project, realisation))
+    assert response.status_code == 302
+    assert "/login" in response["Location"] or "/accounts" in response["Location"]
+
+
+@pytest.mark.django_db
+def test_realisation_update_forbidden_for_unprivileged_user(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
+    with login(client):
+        response = client.get(update_url(project, realisation))
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_realisation_update_form_accessible_for_project_member(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        response = client.get(update_url(project, realisation))
+    assert response.status_code == 200
+    assert response.context["realisation"] == realisation
+
+
+@pytest.mark.django_db
+def test_realisation_update_returns_404_for_published(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.PUBLISHED)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        response = client.get(update_url(project, realisation))
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_realisation_update_saves_changes(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    new_resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        client.post(
+            update_url(project, realisation),
+            {"resource": new_resource.pk, "partners": "Nouveau partenaire", "description": "", "status": "draft"},
+        )
+    realisation.refresh_from_db()
+    assert realisation.partners == "Nouveau partenaire"
+    assert realisation.resource == new_resource
+
+
+@pytest.mark.django_db
+def test_realisation_update_can_publish_draft(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        client.post(
+            update_url(project, realisation),
+            {"resource": resource.pk, "partners": "", "description": "", "status": "published"},
+        )
+    realisation.refresh_from_db()
+    assert realisation.status == Realisation.PUBLISHED
+
+
+@pytest.mark.django_db
+def test_realisation_update_deletes_marked_photos(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
+    photo = baker.make(RealisationPhoto, realisation=realisation)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        client.post(
+            update_url(project, realisation),
+            {"resource": resource.pk, "partners": "", "description": "", "status": "draft", "delete_photos": [photo.pk]},
+        )
+    assert not RealisationPhoto.objects.filter(pk=photo.pk).exists()
+
+
+@pytest.mark.django_db
+def test_realisation_update_redirects_to_list_on_success(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        response = client.post(
+            update_url(project, realisation),
+            {"resource": resource.pk, "partners": "", "description": "", "status": "draft"},
+        )
+    assert response.status_code == 302
+    assert response["Location"] == list_url(project)
+
+
+# ---------------------------------------------------------------------------
+# Realisation delete (GET = confirm fragment, POST = delete)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_realisation_delete_get_redirects_unauthenticated(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
+    response = client.get(delete_url(project, realisation))
+    assert response.status_code == 302
+    assert "/login" in response["Location"] or "/accounts" in response["Location"]
+
+
+@pytest.mark.django_db
+def test_realisation_delete_get_forbidden_for_unprivileged_user(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
+    with login(client):
+        response = client.get(delete_url(project, realisation))
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_realisation_delete_get_shows_confirm_fragment(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource, title="Mon action")
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        response = client.get(delete_url(project, realisation))
+    assert response.status_code == 200
+    assert b"Mon action" in response.content
+
+
+@pytest.mark.django_db
+def test_realisation_delete_get_returns_404_for_published(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.PUBLISHED)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        response = client.get(delete_url(project, realisation))
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_realisation_delete_post_redirects_unauthenticated(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
+    response = client.post(delete_url(project, realisation))
+    assert response.status_code == 302
+    assert "/login" in response["Location"] or "/accounts" in response["Location"]
+
+
+@pytest.mark.django_db
+def test_realisation_delete_post_forbidden_for_unprivileged_user(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
+    with login(client):
+        response = client.post(delete_url(project, realisation))
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_realisation_delete_post_removes_draft(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        response = client.post(delete_url(project, realisation))
+    assert response.status_code == 302
+    assert not Realisation.objects.filter(pk=realisation.pk).exists()
+
+
+@pytest.mark.django_db
+def test_realisation_delete_post_returns_404_for_published(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.PUBLISHED)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        response = client.post(delete_url(project, realisation))
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_realisation_delete_post_redirects_to_list(request, client):
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        response = client.post(delete_url(project, realisation))
+    assert response["Location"] == list_url(project)
 
 
 # ---------------------------------------------------------------------------

@@ -8,7 +8,10 @@
             <h3 class="fr-h5 fr-mb-0">
                 <a href="{{ realisation.get_absolute_url }}"
                class="fr-link"
-               @click.prevent="openModal('{{ realisation.get_absolute_url }}')">{{ realisation.resource.title }}</a>
+               hx-get="{{ realisation.get_absolute_url }}"
+               hx-target="#realisation-modal-content"
+               hx-swap="innerHTML"
+               hx-push-url="false">{{ realisation.resource.title }}</a>
             </h3>
             {% if realisation.status == 'draft' %}
             <span class="fr-badge fr-badge--info fr-badge--sm">Brouillon</span>
@@ -45,11 +48,29 @@
                     disabled>
                 0
             </button>
-            <button type="button"
-                    class="fr-btn fr-btn--sm"
-                    @click="openModal('{{ realisation.get_absolute_url }}')">
-                Voir la réalisation
-            </button>
+            <div class="d-flex gap-2 align-items-center">
+                {% if realisation.status == 'draft' %}
+                <a href="{% url 'plugin_mi_depafi:realisation-update' project_id=realisation.project_id pk=realisation.pk %}"
+                   class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-left fr-icon-edit-line">
+                    Modifier
+                </a>
+                <button type="button"
+                        class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-delete-line"
+                        hx-get="{% url 'plugin_mi_depafi:realisation-delete' project_id=realisation.project_id pk=realisation.pk %}"
+                        hx-target="#realisation-modal-content"
+                        hx-swap="innerHTML">
+                    Supprimer
+                </button>
+                {% else %}
+                <button type="button"
+                        class="fr-btn fr-btn--sm"
+                        hx-get="{{ realisation.get_absolute_url }}"
+                        hx-target="#realisation-modal-content"
+                        hx-swap="innerHTML">
+                    Voir la réalisation
+                </button>
+                {% endif %}
+            </div>
         </div>
 
     </div>

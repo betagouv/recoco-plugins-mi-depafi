@@ -9,17 +9,10 @@
 
 {% block js %}
 {{ block.super }}
+{% vite_asset 'js/apps/projectDetails.js' %}
 <script>
-document.addEventListener('alpine:init', () => {
-    Alpine.data('realisationList', () => ({
-        async openModal(url) {
-            const response = await fetch(url, {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            });
-            document.getElementById('realisation-modal-content').innerHTML = await response.text();
-            window.dsfr(document.getElementById('realisation-modal')).modal.disclose();
-        }
-    }));
+document.getElementById('realisation-modal-content').addEventListener('htmx:afterSwap', () => {
+    window.dsfr(document.getElementById('realisation-modal')).modal.disclose();
 });
 </script>
 {% endblock js %}
@@ -27,7 +20,7 @@ document.addEventListener('alpine:init', () => {
 {% block project_detail %}
 {% get_obj_perms request.user for request.site as "user_site_perms" %}
 {% get_obj_perms request.user for project as "user_project_perms" %}
-<div x-data="realisationList()"
+<div x-data
      x-init="$nextTick(() => $store.showRole.init())"
      class="col-12">
 

@@ -2,8 +2,8 @@
 {% load static %}
 {% load django_vite %}
 
-{% block title %}Créer une réalisation - {{ block.super }}{% endblock title %}
-{% block og_title %}Créer une réalisation - {{ block.super }}{% endblock og_title %}
+{% block title %}{% firstof page_title "Créer une réalisation" %} - {{ block.super }}{% endblock title %}
+{% block og_title %}{% firstof page_title "Créer une réalisation" %} - {{ block.super }}{% endblock og_title %}
 
 {% block js %}
 {{ block.super }}
@@ -48,7 +48,7 @@ document.addEventListener('alpine:init', () => {
     {% include "projects/project/fragments/project_banner/banner_wrapper.html" with part='open' %}
 
     <div class="fr-container fr-py-4w">
-        <h2 class="fr-h3 fr-mb-4w">Déclarer une action réalisée</h2>
+        <h2 class="fr-h3 fr-mb-4w">{% firstof page_title "Déclarer une action réalisée" %}</h2>
 
         <form method="post" enctype="multipart/form-data" novalidate>
             {% csrf_token %}
@@ -90,6 +90,38 @@ document.addEventListener('alpine:init', () => {
                     <p class="fr-error-text">{{ error }}</p>
                 {% endfor %}
             </div>
+
+            <!-- Existing photos (edit mode) -->
+            {% if realisation %}
+            {% with existing_photos=realisation.photos.all %}
+            {% if existing_photos %}
+            <div class="fr-mb-3w" x-data="{ toDelete: [] }">
+                <p class="fr-label fr-mb-2w">Photos existantes</p>
+                <div class="d-flex flex-wrap gap-3 align-items-start">
+                    {% for photo in existing_photos %}
+                    <div class="position-relative flex-shrink-0"
+                         x-show="!toDelete.includes({{ photo.pk }})"
+                         style="width: 120px; height: 120px; border-radius: 4px; overflow: hidden; border: 1px solid #ddd;">
+                        <img src="{{ photo.image.url }}"
+                             alt=""
+                             style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                        <button type="button"
+                                class="position-absolute top-0 end-0 fr-p-1v"
+                                style="background: rgba(0,0,0,0.45); border: none; cursor: pointer; line-height: 1;"
+                                @click="toDelete.push({{ photo.pk }})"
+                                aria-label="Supprimer cette photo">
+                            <span class="fr-icon-close-line fr-icon--sm" style="color: #fff;" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                    {% endfor %}
+                    <template x-for="photoId in toDelete" :key="photoId">
+                        <input type="hidden" name="delete_photos" :value="photoId">
+                    </template>
+                </div>
+            </div>
+            {% endif %}
+            {% endwith %}
+            {% endif %}
 
             <!-- Photos -->
             <div class="fr-mb-4w" x-data="realisationPhotoGallery">

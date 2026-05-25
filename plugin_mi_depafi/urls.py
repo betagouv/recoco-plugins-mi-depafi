@@ -1,6 +1,12 @@
 from django.urls import path
 
-from .views import RealisationCreateView, RealisationDetailView, RealisationListView
+from .views import (
+    RealisationCreateView,
+    RealisationDeleteView,
+    RealisationDetailView,
+    RealisationListView,
+    RealisationUpdateView,
+)
 
 app_name = "plugin_mi_depafi"
 
@@ -14,6 +20,16 @@ urlpatterns = [
         "project/<int:project_id>/realisations/creer/",
         RealisationCreateView.as_view(),
         name="realisation-create",
+    ),
+    path(
+        "project/<int:project_id>/realisations/<int:pk>/modifier/",
+        RealisationUpdateView.as_view(),
+        name="realisation-update",
+    ),
+    path(
+        "project/<int:project_id>/realisations/<int:pk>/supprimer/",
+        RealisationDeleteView.as_view(),
+        name="realisation-delete",
     ),
     path(
         "realisations/<int:pk>/",
