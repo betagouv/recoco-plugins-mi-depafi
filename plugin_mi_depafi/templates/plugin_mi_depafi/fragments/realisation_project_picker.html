@@ -1,0 +1,18 @@
+<div class="fr-p-4w">
+    <h2 class="fr-h5 fr-mb-3w">Pour quel dossier ?</h2>
+    <ul class="list-unstyled fr-mb-0">
+        {% for project in projects %}
+        <li class="fr-mb-2w">
+            <a href="{% url 'plugin_mi_depafi:realisation-create' project_id=project.pk %}?resource_id={{ resource.pk }}"
+               class="fr-btn fr-btn--secondary w-100 justify-content-start">
+                {{ project.name }}
+                {% if project.commune %}
+                <span class="fr-text--sm fr-ml-1w" style="color: #666; font-weight: normal;">
+                    — {{ project.commune.name }}
+                </span>
+                {% endif %}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+</div>

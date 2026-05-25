@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import DetailView, ListView, View
 
+from recoco.apps.projects.models import Project
 from recoco.apps.projects.views.detail import ProjectDetailBaseView
 from recoco.apps.resources.models import Resource
 
@@ -44,7 +45,10 @@ class RealisationCreateView(ProjectDetailBaseView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.setdefault("form", RealisationForm())
+        initial = {}
+        if resource_id := self.request.GET.get("resource_id"):
+            initial["resource"] = resource_id
+        context.setdefault("form", RealisationForm(initial=initial))
         return context
 
     def post(self, request, *args, **kwargs):
@@ -186,6 +190,21 @@ class RealisationDetailView(LoginRequiredMixin, DetailView):
     model = Realisation
     template_name = "plugin_mi_depafi/realisation_detail.html"
     context_object_name = "realisation"
+
+
+class RealisationPickProjectView(LoginRequiredMixin, View):
+    def get(self, request, resource_id):
+        resource = get_object_or_404(Resource, pk=resource_id)
+        projects = (
+            Project.on_site.filter(members=request.user)
+            .select_related("commune")
+            .order_by("name")
+        )
+        return render(
+            request,
+            "plugin_mi_depafi/fragments/realisation_project_picker.html",
+            {"resource": resource, "projects": projects},
+        )
 
 
 class RealisationsByResourceView(LoginRequiredMixin, ListView):

@@ -1,15 +1,24 @@
 {% load humanize %}
 
-{% if request.user.is_authenticated %}
+{% if user_projects %}
 <div class="fr-callout fr-my-4w fr-pb-3w fr-pr-3w fr-pt-2w fr-pl-5v">
     <h3 class="fr-callout__title fr-text--lg fr-py-2v">Vous vous en occupez ?</h3>
     <p class="fr-callout__text fr-text--sm">
         Présentez le résultat ici pour inspirer les autres référents.
     </p>
-    <a href="{% url 'resources-resource-detail' resource.pk %}"
+    {% if user_projects|length == 1 %}
+    <a href="{% url 'plugin_mi_depafi:realisation-create' project_id=user_projects.0.pk %}?resource_id={{ resource.pk }}"
        class="fr-btn fr-btn--sm w-100 justify-content-center">
         J'ai réalisé cette action
     </a>
+    {% else %}
+    <button hx-get="{% url 'plugin_mi_depafi:realisation-pick-project' resource_id=resource.pk %}"
+            hx-target="#realisation-modal-content"
+            hx-swap="innerHTML"
+            class="fr-btn fr-btn--sm w-100 justify-content-center">
+        J'ai réalisé cette action
+    </button>
+    {% endif %}
 </div>
 {% endif %}
 
@@ -66,5 +75,8 @@
     </a>
 </div>
 
+{% endif %}
+
+{% if user_projects or count %}
 {% include "plugin_mi_depafi/fragments/realisation_modal.html" %}
 {% endif %}

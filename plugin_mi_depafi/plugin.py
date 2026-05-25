@@ -2,6 +2,8 @@ import pluggy
 from django.db.models import Count
 from django.template.loader import render_to_string
 
+from recoco.apps.projects.models import Project
+
 from .models import Realisation
 
 hookimpl = pluggy.HookimplMarker("recoco")
@@ -26,8 +28,20 @@ class MiDepafiPlugin:
         count = Realisation.objects.filter(
             resource=resource, status=Realisation.PUBLISHED
         ).count()
+        user_projects = []
+        if request.user.is_authenticated:
+            user_projects = list(
+                Project.on_site.filter(members=request.user)
+                .select_related("commune")
+                .order_by("name")
+            )
         return render_to_string(
             "plugin_mi_depafi/fragments/resource_sidebar_realisations.html",
-            {"resource": resource, "realisations": realisations, "count": count},
+            {
+                "resource": resource,
+                "realisations": realisations,
+                "count": count,
+                "user_projects": user_projects,
+            },
             request=request,
         )

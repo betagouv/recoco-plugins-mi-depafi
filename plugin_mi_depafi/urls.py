@@ -6,6 +6,7 @@ from .views import (
     RealisationDetailView,
     RealisationLikeToggleView,
     RealisationListView,
+    RealisationPickProjectView,
     RealisationUpdateView,
     RealisationsByResourceView,
 )
@@ -47,5 +48,10 @@ urlpatterns = [
         "resources/<int:resource_id>/realisations/",
         RealisationsByResourceView.as_view(),
         name="realisations-by-resource",
+    ),
+    path(
+        "resources/<int:resource_id>/realisations/choisir-projet/",
+        RealisationPickProjectView.as_view(),
+        name="realisation-pick-project",
     ),
 ]
