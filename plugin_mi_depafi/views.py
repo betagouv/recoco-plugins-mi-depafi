@@ -2,8 +2,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Exists, OuterRef
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.generic import DetailView, ListView, View
+from django.views.generic import DetailView, ListView, TemplateView, View
 
+from recoco.apps.geomatics.models import Region
+from recoco.apps.geomatics.serializers import RegionSerializer
 from recoco.apps.projects.models import Project
 from recoco.apps.projects.views.detail import ProjectDetailBaseView
 from recoco.apps.resources.models import Resource
@@ -205,6 +207,16 @@ class RealisationPickProjectView(LoginRequiredMixin, View):
             "plugin_mi_depafi/fragments/realisation_project_picker.html",
             {"resource": resource, "projects": projects},
         )
+
+
+class RealisationMapView(TemplateView):
+    template_name = "plugin_mi_depafi/realisation_map.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        regions = Region.objects.prefetch_related("departments").order_by("name")
+        ctx["regions"] = list(RegionSerializer(regions, many=True).data)
+        return ctx
 
 
 class RealisationsByResourceView(LoginRequiredMixin, ListView):

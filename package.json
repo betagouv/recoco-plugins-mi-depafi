@@ -1,0 +1,13 @@
+{
+  "name": "plugin-mi-depafi",
+  "version": "0.1.0",
+  "private": true,
+  "recocoPlugin": {
+    "viteEntries": {
+      "realisationsMap": "./plugin_mi_depafi/js/realisationsMap.js"
+    }
+  },
+  "dependencies": {
+    "leaflet.markercluster": "^1.5.3"
+  }
+}

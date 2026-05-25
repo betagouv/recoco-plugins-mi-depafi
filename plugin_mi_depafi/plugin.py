@@ -11,6 +11,10 @@ hookimpl = pluggy.HookimplMarker("recoco")
 
 class MiDepafiPlugin:
     urls_module = "plugin_mi_depafi.urls"
+    rest_urls_module = "plugin_mi_depafi.rest_urls"
+    vite_entries = {
+        "realisationsMap": "js/realisationsMap.js",
+    }
 
     @hookimpl
     def project_tab_entries(self):

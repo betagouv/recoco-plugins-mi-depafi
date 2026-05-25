@@ -14,10 +14,10 @@ Ce plugin étend Recommandations Collaboratives pour permettre aux référents d
 
 Chaque référent peut déclarer une action réalisée dans le cadre d'un dossier. Une réalisation comprend :
 
-- **Action réalisée** — la fiche ressource associée à l'action mise en œuvre
-- **Partenaires** — les organismes partenaires impliqués
-- **Description** — un compte-rendu détaillé de l'action
-- **Photos** — une galerie illustrant la réalisation
+- **Action réalisée** : la fiche ressource associée à l'action mise en œuvre
+- **Partenaires** : les organismes partenaires impliqués
+- **Description** : un compte-rendu détaillé de l'action
+- **Photos** : une galerie illustrant la réalisation
 
 Une réalisation peut être enregistrée en brouillon ou publiée.
 

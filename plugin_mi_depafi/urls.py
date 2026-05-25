@@ -6,6 +6,7 @@ from .views import (
     RealisationDetailView,
     RealisationLikeToggleView,
     RealisationListView,
+    RealisationMapView,
     RealisationPickProjectView,
     RealisationUpdateView,
     RealisationsByResourceView,
@@ -14,6 +15,11 @@ from .views import (
 app_name = "plugin_mi_depafi"
 
 urlpatterns = [
+    path(
+        "realisations/",
+        RealisationMapView.as_view(),
+        name="realisation-map",
+    ),
     path(
         "project/<int:project_id>/realisations/",
         RealisationListView.as_view(),

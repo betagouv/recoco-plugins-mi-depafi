@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% load django_vite %}
+{% load static %}
+
+{% block title %}Découvrir des réalisations{% endblock title %}
+
+{% block css %}
+    {{ block.super }}
+    <style>
+        #realisations-map {
+            height: calc(100vh - 180px);
+            min-height: 400px;
+        }
+        .realisations-sidebar {
+            height: calc(100vh - 180px);
+            overflow-y: auto;
+        }
+        .realisation-map-marker {
+            background: #1c6cba;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,.4);
+        }
+    </style>
+{% endblock css %}
+
+{% block js %}
+    {{ block.super }}
+    {% vite_asset 'js/plugins/realisationsMap.js' %}
+    {% vite_asset 'js/components/DepartmentsSelector.js' %}
+    {% vite_asset 'js/styles/departments-selector.css.js' %}
+{% endblock js %}
+
+{% block content %}
+{{ regions|json_script:"regionsArray" }}
+<div class="container-fluid fr-py-3w"
+     x-data="RealisationsMap(regionsArray)"
+     @selected-departments.window="onDepartmentsSelected($event)">
+
+    <div class="row fr-mb-2w">
+        <div class="col-12">
+            <nav role="navigation" class="fr-breadcrumb" aria-label="vous êtes ici :">
+                <ol class="fr-breadcrumb__list">
+                    <li><a class="fr-breadcrumb__link" href="/">Accueil</a></li>
+                    <li><a class="fr-breadcrumb__link" aria-current="page">Réalisations</a></li>
+                </ol>
+            </nav>
+            <h1 class="fr-h3 fr-mb-2w">Découvrir des réalisations</h1>
+        </div>
+    </div>
+
+    <div class="row fr-mb-2w align-items-center g-2">
+        <div class="col-auto flex-grow-1">
+            <div class="input-group">
+                <span class="input-group-text bg-white">
+                    <svg class="bi" width="16" height="16" fill="currentColor">
+                        <use xlink:href="{% static 'svg/bootstrap-icons.svg' %}#search" />
+                    </svg>
+                </span>
+                <input type="text"
+                       class="form-control"
+                       placeholder="Rechercher une réalisation ou un site…"
+                       x-model="searchQuery"
+                       @input="onSearch()">
+            </div>
+        </div>
+        <div class="col-auto">
+            {% include "projects/project/fragments/departments_selector.html" with filter_by_regions=True zone_objects="regions" select_all=True label_filter="Territoire :" extra_classes="inline-chevron" %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-8 col-xl-9 fr-pr-0">
+            <div id="realisations-map"></div>
+        </div>
+
+        <div class="col-4 col-xl-3 realisations-sidebar fr-pl-2w">
+            <div class="d-flex align-items-center justify-content-between fr-mb-2w">
+                <span class="fw-bold" x-text="sidebarTitle"></span>
+                <button x-show="selectedProjectId"
+                        @click="clearProjectFilter()"
+                        class="btn btn-sm btn-outline-secondary">
+                    Tout afficher
+                </button>
+            </div>
+
+            <div x-show="loading" class="text-center fr-py-4w text-muted">
+                Chargement…
+            </div>
+
+            <template x-if="!loading && sidebarRealisations.length === 0">
+                <div class="fr-callout fr-mt-2w">
+                    <p class="fr-callout__text">Aucune réalisation trouvée.</p>
+                </div>
+            </template>
+
+            <template x-for="realisation in sidebarRealisations" :key="realisation.id">
+                <div class="fr-card fr-card--no-arrow fr-mb-2w" style="border: 1px solid #e5e5e5; border-radius: 4px;">
+                    <div class="fr-card__body fr-p-2w">
+                        <h2 class="fr-h6 fr-mb-1w">
+                            <a :href="`/realisations/${realisation.id}/`"
+                               class="fr-link"
+                               @click.prevent="htmx.ajax('GET', `/realisations/${realisation.id}/`, {target: '#realisation-modal-content', swap: 'innerHTML'})"
+                               x-text="realisation.resource.title"></a>
+                        </h2>
+                        <p class="fr-text--sm fr-mb-1w text-muted" x-show="realisation.project.commune?.name">
+                            <span class="fr-icon-map-pin-2-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                            <span x-text="realisation.project.commune?.name"></span>
+                            <span x-show="realisation.project.commune?.department?.code"
+                                  x-text="`(${realisation.project.commune?.department?.code})`"></span>
+                        </p>
+                        <p class="fr-text--sm fr-mb-1w text-muted">
+                            <span class="fr-icon-calendar-event-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                            mis à jour le <span x-text="new Date(realisation.updated_at).toLocaleDateString('fr-FR')"></span>
+                        </p>
+                        <template x-if="realisation.photos.length > 0">
+                            <div class="d-flex gap-1 flex-wrap fr-mt-1w">
+                                <template x-for="(photo, idx) in realisation.photos.slice(0, 4)" :key="idx">
+                                    <div style="width: calc(25% - 4px); aspect-ratio: 1; overflow: hidden; border-radius: 4px; flex-shrink: 0;">
+                                        <img :src="photo"
+                                             alt=""
+                                             style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+</div>
+
+{% include "plugin_mi_depafi/fragments/realisation_modal.html" %}
+{% endblock content %}
