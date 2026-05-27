@@ -1,3 +1,5 @@
+from django.urls import reverse
+
 from rest_framework import serializers
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.generics import ListAPIView
@@ -112,18 +114,20 @@ class CrmRealisationSerializer(serializers.ModelSerializer):
     project = CrmRealisationProjectSerializer(read_only=True)
     detail_url = serializers.SerializerMethodField()
     update_url = serializers.SerializerMethodField()
+    delete_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Realisation
-        fields = ["id", "resource", "project", "status", "created_at", "detail_url", "update_url"]
+        fields = ["id", "resource", "project", "status", "created_at", "detail_url", "update_url", "delete_url"]
 
     def get_detail_url(self, obj):
         return obj.get_absolute_url()
 
     def get_update_url(self, obj):
-        from django.urls import reverse
-
         return reverse("plugin_mi_depafi:realisation-update", args=[obj.project_id, obj.pk])
+
+    def get_delete_url(self, obj):
+        return reverse("plugin_mi_depafi:realisation-delete", args=[obj.project_id, obj.pk])
 
 
 class CrmRealisationPagination(LimitOffsetPagination):

@@ -63,9 +63,10 @@
                         <template x-for="realisation in realisationsToDisplay" :key="realisation.id">
                             <tr>
                                 <td class="text-ellipsis" :title="realisation.resource.title">
-                                    <a class="fr-link project-table__project-name"
-                                       :href="realisation.detail_url"
-                                       x-text="realisation.resource.title"></a>
+                                    <button type="button"
+                                            class="fr-link project-table__project-name"
+                                            @click="htmx.ajax('GET', realisation.detail_url, {target: '#realisation-modal-content', swap: 'innerHTML'})"
+                                            x-text="realisation.resource.title"></button>
                                 </td>
                                 <td x-text="realisation.resource.category?.name ?? '—'"></td>
                                 <td class="text-ellipsis" :title="realisation.project.name">
@@ -81,12 +82,17 @@
                                           :class="statusColor(realisation.status)"></span>
                                 </td>
                                 <td>
-                                    <a class="fr-btn fr-btn--sm fr-icon-eye-line fr-btn--tertiary-no-outline position-relative"
-                                       :href="realisation.detail_url"
-                                       title="Voir la réalisation">Voir</a>
+                                    <button type="button"
+                                            class="fr-btn fr-btn--sm fr-icon-eye-line fr-btn--tertiary-no-outline position-relative"
+                                            @click="htmx.ajax('GET', realisation.detail_url, {target: '#realisation-modal-content', swap: 'innerHTML'})"
+                                            title="Voir la réalisation">Voir</button>
                                     <a class="fr-btn fr-btn--sm fr-icon-pencil-line fr-btn--tertiary-no-outline position-relative"
                                        :href="realisation.update_url"
                                        title="Modifier la réalisation">Modifier</a>
+                                    <button type="button"
+                                            class="fr-btn fr-btn--sm fr-icon-delete-line fr-btn--tertiary-no-outline position-relative"
+                                            @click="htmx.ajax('GET', realisation.delete_url, {target: '#realisation-modal-content', swap: 'innerHTML'})"
+                                            title="Supprimer la réalisation">Supprimer</button>
                                 </td>
                             </tr>
                         </template>
@@ -131,4 +137,5 @@
             </div>
         </div>
     </div>
+    {% include "plugin_mi_depafi/fragments/realisation_modal.html" %}
 {% endblock content %}
