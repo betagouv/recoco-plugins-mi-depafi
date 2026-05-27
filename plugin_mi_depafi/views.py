@@ -9,7 +9,7 @@ from recoco.apps.geomatics.serializers import RegionSerializer
 from recoco.apps.projects.models import Project
 from recoco.apps.projects.views.detail import ProjectDetailBaseView
 from recoco.apps.resources.models import Resource
-from recoco.utils import has_perm_or_403
+from recoco.utils import has_perm_or_403, is_staff_for_site
 
 from .forms import RealisationForm
 from .models import Realisation, RealisationLike, RealisationPhoto
@@ -84,17 +84,15 @@ class RealisationUpdateView(ProjectDetailBaseView):
     template_name = "plugin_mi_depafi/realisation_create_update.html"
     http_method_names = ["get", "head", "options", "post"]
 
-    def _get_draft(self):
-        return get_object_or_404(
-            Realisation,
-            pk=self.kwargs["pk"],
-            project=self.object,
-            status=Realisation.DRAFT,
-        )
+    def _get_realisation(self):
+        filters = {"pk": self.kwargs["pk"], "project": self.object}
+        if not is_staff_for_site(self.request.user, self.request.site):
+            filters["status"] = Realisation.DRAFT
+        return get_object_or_404(Realisation, **filters)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        realisation = self._get_draft()
+        realisation = self._get_realisation()
         context.setdefault("form", RealisationForm(instance=realisation))
         context["realisation"] = realisation
         context["page_title"] = "Modifier la réalisation"
@@ -103,7 +101,7 @@ class RealisationUpdateView(ProjectDetailBaseView):
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         self.check_permissions()
-        realisation = self._get_draft()
+        realisation = self._get_realisation()
         form = RealisationForm(request.POST, instance=realisation)
 
         if form.is_valid():
@@ -137,13 +135,11 @@ class RealisationUpdateView(ProjectDetailBaseView):
 class RealisationDeleteView(ProjectDetailBaseView):
     http_method_names = ["get", "post"]
 
-    def _get_draft(self):
-        return get_object_or_404(
-            Realisation,
-            pk=self.kwargs["pk"],
-            project=self.object,
-            status=Realisation.DRAFT,
-        )
+    def _get_realisation(self):
+        filters = {"pk": self.kwargs["pk"], "project": self.object}
+        if not is_staff_for_site(self.request.user, self.request.site):
+            filters["status"] = Realisation.DRAFT
+        return get_object_or_404(Realisation, **filters)
 
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -151,13 +147,13 @@ class RealisationDeleteView(ProjectDetailBaseView):
         return render(
             request,
             "plugin_mi_depafi/fragments/realisation_delete_confirm.html",
-            {"realisation": self._get_draft()},
+            {"realisation": self._get_realisation()},
         )
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         self.check_permissions()
-        self._get_draft().delete()
+        self._get_realisation().delete()
         return redirect(
             reverse(
                 "plugin_mi_depafi:realisation-list",
