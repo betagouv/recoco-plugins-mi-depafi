@@ -14,11 +14,21 @@ class MiDepafiPlugin:
     rest_urls_module = "plugin_mi_depafi.rest_urls"
     vite_entries = {
         "realisationsMap": "js/realisationsMap.js",
+        "realisationListCrm": "js/realisationListCrm.js",
     }
 
     @hookimpl
     def project_tab_entries(self):
         return ("plugin_mi_depafi:realisation-list", "Réalisations")
+
+    @hookimpl
+    def crm_navigation_tabs(self, request):
+        return {
+            "label": "Réalisations",
+            "url_name": "plugin_mi_depafi:crm-realisation-list",
+            "tab_key": "plugin_mi_depafi",
+            "index": 15,
+        }
 
     @hookimpl
     def crm_project_list_annotations(self, request):

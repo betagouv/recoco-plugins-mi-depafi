@@ -9,6 +9,7 @@ from recoco.apps.geomatics.serializers import RegionSerializer
 from recoco.apps.projects.models import Project
 from recoco.apps.projects.views.detail import ProjectDetailBaseView
 from recoco.apps.resources.models import Resource
+from recoco.utils import has_perm_or_403
 
 from .forms import RealisationForm
 from .models import Realisation, RealisationLike, RealisationPhoto
@@ -217,6 +218,16 @@ class RealisationMapView(TemplateView):
         regions = Region.objects.prefetch_related("departments").order_by("name")
         ctx["regions"] = list(RegionSerializer(regions, many=True).data)
         return ctx
+
+
+class CrmRealisationListView(LoginRequiredMixin, View):
+    """CRM-side list of all Realisations across the site."""
+
+    template_name = "plugin_mi_depafi/crm_realisation_list.html"
+
+    def get(self, request):
+        has_perm_or_403(request.user, "use_crm", request.site)
+        return render(request, self.template_name)
 
 
 class RealisationsByResourceView(LoginRequiredMixin, ListView):

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    CrmRealisationListView,
     RealisationCreateView,
     RealisationDeleteView,
     RealisationDetailView,
@@ -15,6 +16,11 @@ from .views import (
 app_name = "plugin_mi_depafi"
 
 urlpatterns = [
+    path(
+        "crm/realisations/",
+        CrmRealisationListView.as_view(),
+        name="crm-realisation-list",
+    ),
     path(
         "realisations/",
         RealisationMapView.as_view(),
