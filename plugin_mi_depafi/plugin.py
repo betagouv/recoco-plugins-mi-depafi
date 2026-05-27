@@ -21,6 +21,22 @@ class MiDepafiPlugin:
         return ("plugin_mi_depafi:realisation-list", "Réalisations")
 
     @hookimpl
+    def crm_project_list_annotations(self, request):
+        return {"realisations_count": Count("realisations", distinct=True)}
+
+    @hookimpl
+    def crm_project_list_extra_serializer_fields(self, request):
+        return ["realisations_count"]
+
+    @hookimpl
+    def crm_project_list_columns(self, request):
+        return {
+            "header": "Réalisations",
+            "cell_html": '<td x-text="project.realisations_count ?? \'—\'" :class="project.realisations_count === 0 ? \'text-danger\' : \'\'"></td>',
+            "col_class": "col--medium",
+        }
+
+    @hookimpl
     def resource_sidebar_panels(self, resource, request):
         realisations = (
             Realisation.objects.filter(resource=resource, status=Realisation.PUBLISHED)
