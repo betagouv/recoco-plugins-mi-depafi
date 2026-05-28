@@ -110,4 +110,13 @@ Alpine.data('RealisationListCrm', () => ({
   statusColor(status) {
     return status === 'published' ? 'fr-badge--success' : 'fr-badge--warning';
   },
+
+  csvUrl() {
+    const params = new URLSearchParams();
+    if (this.backendSearch.searchText) params.set('q', this.backendSearch.searchText);
+    this.backendSearch.searchDepartment.forEach((d) => params.append('departments', d));
+    this.backendSearch.searchStatus.forEach((s) => params.append('status', s));
+    const qs = params.toString();
+    return `/crm/realisations/export.csv${qs ? '?' + qs : ''}`;
+  },
 }));

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    CrmRealisationCsvView,
     CrmRealisationListView,
     RealisationCreateView,
     RealisationDeleteView,
@@ -20,6 +21,11 @@ urlpatterns = [
         "crm/realisations/",
         CrmRealisationListView.as_view(),
         name="crm-realisation-list",
+    ),
+    path(
+        "crm/realisations/export.csv",
+        CrmRealisationCsvView.as_view(),
+        name="crm-realisation-csv",
     ),
     path(
         "realisations/",

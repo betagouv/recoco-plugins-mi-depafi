@@ -1,5 +1,8 @@
+import csv
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Exists, OuterRef
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import DetailView, ListView, TemplateView, View
@@ -224,6 +227,49 @@ class CrmRealisationListView(LoginRequiredMixin, View):
     def get(self, request):
         has_perm_or_403(request.user, "use_crm", request.site)
         return render(request, self.template_name)
+
+
+class CrmRealisationCsvView(LoginRequiredMixin, View):
+    def get(self, request):
+        has_perm_or_403(request.user, "use_crm", request.site)
+
+        qs = (
+            Realisation.objects.filter(project__project_sites__site=request.site)
+            .select_related("resource__category", "project__commune")
+            .order_by("-created_at")
+            .distinct()
+        )
+
+        if q := request.GET.get("q", "").strip():
+            qs = qs.filter(resource__title__icontains=q)
+
+        if statuses := request.GET.getlist("status"):
+            qs = qs.filter(status__in=statuses)
+
+        if departments := request.GET.getlist("departments"):
+            qs = qs.filter(project__commune__department__code__in=departments)
+
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="realisations.csv"'
+        response.write("﻿")  # BOM for Excel
+
+        writer = csv.writer(response)
+        writer.writerow(["Intitulé", "Catégorie", "Nom du site", "Localisation", "Date", "Statut"])
+
+        status_labels = dict(Realisation.STATUS_CHOICES)
+        for r in qs:
+            commune = r.project.commune
+            localisation = f"{commune.name} ({commune.postal})" if commune else ""
+            writer.writerow([
+                r.resource.title,
+                r.resource.category.name if r.resource.category else "",
+                r.project.name,
+                localisation,
+                r.created_at.strftime("%d/%m/%Y"),
+                status_labels.get(r.status, r.status),
+            ])
+
+        return response
 
 
 class RealisationsByResourceView(LoginRequiredMixin, ListView):
