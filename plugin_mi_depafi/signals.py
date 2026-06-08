@@ -1,6 +1,11 @@
+from actstream import action
 from django.dispatch import Signal, receiver
 
 from recoco.apps.conversations.models import Message
+
+from .models import RealisationNode
+
+from . import verbs
 
 # Sent when a Realisation transitions to PUBLISHED.
 # Provides: realisation (Realisation instance), published_by (User instance)
@@ -9,8 +14,6 @@ realisation_published = Signal()
 
 @receiver(realisation_published)
 def on_realisation_published(sender, realisation, published_by, **kwargs):
-    from .models import RealisationNode
-
     message = Message.objects.create(
         project=realisation.project,
         posted_by=published_by,
@@ -19,4 +22,15 @@ def on_realisation_published(sender, realisation, published_by, **kwargs):
         message=message,
         position=0,
         realisation=realisation,
+    )
+
+
+@receiver(realisation_published)
+def log_realisation_published(sender, realisation, published_by, **kwargs):
+    action.send(
+        published_by,
+        verb=verbs.Realisation.PUBLISHED,
+        action_object=realisation,
+        target=realisation.project,
+        public=False,
     )
