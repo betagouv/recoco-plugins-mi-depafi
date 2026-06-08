@@ -47,6 +47,14 @@ class MiDepafiPlugin:
         }
 
     @hookimpl
+    def conversation_message_node_html(self, request, project):
+        return render_to_string(
+            "plugin_mi_depafi/fragments/node_realisationnode.html",
+            {},
+            request=request,
+        )
+
+    @hookimpl
     def resource_sidebar_panels(self, resource, request):
         realisations = (
             Realisation.objects.filter(resource=resource, status=Realisation.PUBLISHED)

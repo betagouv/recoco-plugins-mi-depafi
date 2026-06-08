@@ -1,0 +1,51 @@
+<template x-if="node.type == 'RealisationNode'">
+    <div class="fr-card fr-card--no-arrow fr-my-2v"
+         style="border: 1px solid #e5e5e5; border-radius: 4px;">
+        <div class="fr-card__body fr-p-3w">
+
+            <!-- Title -->
+            <h3 class="fr-h5 fr-mb-2w">
+                <a :href="node.detail_url" class="fr-link" x-text="node.title"></a>
+            </h3>
+
+            <!-- Description -->
+            <template x-if="node.description">
+                <p class="fr-text--sm fr-mb-3w" style="color: #3a3a3a;" x-text="node.description"></p>
+            </template>
+
+            <!-- Photo grid -->
+            <template x-if="node.photos && node.photos.length > 0">
+                <div class="d-flex gap-2 fr-mb-3w">
+                    <template x-for="photo in node.photos" :key="photo">
+                        <div class="flex-shrink-0"
+                             style="width: calc(25% - 6px); aspect-ratio: 1; overflow: hidden; border-radius: 4px;">
+                            <img :src="photo"
+                                 alt=""
+                                 style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- Footer: like + view -->
+            <div class="d-flex justify-content-between align-items-center">
+                <button type="button"
+                        class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-thumb-up-line"
+                        :class="node.user_liked ? 'fr-btn--active' : 'fr-btn--tertiary'"
+                        @click.prevent="
+                            node.user_liked = !node.user_liked;
+                            node.like_count += node.user_liked ? 1 : -1;
+                            fetch(node.like_toggle_url, {
+                                method: 'POST',
+                                headers: { 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] ?? '' },
+                                credentials: 'same-origin'
+                            });
+                        ">
+                    <span x-text="node.like_count"></span>
+                </button>
+                <a :href="node.detail_url" class="fr-btn fr-btn--sm">Voir la réalisation</a>
+            </div>
+
+        </div>
+    </div>
+</template>

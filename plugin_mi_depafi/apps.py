@@ -7,9 +7,16 @@ class PluginMiDepafiConfig(AppConfig):
     verbose_name = "Mi-depafi - Réalisations"
 
     def ready(self):
+        from recoco.apps.conversations.serializers import NodePolymorphicSerializer
         from watson import search as watson
 
-        from .models import Realisation
+        from . import signals  # noqa: F401 — registers signal receivers
+        from .models import Realisation, RealisationNode
+        from .serializers import RealisationNodeSerializer
+
+        NodePolymorphicSerializer.model_serializer_mapping[RealisationNode] = (
+            RealisationNodeSerializer
+        )
 
         class RealisationSearchAdapter(watson.SearchAdapter):
             def get_title(self, obj):

@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.urls import reverse
 from markdownx.utils import markdownify
+from recoco.apps.conversations.models import Node
 
 
 class Realisation(models.Model):
@@ -77,6 +78,23 @@ class RealisationLike(models.Model):
 
     class Meta:
         unique_together = [("realisation", "user")]
+
+
+class RealisationNode(Node):
+    """A conversation node that references a Realisation, shared inline in a message."""
+
+    realisation = models.ForeignKey(
+        Realisation,
+        on_delete=models.CASCADE,
+        related_name="conversation_nodes",
+        verbose_name="Réalisation",
+    )
+
+    class Meta:
+        verbose_name = "Nœud réalisation"
+
+    def get_digest_recap(self):
+        return {"type": "realisation", "title": str(self.realisation)}
 
 
 def _realisation_photo_upload_path(instance, filename):

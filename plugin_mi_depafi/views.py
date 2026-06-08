@@ -16,6 +16,7 @@ from recoco.utils import has_perm_or_403, is_staff_for_site
 
 from .forms import RealisationForm
 from .models import Realisation, RealisationLike, RealisationPhoto
+from .signals import realisation_published
 
 
 class RealisationListView(ProjectDetailBaseView):
@@ -64,12 +65,20 @@ class RealisationCreateView(ProjectDetailBaseView):
         if form.is_valid():
             realisation = form.save(commit=False)
             realisation.project = self.object
-            realisation.status = request.POST.get("status", Realisation.DRAFT)
+            new_status = request.POST.get("status", Realisation.DRAFT)
+            realisation.status = new_status
             realisation.save()
 
             for order, image in enumerate(request.FILES.getlist("photos")):
                 RealisationPhoto.objects.create(
                     realisation=realisation, image=image, order=order
+                )
+
+            if new_status == Realisation.PUBLISHED:
+                realisation_published.send(
+                    sender=Realisation,
+                    realisation=realisation,
+                    published_by=request.user,
                 )
 
             return redirect(
@@ -108,8 +117,10 @@ class RealisationUpdateView(ProjectDetailBaseView):
         form = RealisationForm(request.POST, instance=realisation)
 
         if form.is_valid():
+            old_status = realisation.status
             realisation = form.save(commit=False)
-            realisation.status = request.POST.get("status", Realisation.DRAFT)
+            new_status = request.POST.get("status", Realisation.DRAFT)
+            realisation.status = new_status
             realisation.save()
 
             delete_ids = request.POST.getlist("delete_photos")
@@ -122,6 +133,13 @@ class RealisationUpdateView(ProjectDetailBaseView):
             for order, image in enumerate(request.FILES.getlist("photos"), start=existing_count):
                 RealisationPhoto.objects.create(
                     realisation=realisation, image=image, order=order
+                )
+
+            if old_status != Realisation.PUBLISHED and new_status == Realisation.PUBLISHED:
+                realisation_published.send(
+                    sender=Realisation,
+                    realisation=realisation,
+                    published_by=request.user,
                 )
 
             return redirect(
@@ -270,6 +288,7 @@ class CrmRealisationCsvView(LoginRequiredMixin, View):
             ])
 
         return response
+
 
 
 class RealisationsByResourceView(LoginRequiredMixin, ListView):
