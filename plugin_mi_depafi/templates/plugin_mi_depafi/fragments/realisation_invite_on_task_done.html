@@ -1,0 +1,49 @@
+{% load django_vite %}
+{% vite_asset 'js/plugins/realisationInviteOnTaskDone.js' %}
+
+<dialog id="realisation-invite-modal"
+        class="fr-modal"
+        aria-labelledby="realisation-invite-modal-title"
+        role="dialog">
+    <div class="fr-container fr-container--fluid fr-container-md">
+        <div class="fr-grid-row fr-grid-row--center">
+            <div class="fr-col-12 fr-col-md-8 fr-col-lg-6">
+                <div class="fr-modal__body">
+                    <div class="fr-modal__header">
+                        <button class="fr-btn--close fr-btn"
+                                title="Fermer"
+                                aria-controls="realisation-invite-modal"
+                                type="button">
+                            Fermer
+                        </button>
+                    </div>
+                    <div class="fr-modal__content">
+                        <h1 id="realisation-invite-modal-title" class="fr-modal__title">
+                            Bravo pour cette action terminée !
+                        </h1>
+                        <p>
+                            Souhaitez-vous publier une réalisation pour partager ce résultat
+                            avec d'autres sites ?
+                        </p>
+                    </div>
+                    <div class="fr-modal__footer">
+                        <ul class="fr-btns-group fr-btns-group--inline-md">
+                            <li>
+                                <a id="realisation-invite-modal-cta" class="fr-btn" href="#">
+                                    Publier une réalisation
+                                </a>
+                            </li>
+                            <li>
+                                <button class="fr-btn fr-btn--secondary"
+                                        aria-controls="realisation-invite-modal"
+                                        type="button">
+                                    Plus tard
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</dialog>

@@ -15,6 +15,7 @@ class MiDepafiPlugin:
     vite_entries = {
         "realisationsMap": "js/realisationsMap.js",
         "realisationListCrm": "js/realisationListCrm.js",
+        "realisationInviteOnTaskDone": "js/RealisationInviteOnTaskDone.js",
     }
 
     @hookimpl
@@ -50,6 +51,14 @@ class MiDepafiPlugin:
     def conversation_message_node_html(self, request, project):
         return render_to_string(
             "plugin_mi_depafi/fragments/node_realisationnode.html",
+            {},
+            request=request,
+        )
+
+    @hookimpl
+    def conversation_extra_html(self, request, project):
+        return render_to_string(
+            "plugin_mi_depafi/fragments/realisation_invite_on_task_done.html",
             {},
             request=request,
         )
