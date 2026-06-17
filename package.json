@@ -4,7 +4,7 @@
   "private": true,
   "recocoPlugin": {
     "viteEntries": {
-      "realisationsMap": "./plugin_mi_depafi/js/realisationsMap.js"
+      "realisationsMap": "./plugin_mi_depafi/js/components/realisationsMap.js"
     }
   },
   "dependencies": {
