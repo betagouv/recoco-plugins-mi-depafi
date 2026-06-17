@@ -7,12 +7,15 @@ class PluginMiDepafiConfig(AppConfig):
     verbose_name = "Mi-depafi - Réalisations"
 
     def ready(self):
+        from actstream import registry
         from recoco.apps.conversations.serializers import NodePolymorphicSerializer
         from watson import search as watson
 
         from . import signals  # noqa: F401 — registers signal receivers
         from .models import Realisation, RealisationNode
         from .serializers import RealisationNodeSerializer
+
+        registry.register(Realisation)
 
         NodePolymorphicSerializer.model_serializer_mapping[RealisationNode] = (
             RealisationNodeSerializer
