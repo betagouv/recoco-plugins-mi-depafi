@@ -24,7 +24,7 @@ Une réalisation peut être enregistrée en brouillon ou publiée.
 ## Installation
 
 ```bash
-uv pip install -e recoco-plugin-mi-depafi
+uv pip install -e recoco-plugins-mi-depafi
 ```
 
 Ajouter `plugin_mi_depafi` à `INSTALLED_APPS` dans les paramètres du portail (ie: fichier `recoco/settings/development.py`), puis exécuter la migration :
