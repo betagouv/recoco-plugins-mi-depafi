@@ -1,6 +1,7 @@
 import pluggy
 from django.db.models import Count
 from django.template.loader import render_to_string
+from django.utils.safestring import mark_safe
 
 from recoco.apps.projects.models import Project
 
@@ -49,19 +50,19 @@ class MiDepafiPlugin:
 
     @hookimpl
     def conversation_message_node_html(self, request, project):
-        return render_to_string(
+        return mark_safe(render_to_string(
             "plugin_mi_depafi/fragments/node_realisationnode.html",
             {},
             request=request,
-        )
+        ))
 
     @hookimpl
     def conversation_extra_html(self, request, project):
-        return render_to_string(
+        return mark_safe(render_to_string(
             "plugin_mi_depafi/fragments/realisation_invite_on_task_done.html",
             {},
             request=request,
-        )
+        ))
 
     @hookimpl
     def resource_sidebar_panels(self, resource, request):
@@ -82,7 +83,7 @@ class MiDepafiPlugin:
                 .select_related("commune")
                 .order_by("name")
             )
-        return render_to_string(
+        return mark_safe(render_to_string(
             "plugin_mi_depafi/fragments/resource_sidebar_realisations.html",
             {
                 "resource": resource,
@@ -91,4 +92,4 @@ class MiDepafiPlugin:
                 "user_projects": user_projects,
             },
             request=request,
-        )
+        ))
