@@ -7,10 +7,9 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import _ from 'lodash';
 
-window.htmx = htmx;
-
 function RealisationsMap(regionsData) {
   return {
+    htmx,
     regions: JSON.parse(regionsData.textContent),
     realisations: [],
     selectedProjectId: null,
