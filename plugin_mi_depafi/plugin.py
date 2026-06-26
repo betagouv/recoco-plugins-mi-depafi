@@ -14,9 +14,9 @@ class MiDepafiPlugin:
     urls_module = "plugin_mi_depafi.urls"
     rest_urls_module = "plugin_mi_depafi.rest_urls"
     vite_entries = {
-        "realisationsMap": "js/realisationsMap.js",
-        "realisationListCrm": "js/realisationListCrm.js",
-        "realisationInviteOnTaskDone": "js/RealisationInviteOnTaskDone.js",
+        "realisationsMap": "js/components/realisationsMap.js",
+        "realisationListCrm": "js/apps/realisationListCrm.js",
+        "realisationInviteOnTaskDone": "js/utils/RealisationInviteOnTaskDone.js",
     }
 
     @hookimpl
@@ -44,7 +44,7 @@ class MiDepafiPlugin:
     def crm_project_list_columns(self, request):
         return {
             "header": "Réalisations",
-            "cell_html": '<td x-text="project.realisations_count ?? \'—\'" :class="project.realisations_count === 0 ? \'text-danger\' : \'\'"></td>',
+            "cell_html": "<td x-text=\"project.realisations_count ?? '—'\" :class=\"project.realisations_count === 0 ? 'text-danger' : ''\"></td>",
             "col_class": "col--medium",
         }
 

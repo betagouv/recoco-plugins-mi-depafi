@@ -1,26 +1,20 @@
-import Alpine from 'alpinejs';
-import api from '@core/js/utils/api';
+import Alpine from "alpinejs";
+import api from "@core/js/utils/api";
 
-function realisationsUrl({
-  search = '',
-  departments = [],
-  status = [],
-  limit = 20,
-  offset = 0,
-} = {}) {
+function realisationsUrl({ search = "", departments = [], status = [], limit = 20, offset = 0 } = {}) {
   const params = new URLSearchParams({ limit, offset });
-  if (search) params.set('q', search);
-  departments.forEach((d) => params.append('departments', d));
-  status.forEach((s) => params.append('status', s));
+  if (search) params.set("q", search);
+  departments.forEach((d) => params.append("departments", d));
+  status.forEach((s) => params.append("status", s));
   return `/api/crm/realisations/?${params.toString()}`;
 }
 
-Alpine.data('RealisationListCrm', () => ({
+Alpine.data("RealisationListCrm", () => ({
   dataLoaded: false,
   realisationsToDisplay: [],
   realisationsTotal: 0,
   backendSearch: {
-    searchText: '',
+    searchText: "",
     searchDepartment: [],
     searchStatus: [],
   },
@@ -31,14 +25,14 @@ Alpine.data('RealisationListCrm', () => ({
   },
   options: [
     {
-      value: 'draft',
-      text: 'Brouillon',
-      color: 'fr-badge--warning fr-badge fr-badge--no-icon',
+      value: "draft",
+      text: "Brouillon",
+      color: "fr-badge--warning fr-badge fr-badge--no-icon",
     },
     {
-      value: 'published',
-      text: 'Publié',
-      color: 'fr-badge--success fr-badge fr-badge--no-icon',
+      value: "published",
+      text: "Publié",
+      color: "fr-badge--success fr-badge fr-badge--no-icon",
     },
   ],
 
@@ -91,16 +85,16 @@ Alpine.data('RealisationListCrm', () => ({
         status: this.backendSearch.searchStatus,
         limit: this.pagination.limit,
         offset,
-      })
+      }),
     );
     return response.data;
   },
 
   realisationsCountLabel() {
     if (this.realisationsTotal > 0) {
-      return `${this.realisationsTotal} réalisation${this.realisationsTotal > 1 ? 's' : ''}`;
+      return `${this.realisationsTotal} réalisation${this.realisationsTotal > 1 ? "s" : ""}`;
     }
-    return 'Aucun résultat';
+    return "Aucun résultat";
   },
 
   statusLabel(status) {
@@ -108,15 +102,15 @@ Alpine.data('RealisationListCrm', () => ({
   },
 
   statusColor(status) {
-    return status === 'published' ? 'fr-badge--success' : 'fr-badge--warning';
+    return status === "published" ? "fr-badge--success" : "fr-badge--warning";
   },
 
   csvUrl() {
     const params = new URLSearchParams();
-    if (this.backendSearch.searchText) params.set('q', this.backendSearch.searchText);
-    this.backendSearch.searchDepartment.forEach((d) => params.append('departments', d));
-    this.backendSearch.searchStatus.forEach((s) => params.append('status', s));
+    if (this.backendSearch.searchText) params.set("q", this.backendSearch.searchText);
+    this.backendSearch.searchDepartment.forEach((d) => params.append("departments", d));
+    this.backendSearch.searchStatus.forEach((s) => params.append("status", s));
     const qs = params.toString();
-    return `/crm/realisations/export.csv${qs ? '?' + qs : ''}`;
+    return `/crm/realisations/export.csv${qs ? "?" + qs : ""}`;
   },
 }));
