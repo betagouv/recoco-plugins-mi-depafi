@@ -1,5 +1,6 @@
 import Alpine from "alpinejs";
 import api from "@core/js/utils/api";
+import htmx from 'htmx.org';
 
 function realisationsUrl({ search = "", departments = [], status = [], limit = 20, offset = 0 } = {}) {
   const params = new URLSearchParams({ limit, offset });
@@ -10,6 +11,7 @@ function realisationsUrl({ search = "", departments = [], status = [], limit = 2
 }
 
 Alpine.data("RealisationListCrm", () => ({
+  htmx,
   dataLoaded: false,
   realisationsToDisplay: [],
   realisationsTotal: 0,
