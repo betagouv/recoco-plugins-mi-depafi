@@ -28,6 +28,11 @@ class Realisation(models.Model):
         related_name="realisations",
         verbose_name="Action réalisée",
     )
+    site = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Site ou bâtiment concerné",
+    )
     partners = models.CharField(
         max_length=500,
         blank=True,
