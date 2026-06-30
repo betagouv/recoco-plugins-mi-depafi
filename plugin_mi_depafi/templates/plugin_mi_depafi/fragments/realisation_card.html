@@ -1,13 +1,13 @@
 {% load humanize %}
 {# Context: realisation #}
-<div class="fr-card fr-card--no-arrow fr-mb-3w" style="border: 1px solid #e5e5e5; border-radius: 4px;">
+<div class="fr-card fr-card--no-arrow fr-mb-3w realisation-card">
     <div class="fr-card__body fr-p-3w">
 
         <!-- Header: title + draft badge -->
         <div class="d-flex align-items-center gap-2 fr-mb-2w">
             <h3 class="fr-h5 fr-mb-0">
                 <a href="{{ realisation.get_absolute_url }}"
-               class="fr-link"
+               class="fr-link realisation-card__title"
                hx-get="{{ realisation.get_absolute_url }}"
                hx-target="#realisation-modal-content"
                hx-swap="innerHTML"

@@ -12,6 +12,42 @@
 {% vite_asset 'js/apps/projectDetails.js' %}
 {% endblock js %}
 
+{% block css %}
+{{ block.super }}
+<style>
+    .realisation-list__group {
+        border-left: 2px solid #E5E5E5;
+        padding-left: 1.5rem;
+    }
+    .realisation-card {
+        border: 1px solid #000091;
+        border-radius: 4px;
+    }
+    .realisation-card__title {
+        color: #000091;
+        text-decoration: underline;
+    }
+    .realisation-list__date {
+        font-size: 12px;
+        font-style: italic;
+        font-weight: 400;
+        color: #3A3A3A;
+    }
+    .realisations__info {
+        position: relative;
+    }
+    .realisation-list__edit {
+        position: absolute;
+        top: 1.5rem;
+        right: 1rem;
+        background-color: #fff !important;
+        border-radius: 2px;
+        border: 1px solid var(--light-text-mention-grey, #666);
+        box-shadow: none;
+    }
+</style>
+{% endblock css %}
+
 {% block project_detail %}
 {% get_obj_perms request.user for request.site as "user_site_perms" %}
 {% get_obj_perms request.user for project as "user_project_perms" %}
@@ -34,41 +70,48 @@
                         <strong class="project-info__name">{{ project.name }}</strong>
                     </div>
 
+                    {% if "change_project" in user_project_perms or is_staff %}
+                    <a href="{% url 'projects-project-administration' project.pk %}"
+                       class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-edit-line realisation-list__edit"
+                       title="Éditer"
+                       aria-label="Éditer"></a>
+                    {% endif %}
+
                     <!-- Basic info -->
                     <ul class="list-unstyled fr-text--sm fr-mb-3v" style="color: #555;">
                         {% if project.commune %}
-                        <li class="fr-mb-1v">
+                        <li class="fr-mb-0">
                             <span class="fr-icon-map-pin-2-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
                             {{ project.commune.name }}
                         </li>
                         {% if project.commune.department %}
-                        <li class="fr-mb-1v">
+                        <li class="fr-mb-0">
                             <span class="fr-icon-community-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
                             {{ project.commune.department.name }}
                         </li>
                         {% endif %}
                         {% endif %}
                         {% if project.updated_on %}
-                        <li class="fr-mb-1v">
+                        <li class="fr-mb-0">
                             <span class="fr-icon-refresh-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
                             mis à jour {{ project.updated_on|naturaltime }}
                         </li>
                         {% endif %}
                         {% if project.created_on %}
-                        <li class="fr-mb-1v">
+                        <li class="fr-mb-0">
                             <span class="fr-icon-calendar-event-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
                             déposé le {{ project.created_on|date:"d F Y" }}
                         </li>
                         {% endif %}
-                        <li class="fr-mb-1v">
+                        <li class="fr-mb-0">
                             <span class="fr-icon-chat-3-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
                             {{ project.notes.count }} message{{ project.notes.count|pluralize }}
                         </li>
-                        <li class="fr-mb-1v">
+                        <li class="fr-mb-0">
                             <span class="fr-icon-group-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
                             {{ project.projectmember_set.count }} participant{{ project.projectmember_set.count|pluralize }}
                         </li>
-                        <li class="fr-mb-1v">
+                        <li class="fr-mb-0">
                             <span class="fr-icon-article-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
                             {{ realisations|length }} Déclaration{{ realisations|length|pluralize }}
                         </li>
@@ -78,7 +121,7 @@
 
                     <!-- Localisation -->
                     <h6 class="text-uppercase fw-bold fr-mb-2v h6-specific-fontsize-14">Localisation</h6>
-                    {% include "projects/project/fragments/geolocation/location_overview.html" %}
+                    {% include "projects/project/fragments/geolocation/location_overview_footer.html" with project=project %}
 
                     <hr class="info__separator">
 
@@ -114,7 +157,7 @@
                     </h2>
                     <a href="{% url 'plugin_mi_depafi:realisation-create' project_id=project.pk %}"
                        class="fr-btn fr-btn--primary fr-btn--sm">
-                        Ajouter une réalisation
+                        + Déclarer une réalisation
                     </a>
                 </div>
 
@@ -140,12 +183,14 @@
                 <!-- Published, grouped by date -->
                 {% regroup published_realisations by created_at.date as grouped %}
                 {% for group in grouped %}
-                <p class="fr-text--sm fr-mb-2v" style="color: #777;">
+                <p class="fr-mb-2v realisation-list__date">
                     le {{ group.grouper|date:"d F Y" }}
                 </p>
-                {% for realisation in group.list %}
-                    {% include "plugin_mi_depafi/fragments/realisation_card.html" with realisation=realisation %}
-                {% endfor %}
+                <div class="realisation-list__group">
+                    {% for realisation in group.list %}
+                        {% include "plugin_mi_depafi/fragments/realisation_card.html" with realisation=realisation %}
+                    {% endfor %}
+                </div>
                 {% endfor %}
 
                 {% endif %}
