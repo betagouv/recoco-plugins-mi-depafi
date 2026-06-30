@@ -62,6 +62,23 @@ document.addEventListener('alpine:init', () => {
 </script>
 {% endblock js %}
 
+{% block css %}
+{{ block.super }}
+<style>
+    .doc-icon::before {
+        width: 1.25rem;
+        height: 1.25rem;
+    }
+    .doc-remove-btn {
+        box-shadow: none !important;
+        border-left: 1px solid #E5E5E5;
+        border-radius: 0;
+        align-self: stretch;
+        min-height: 33px !important;
+    }
+</style>
+{% endblock css %}
+
 {% block project_detail %}
 <div x-data
      x-init="$nextTick(() => $store.showRole.init())"
@@ -133,7 +150,7 @@ document.addEventListener('alpine:init', () => {
 
             <!-- Description de l'action -->
             <div class="fr-input-group {% if form.description.errors %}fr-input-group--error{% endif %} fr-mb-3w">
-                <label class="fr-label" for="id_description">{{ form.description.label }}</label>
+                <label class="fr-label fr-mb-1w" for="id_description">{{ form.description.label }}</label>
                 {% include "tools/editor.html" with input_name=form.description.name initial_content=form.description.value|default:'' initial_content_escapejs=True %}
                 {% for error in form.description.errors %}
                     <p class="fr-error-text">{{ error }}</p>
@@ -186,8 +203,10 @@ document.addEventListener('alpine:init', () => {
 
             <!-- Photos -->
             <div class="fr-mb-4w" x-data="realisationPhotoGallery">
-                <p class="fr-label fr-mb-2w">Photos</p>
-
+                <p class="fr-label fr-mb-2w d-flex align-items-baseline">
+                    Photos
+                    <span class="fr-hint-text fr-ml-1v">(facultatif)</span>
+                </p>
                 <div class="d-flex flex-wrap gap-3 align-items-start">
 
                     <!-- Thumbnails -->
@@ -230,10 +249,10 @@ document.addEventListener('alpine:init', () => {
 
             <!-- Documents -->
             <div class="fr-mb-4w">
-                <p class="fr-label fr-mb-1v d-flex">
+                <p class="fr-label fr-mb-1v d-flex align-items-baseline">
                     Documents <span class="fr-hint-text fr-ml-1v">(facultatif)</span>
                 </p>
-                <span class="fr-hint-text fr-mb-2w d-block">Ajoutez un ou plusieurs fichiers au format PDF. Taille maximale par fichier : xx Mo.</span>
+                <span class="fr-hint-text fr-mb-1w d-block">Ajoutez un ou plusieurs fichiers au format PDF. Taille maximale par fichier : xx Mo.</span>
 
                 <!-- Existing documents (edit mode) -->
                 {% if realisation %}
@@ -242,18 +261,18 @@ document.addEventListener('alpine:init', () => {
                 <div class="fr-mb-3w" x-data="{ toDelete: [] }">
                     <div class="d-flex flex-column gap-2">
                         {% for document in existing_documents %}
-                        <div class="d-flex align-items-center justify-content-between fr-p-2w flex-shrink-0"
-                             x-show="!toDelete.includes({{ document.pk }})"
-                             style="border: 1px solid #ddd; border-radius: 4px;">
+                        <div class="d-flex justify-content-between flex-shrink-0"
+                             style="border: 1px solid #E5E5E5;"
+                             x-show="!toDelete.includes({{ document.pk }})">
                             <a href="{{ document.file.url }}"
                                target="_blank"
                                rel="noopener"
-                               class="d-flex align-items-center gap-2 text-decoration-none">
-                                <span class="fr-icon-file-pdf-line" aria-hidden="true"></span>
-                                <span>{{ document.filename }}</span>
+                               class="d-flex align-items-center gap-2 text-decoration-none fr-pl-1w fr-py-1v">
+                                <span class="fr-icon-file-pdf-line doc-icon" aria-hidden="true"></span>
+                                <span class="fr-text--sm fr-mb-0">{{ document.filename }}</span>
                             </a>
                             <button type="button"
-                                    class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-close-line"
+                                    class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line doc-remove-btn"
                                     @click="toDelete.push({{ document.pk }})"
                                     title="Supprimer ce document"
                                     aria-label="Supprimer ce document"></button>
@@ -269,26 +288,8 @@ document.addEventListener('alpine:init', () => {
                 {% endif %}
 
                 <div x-data="realisationDocumentList">
-                    <!-- File cards -->
-                    <div class="d-flex flex-column gap-2 fr-mb-2w" x-show="documents.length">
-                        <template x-for="(document, index) in documents" :key="document.name + index">
-                            <div class="d-flex align-items-center justify-content-between fr-p-2w flex-shrink-0"
-                                 style="border: 1px solid #ddd; border-radius: 4px;">
-                                <span class="d-flex align-items-center gap-2">
-                                    <span class="fr-icon-file-pdf-line" aria-hidden="true"></span>
-                                    <span x-text="document.name"></span>
-                                </span>
-                                <button type="button"
-                                        class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-close-line"
-                                        @click="removeDocument(index)"
-                                        :title="'Supprimer ' + document.name"
-                                        :aria-label="'Supprimer ' + document.name"></button>
-                            </div>
-                        </template>
-                    </div>
-
                     <!-- Browse button -->
-                    <label for="document-upload-input" class="fr-btn fr-btn--secondary cursor-pointer">
+                    <label for="document-upload-input" class="fr-btn fr-btn--tertiary cursor-pointer">
                         Parcourir
                     </label>
 
@@ -300,6 +301,24 @@ document.addEventListener('alpine:init', () => {
                            multiple
                            class="fr-sr-only"
                            @change="addDocuments($event)">
+
+                    <!-- File cards -->
+                    <div class="d-flex flex-column gap-2 fr-mt-2w" x-show="documents.length">
+                        <template x-for="(document, index) in documents" :key="document.name + index">
+                            <div class="d-flex justify-content-between flex-shrink-0"
+                                 style="border: 1px solid #E5E5E5;">
+                                <span class="d-flex align-items-center gap-2 fr-pl-1w fr-py-1v">
+                                    <span class="fr-icon-file-pdf-line fr-icon--sm doc-icon" aria-hidden="true"></span>
+                                    <span class="fr-text--sm fr-mb-0" x-text="document.name"></span>
+                                </span>
+                                <button type="button"
+                                        class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line doc-remove-btn"
+                                        @click="removeDocument(index)"
+                                        :title="'Supprimer ' + document.name"
+                                        :aria-label="'Supprimer ' + document.name"></button>
+                            </div>
+                        </template>
+                    </div>
                 </div>
             </div>
 
@@ -308,7 +327,7 @@ document.addEventListener('alpine:init', () => {
                 <button type="submit"
                         name="status"
                         value="draft"
-                        class="fr-btn fr-btn--secondary">
+                        class="fr-btn fr-btn--tertiary">
                     Sauvegarder en brouillon
                 </button>
                 <button type="submit"
