@@ -23,7 +23,7 @@ class RealisationForm(forms.ModelForm):
             "site": "Site ou bâtiment concerné",
             "partners": "Partenaire(s)",
         }
-        hints = {
+        help_texts = {
             "resource": "Tapez le nom de la ressource puis sélectionnez-la dans la liste",
             "site": "Texte d’explication à rédiger",
             "partners": "Si vous renseignez plusieurs partenaires, veuillez séparer leur nom par une virgule.",

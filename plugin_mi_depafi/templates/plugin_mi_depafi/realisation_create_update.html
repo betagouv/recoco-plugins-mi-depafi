@@ -65,6 +65,7 @@ document.addEventListener('alpine:init', () => {
                 <label class="fr-label" for="{{ form.resource.id_for_label }}">
                     {{ form.resource.label }}
                 </label>
+                <span class="fr-hint-text fr-my-1w">{{ form.resource.help_text }}</span>
                 {{ form.resource }}
                 {% for error in form.resource.errors %}
                     <p class="fr-error-text">{{ error }}</p>
@@ -74,8 +75,9 @@ document.addEventListener('alpine:init', () => {
             <!-- Partenaires -->
             <div class="fr-input-group {% if form.site.errors %}fr-input-group--error{% endif %} fr-mb-3w">
                 <label class="fr-label d-flex" for="{{ form.site.id_for_label }}">
-                    {{ form.site.label }} <span class="fr-hint-text fr-ml-1v">(facultatif)</span>
+                    {{ form.site.label }}
                 </label>
+                <span class="fr-hint-text fr-my-1w">{{ form.site.help_text }}</span>
                 {{ form.site }}
                 {% for error in form.site.errors %}
                     <p class="fr-error-text">{{ error }}</p>
@@ -87,6 +89,7 @@ document.addEventListener('alpine:init', () => {
                 <label class="fr-label d-flex" for="{{ form.partners.id_for_label }}">
                     {{ form.partners.label }} <span class="fr-hint-text fr-ml-1v">(facultatif)</span>
                 </label>
+                <span class="fr-hint-text fr-my-1w">{{ form.partners.help_text }}</span>
                 {{ form.partners }}
                 {% for error in form.partners.errors %}
                     <p class="fr-error-text">{{ error }}</p>
