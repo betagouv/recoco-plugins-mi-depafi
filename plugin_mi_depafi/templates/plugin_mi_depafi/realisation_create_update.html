@@ -86,6 +86,39 @@ document.addEventListener('alpine:init', () => {
         align-self: stretch;
         min-height: 33px !important;
     }
+    .realisation-form__photo {
+        width: 120px;
+        height: 120px;
+        border-radius: 4px;
+        overflow: hidden;
+        border: 1px solid #ddd;
+    }
+    .realisation-form__photo-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .realisation-form__photo-remove {
+        background: rgba(0, 0, 0, 0.45);
+        border: none;
+        cursor: pointer;
+        line-height: 1;
+    }
+    .realisation-form__photo-remove-icon {
+        color: #fff;
+    }
+    .realisation-form__add {
+        width: 120px;
+        height: 120px;
+        border: 2px dashed #000091;
+        border-radius: 4px;
+        gap: 4px;
+        color: #000091;
+    }
+    .realisation-form__document {
+        border: 1px solid #E5E5E5;
+    }
 </style>
 {% endblock css %}
 
@@ -187,18 +220,16 @@ document.addEventListener('alpine:init', () => {
                 <p class="fr-label fr-mb-2w">Photos existantes</p>
                 <div class="d-flex flex-wrap gap-3 align-items-start">
                     {% for photo in existing_photos %}
-                    <div class="position-relative flex-shrink-0"
-                         x-show="!toDelete.includes({{ photo.pk }})"
-                         style="width: 120px; height: 120px; border-radius: 4px; overflow: hidden; border: 1px solid #ddd;">
+                    <div class="position-relative flex-shrink-0 realisation-form__photo"
+                         x-show="!toDelete.includes({{ photo.pk }})">
                         <img src="{{ photo.image.url }}"
                              alt=""
-                             style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                             class="realisation-form__photo-image">
                         <button type="button"
-                                class="position-absolute top-0 end-0 fr-p-1v"
-                                style="background: rgba(0,0,0,0.45); border: none; cursor: pointer; line-height: 1;"
+                                class="position-absolute top-0 end-0 fr-p-1v realisation-form__photo-remove"
                                 @click="toDelete.push({{ photo.pk }})"
                                 aria-label="Supprimer cette photo">
-                            <span class="fr-icon-close-line fr-icon--sm" style="color: #fff;" aria-hidden="true"></span>
+                            <span class="fr-icon-close-line fr-icon--sm realisation-form__photo-remove-icon" aria-hidden="true"></span>
                         </button>
                     </div>
                     {% endfor %}
@@ -221,18 +252,15 @@ document.addEventListener('alpine:init', () => {
 
                     <!-- Thumbnails -->
                     <template x-for="(photo, index) in photos" :key="photo.name + index">
-                        <div class="position-relative flex-shrink-0"
-                             style="width: 120px; height: 120px; border-radius: 4px; overflow: hidden; border: 1px solid #ddd;">
+                        <div class="position-relative flex-shrink-0 realisation-form__photo">
                             <img :src="photo.src"
                                  :alt="photo.name"
-                                 style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                                 class="realisation-form__photo-image">
                             <button type="button"
-                                    class="position-absolute top-0 end-0 fr-p-1v"
-                                    style="background: rgba(0,0,0,0.45); border: none; cursor: pointer; line-height: 1;"
+                                    class="position-absolute top-0 end-0 fr-p-1v realisation-form__photo-remove"
                                     @click="removePhoto(index)"
                                     :aria-label="'Supprimer ' + photo.name">
-                                <span class="fr-icon-close-line fr-icon--sm"
-                                      style="color: #fff;"
+                                <span class="fr-icon-close-line fr-icon--sm realisation-form__photo-remove-icon"
                                       aria-hidden="true"></span>
                             </button>
                         </div>
@@ -240,8 +268,7 @@ document.addEventListener('alpine:init', () => {
 
                     <!-- Add button -->
                     <label for="photo-upload-input"
-                           class="d-flex flex-column align-items-center justify-content-center cursor-pointer flex-shrink-0"
-                           style="width: 120px; height: 120px; border: 2px dashed #000091; border-radius: 4px; gap: 4px; color: #000091;">
+                           class="d-flex flex-column align-items-center justify-content-center cursor-pointer flex-shrink-0 realisation-form__add">
                         <span class="fr-icon-add-line fr-icon--lg" aria-hidden="true"></span>
                         <span class="fr-text--xs fr-mb-0">Ajouter</span>
                     </label>
@@ -271,8 +298,7 @@ document.addEventListener('alpine:init', () => {
                 <div class="fr-mb-3w" x-data="{ toDelete: [] }">
                     <div class="d-flex flex-column gap-2">
                         {% for document in existing_documents %}
-                        <div class="d-flex justify-content-between flex-shrink-0"
-                             style="border: 1px solid #E5E5E5;"
+                        <div class="d-flex justify-content-between flex-shrink-0 realisation-form__document"
                              x-show="!toDelete.includes({{ document.pk }})">
                             <a href="{{ document.file.url }}"
                                target="_blank"
@@ -315,8 +341,7 @@ document.addEventListener('alpine:init', () => {
                     <!-- File cards -->
                     <div class="d-flex flex-column gap-2 fr-mt-2w" x-show="documents.length">
                         <template x-for="(document, index) in documents" :key="document.name + index">
-                            <div class="d-flex justify-content-between flex-shrink-0"
-                                 style="border: 1px solid #E5E5E5;">
+                            <div class="d-flex justify-content-between flex-shrink-0 realisation-form__document">
                                 <span class="d-flex align-items-center gap-2 fr-pl-1w fr-py-1v">
                                     <span class="fr-icon-file-pdf-line fr-icon--sm doc-icon" aria-hidden="true"></span>
                                     <span class="fr-text--sm fr-mb-0" x-text="document.name"></span>
