@@ -51,14 +51,15 @@
                 {% include "plugin_mi_depafi/fragments/realisation_like_button.html" with realisation=realisation user_liked=realisation.user_liked like_count=realisation.like_count %}
             {% endif %}
             <div class="d-flex gap-2 align-items-center">
+                {% comment %} TODO add permission for creator request.user == realisation.created_by {% endcomment %}
                 {% if realisation.status == 'draft' or is_staff %}
-                    <a href="{% url 'plugin_mi_depafi:realisation-update' project_id=realisation.project_id pk=realisation.pk %}"
-                       class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-left fr-icon-edit-line">Modifier</a>
                     <button type="button"
-                            class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-delete-line"
+                            class="fr-btn fr-btn--secondary-grey fr-btn--sm"
                             hx-get="{% url 'plugin_mi_depafi:realisation-delete' project_id=realisation.project_id pk=realisation.pk %}"
                             hx-target="#realisation-modal-content"
                             hx-swap="innerHTML">Supprimer</button>
+                    <a href="{% url 'plugin_mi_depafi:realisation-update' project_id=realisation.project_id pk=realisation.pk %}"
+                       class="fr-btn fr-btn--secondary-grey fr-btn--sm">Modifier</a>
                 {% endif %}
                 <button type="button"
                         class="fr-btn fr-btn--sm"
