@@ -35,6 +35,29 @@ document.addEventListener('alpine:init', () => {
             this.$refs.fileInput.files = dt.files;
         },
     }));
+
+    Alpine.data('realisationDocumentList', () => ({
+        documents: [],
+
+        addDocuments(event) {
+            const newFiles = Array.from(event.target.files);
+            newFiles.forEach(file => {
+                this.documents.push({ name: file.name, size: file.size, file });
+            });
+            this.syncInput();
+        },
+
+        removeDocument(index) {
+            this.documents.splice(index, 1);
+            this.syncInput();
+        },
+
+        syncInput() {
+            const dt = new DataTransfer();
+            this.documents.forEach(d => dt.items.add(d.file));
+            this.$refs.documentInput.files = dt.files;
+        },
+    }));
 });
 </script>
 {% endblock js %}
@@ -202,6 +225,81 @@ document.addEventListener('alpine:init', () => {
                            multiple
                            class="fr-sr-only"
                            @change="addPhotos($event)">
+                </div>
+            </div>
+
+            <!-- Documents -->
+            <div class="fr-mb-4w">
+                <p class="fr-label fr-mb-1v d-flex">
+                    Documents <span class="fr-hint-text fr-ml-1v">(facultatif)</span>
+                </p>
+                <span class="fr-hint-text fr-mb-2w d-block">Ajoutez un ou plusieurs fichiers au format PDF. Taille maximale par fichier : xx Mo.</span>
+
+                <!-- Existing documents (edit mode) -->
+                {% if realisation %}
+                {% with existing_documents=realisation.documents.all %}
+                {% if existing_documents %}
+                <div class="fr-mb-3w" x-data="{ toDelete: [] }">
+                    <div class="d-flex flex-column gap-2">
+                        {% for document in existing_documents %}
+                        <div class="d-flex align-items-center justify-content-between fr-p-2w flex-shrink-0"
+                             x-show="!toDelete.includes({{ document.pk }})"
+                             style="border: 1px solid #ddd; border-radius: 4px;">
+                            <a href="{{ document.file.url }}"
+                               target="_blank"
+                               rel="noopener"
+                               class="d-flex align-items-center gap-2 text-decoration-none">
+                                <span class="fr-icon-file-pdf-line" aria-hidden="true"></span>
+                                <span>{{ document.filename }}</span>
+                            </a>
+                            <button type="button"
+                                    class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-close-line"
+                                    @click="toDelete.push({{ document.pk }})"
+                                    title="Supprimer ce document"
+                                    aria-label="Supprimer ce document"></button>
+                        </div>
+                        {% endfor %}
+                        <template x-for="documentId in toDelete" :key="documentId">
+                            <input type="hidden" name="delete_documents" :value="documentId">
+                        </template>
+                    </div>
+                </div>
+                {% endif %}
+                {% endwith %}
+                {% endif %}
+
+                <div x-data="realisationDocumentList">
+                    <!-- File cards -->
+                    <div class="d-flex flex-column gap-2 fr-mb-2w" x-show="documents.length">
+                        <template x-for="(document, index) in documents" :key="document.name + index">
+                            <div class="d-flex align-items-center justify-content-between fr-p-2w flex-shrink-0"
+                                 style="border: 1px solid #ddd; border-radius: 4px;">
+                                <span class="d-flex align-items-center gap-2">
+                                    <span class="fr-icon-file-pdf-line" aria-hidden="true"></span>
+                                    <span x-text="document.name"></span>
+                                </span>
+                                <button type="button"
+                                        class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-close-line"
+                                        @click="removeDocument(index)"
+                                        :title="'Supprimer ' + document.name"
+                                        :aria-label="'Supprimer ' + document.name"></button>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Browse button -->
+                    <label for="document-upload-input" class="fr-btn fr-btn--secondary cursor-pointer">
+                        Parcourir
+                    </label>
+
+                    <input x-ref="documentInput"
+                           id="document-upload-input"
+                           type="file"
+                           name="documents"
+                           accept="application/pdf"
+                           multiple
+                           class="fr-sr-only"
+                           @change="addDocuments($event)">
                 </div>
             </div>
 

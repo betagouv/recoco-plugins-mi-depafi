@@ -15,7 +15,12 @@ from recoco.apps.resources.models import Resource
 from recoco.utils import has_perm_or_403, is_staff_for_site
 
 from .forms import RealisationForm
-from .models import Realisation, RealisationLike, RealisationPhoto
+from .models import (
+    Realisation,
+    RealisationDocument,
+    RealisationLike,
+    RealisationPhoto,
+)
 from .signals import realisation_published
 
 
@@ -72,6 +77,11 @@ class RealisationCreateView(ProjectDetailBaseView):
             for order, image in enumerate(request.FILES.getlist("photos")):
                 RealisationPhoto.objects.create(
                     realisation=realisation, image=image, order=order
+                )
+
+            for order, document in enumerate(request.FILES.getlist("documents")):
+                RealisationDocument.objects.create(
+                    realisation=realisation, file=document, order=order
                 )
 
             if new_status == Realisation.PUBLISHED:
@@ -133,6 +143,20 @@ class RealisationUpdateView(ProjectDetailBaseView):
             for order, image in enumerate(request.FILES.getlist("photos"), start=existing_count):
                 RealisationPhoto.objects.create(
                     realisation=realisation, image=image, order=order
+                )
+
+            delete_doc_ids = request.POST.getlist("delete_documents")
+            if delete_doc_ids:
+                RealisationDocument.objects.filter(
+                    realisation=realisation, pk__in=delete_doc_ids
+                ).delete()
+
+            existing_doc_count = realisation.documents.count()
+            for order, document in enumerate(
+                request.FILES.getlist("documents"), start=existing_doc_count
+            ):
+                RealisationDocument.objects.create(
+                    realisation=realisation, file=document, order=order
                 )
 
             if old_status != Realisation.PUBLISHED and new_status == Realisation.PUBLISHED:

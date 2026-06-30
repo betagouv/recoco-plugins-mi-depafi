@@ -128,3 +128,26 @@ class RealisationPhoto(models.Model):
         verbose_name = "Photo"
         verbose_name_plural = "Photos"
         ordering = ["order", "pk"]
+
+
+def _realisation_document_upload_path(instance, filename):
+    return f"plugins/mi_depafi/realisations/{instance.realisation_id}/documents/{filename}"
+
+
+class RealisationDocument(models.Model):
+    realisation = models.ForeignKey(
+        Realisation,
+        on_delete=models.CASCADE,
+        related_name="documents",
+    )
+    file = models.FileField(upload_to=_realisation_document_upload_path)
+    order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Document"
+        verbose_name_plural = "Documents"
+        ordering = ["order", "pk"]
+
+    @property
+    def filename(self):
+        return self.file.name.rsplit("/", 1)[-1]
