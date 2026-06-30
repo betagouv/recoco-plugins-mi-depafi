@@ -12,7 +12,7 @@ class RealisationForm(forms.ModelForm):
 
     class Meta:
         model = Realisation
-        fields = ["resource", "site", "date", "partners", "description"]
+        fields = ["resource", "site", "date", "partners", "description", "key_figures"]
         widgets = {
             "resource": forms.Select(attrs={"class": "fr-select"}),
             "site": forms.TextInput(attrs={"class": "fr-input"}),
@@ -21,15 +21,18 @@ class RealisationForm(forms.ModelForm):
                 format="%Y-%m-%d",
             ),
             "partners": forms.TextInput(attrs={"class": "fr-input"}),
+            "key_figures": forms.Textarea(attrs={"class": "fr-input", "rows": 4}),
         }
         labels = {
             "resource": "Nom de la réalisation",
             "site": "Site ou bâtiment concerné",
-            "date": "Date de réalisation",
+            "date": "Date de la réalisation",
             "partners": "Partenaire(s)",
+            "key_figures": "Chiffres clés",
         }
         help_texts = {
             "resource": "Tapez le nom de la ressource puis sélectionnez-la dans la liste",
             "site": "Texte d’explication à rédiger",
             "partners": "Si vous renseignez plusieurs partenaires, veuillez séparer leur nom par une virgule.",
+            "key_figures": "Texte d’explication à rédiger",
         }

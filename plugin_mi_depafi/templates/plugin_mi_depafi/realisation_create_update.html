@@ -117,6 +117,18 @@ document.addEventListener('alpine:init', () => {
                 {% endfor %}
             </div>
 
+            <!-- Chiffres clés -->
+            <div class="fr-input-group {% if form.key_figures.errors %}fr-input-group--error{% endif %} fr-mb-3w">
+                <label class="fr-label d-flex" for="{{ form.key_figures.id_for_label }}">
+                    {{ form.key_figures.label }} <span class="fr-hint-text fr-ml-1v">(facultatif)</span>
+                </label>
+                <span class="fr-hint-text fr-my-1w">{{ form.key_figures.help_text }}</span>
+                {{ form.key_figures }}
+                {% for error in form.key_figures.errors %}
+                    <p class="fr-error-text">{{ error }}</p>
+                {% endfor %}
+            </div>
+
             <!-- Existing photos (edit mode) -->
             {% if realisation %}
             {% with existing_photos=realisation.photos.all %}

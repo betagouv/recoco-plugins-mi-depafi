@@ -47,6 +47,10 @@ class Realisation(models.Model):
         blank=True,
         verbose_name="Description de l'action",
     )
+    key_figures = models.TextField(
+        blank=True,
+        verbose_name="Chiffres clés",
+    )
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
