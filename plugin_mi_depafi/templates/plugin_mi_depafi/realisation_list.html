@@ -36,6 +36,20 @@
     .realisations__info {
         position: relative;
     }
+    .realisations__section {
+        margin-bottom: 1.5rem;
+    }
+    .realisations__section:last-child {
+        margin-bottom: 0;
+    }
+    /* Référent : nom du user (fragment project_owner.html) -> fr-mb-1v */
+    .realisations__section--referent > .fr-mb-2v {
+        margin-bottom: 0.25rem !important;
+    }
+    /* Référent : bloc mail (fragment owner-details.html) -> fr-mb-0 */
+    .realisations__section--referent .fr-mb-2v:has(a[href^="mailto:"]) {
+        margin-bottom: 0 !important;
+    }
     .realisation-list__edit {
         position: absolute;
         top: 1.5rem;
@@ -65,11 +79,6 @@
             <div class="col-3 realisations__info">
                 <div class="fr-mt-5v fr-px-2w">
 
-                    <!-- Project name -->
-                    <div class="fr-mb-3v">
-                        <strong class="project-info__name">{{ project.name }}</strong>
-                    </div>
-
                     {% if "change_project" in user_project_perms or is_staff %}
                     <a href="{% url 'projects-project-administration' project.pk %}"
                        class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-edit-line realisation-list__edit"
@@ -77,8 +86,15 @@
                        aria-label="Éditer"></a>
                     {% endif %}
 
+                    <!-- Project name + basic info -->
+                    <div class="realisations__section">
+                    <!-- Project name -->
+                    <div class="fr-mb-3v">
+                        <strong class="project-info__name">{{ project.name }}</strong>
+                    </div>
+
                     <!-- Basic info -->
-                    <ul class="list-unstyled fr-text--sm fr-mb-3v" style="color: #555;">
+                    <ul class="list-unstyled fr-text--sm fr-mb-0" style="color: #555;">
                         {% if project.commune %}
                         <li class="fr-mb-0">
                             <span class="fr-icon-map-pin-2-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
@@ -116,33 +132,34 @@
                             {{ realisations|length }} Déclaration{{ realisations|length|pluralize }}
                         </li>
                     </ul>
-
-                    <hr class="info__separator">
+                    </div>
 
                     <!-- Localisation -->
-                    <h6 class="text-uppercase fw-bold fr-mb-2v h6-specific-fontsize-14">Localisation</h6>
-                    {% include "projects/project/fragments/geolocation/location_overview_footer.html" with project=project %}
-
-                    <hr class="info__separator">
+                    <div class="realisations__section">
+                        <h6 class="text-uppercase fw-bold fr-mb-2v h6-specific-fontsize-14">Localisation</h6>
+                        {% include "projects/project/fragments/geolocation/location_overview_footer.html" with project=project %}
+                    </div>
 
                     <!-- Référent -->
-                    <h6 class="text-uppercase fw-bold fr-mb-2v h6-specific-fontsize-14">Référent</h6>
-                    {% include "projects/project/fragments/project_owner.html" with project=project %}
-                    {% if project.status != 'PRE_DRAFT' %}
-                        {% include "projects/project/fragments/owner/owner-details.html" with project=project %}
-                    {% endif %}
-
-                    <hr class="info__separator">
+                    <div class="realisations__section realisations__section--referent">
+                        <h6 class="text-uppercase fw-bold fr-mb-2v h6-specific-fontsize-14">Référent</h6>
+                        {% include "projects/project/fragments/project_owner.html" with project=project %}
+                        {% if project.status != 'PRE_DRAFT' %}
+                            {% include "projects/project/fragments/owner/owner-details.html" with project=project %}
+                        {% endif %}
+                    </div>
 
                     <!-- Conseillers -->
-                    <h6 class="text-uppercase fw-bold fr-mb-2v h6-specific-fontsize-14">Conseillers</h6>
-                    <ul class="d-flex flex-column list-unstyled fr-mb-0">
-                        {% for advisor in project.switchtender_sites.all %}
-                            {% if advisor.switchtender.is_active %}
-                            <li>{% include "user/user_card.html" with user=advisor.switchtender user_activity=True %}</li>
-                            {% endif %}
-                        {% endfor %}
-                    </ul>
+                    <div class="realisations__section">
+                        <h6 class="text-uppercase fw-bold fr-mb-2v h6-specific-fontsize-14">Conseillers</h6>
+                        <ul class="d-flex flex-column list-unstyled fr-mb-0">
+                            {% for advisor in project.switchtender_sites.all %}
+                                {% if advisor.switchtender.is_active %}
+                                <li>{% include "user/user_card.html" with user=advisor.switchtender user_activity=True %}</li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
 
                 </div>
             </div>
