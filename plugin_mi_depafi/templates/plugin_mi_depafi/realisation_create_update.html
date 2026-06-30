@@ -48,7 +48,7 @@ document.addEventListener('alpine:init', () => {
     {% include "projects/project/fragments/project_banner/banner_wrapper.html" with part='open' %}
 
     <div class="fr-container fr-py-4w">
-        <h2 class="fr-h3 fr-mb-4w">{% firstof page_title "Déclarer une action réalisée" %}</h2>
+        <h1 class="fr-h3 fr-mb-4w">{% firstof page_title "Déclarer une action réalisée" %}</h1>
 
         <form method="post" enctype="multipart/form-data" novalidate>
             {% csrf_token %}
