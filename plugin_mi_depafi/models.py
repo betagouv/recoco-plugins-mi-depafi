@@ -33,6 +33,11 @@ class Realisation(models.Model):
         blank=True,
         verbose_name="Site ou bâtiment concerné",
     )
+    date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Date de réalisation",
+    )
     partners = models.CharField(
         max_length=500,
         blank=True,

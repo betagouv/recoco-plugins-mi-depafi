@@ -12,15 +12,20 @@ class RealisationForm(forms.ModelForm):
 
     class Meta:
         model = Realisation
-        fields = ["resource", "site", "partners", "description"]
+        fields = ["resource", "site", "date", "partners", "description"]
         widgets = {
             "resource": forms.Select(attrs={"class": "fr-select"}),
             "site": forms.TextInput(attrs={"class": "fr-input"}),
+            "date": forms.DateInput(
+                attrs={"class": "fr-input", "type": "date"},
+                format="%Y-%m-%d",
+            ),
             "partners": forms.TextInput(attrs={"class": "fr-input"}),
         }
         labels = {
             "resource": "Nom de la réalisation",
             "site": "Site ou bâtiment concerné",
+            "date": "Date de réalisation",
             "partners": "Partenaire(s)",
         }
         help_texts = {
