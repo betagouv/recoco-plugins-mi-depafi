@@ -65,6 +65,16 @@ document.addEventListener('alpine:init', () => {
 {% block css %}
 {{ block.super }}
 <style>
+    .fr-label {
+        font-weight: 700;
+        font-size: 16px;
+        color: #161616;
+    }
+    .fr-label .fr-hint-text {
+        font-weight: 400;
+        font-size: 16px;
+        color: #161616;
+    }
     .doc-icon::before {
         width: 1.25rem;
         height: 1.25rem;
