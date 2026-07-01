@@ -72,6 +72,7 @@ class RealisationCreateView(ProjectDetailBaseView):
             realisation.project = self.object
             new_status = request.POST.get("status", Realisation.DRAFT)
             realisation.status = new_status
+            realisation.created_by = request.user
             realisation.save()
 
             for order, image in enumerate(request.FILES.getlist("photos")):
