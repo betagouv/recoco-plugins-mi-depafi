@@ -30,7 +30,7 @@
   margin-bottom: 0.25rem !important;
 }
 /* Référent : bloc mail (fragment owner-details.html) -> fr-mb-0 */
-.realisations__section--referent .fr-mb-2v:has(a[href^="mailto:"]) {
+.realisations__section--referent .fr-mb-2v:has(a[href^='mailto:']) {
   margin-bottom: 0 !important;
 }
 .realisation-list__edit {
@@ -41,4 +41,9 @@
   border-radius: 2px;
   border: 1px solid var(--light-text-mention-grey, #666);
   box-shadow: none;
+}
+.realisations-list {
+  border-top: 1px solid #e5e5e5;
+  border-left: 1px solid #e5e5e5;
+  background: #fafafa;
 }
