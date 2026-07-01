@@ -14,52 +14,7 @@
 
 {% block css %}
 {{ block.super }}
-<style>
-    .realisation-list__group {
-        border-left: 2px solid #E5E5E5;
-        padding-left: 1.5rem;
-    }
-    .realisation-card {
-        border: 1px solid #000091;
-        border-radius: 4px;
-    }
-    .realisation-card__title {
-        color: #000091;
-        text-decoration: underline;
-    }
-    .realisation-list__date {
-        font-size: 12px;
-        font-style: italic;
-        font-weight: 400;
-        color: #3A3A3A;
-    }
-    .realisations__info {
-        position: relative;
-    }
-    .realisations__section {
-        margin-bottom: 1.5rem;
-    }
-    .realisations__section:last-child {
-        margin-bottom: 0;
-    }
-    /* Référent : nom du user (fragment project_owner.html) -> fr-mb-1v */
-    .realisations__section--referent > .fr-mb-2v {
-        margin-bottom: 0.25rem !important;
-    }
-    /* Référent : bloc mail (fragment owner-details.html) -> fr-mb-0 */
-    .realisations__section--referent .fr-mb-2v:has(a[href^="mailto:"]) {
-        margin-bottom: 0 !important;
-    }
-    .realisation-list__edit {
-        position: absolute;
-        top: 1.5rem;
-        right: 1rem;
-        background-color: #fff !important;
-        border-radius: 2px;
-        border: 1px solid var(--light-text-mention-grey, #666);
-        box-shadow: none;
-    }
-</style>
+{% vite_asset 'js/plugins/styles/realisation-list.css.js' %}
 {% endblock css %}
 
 {% block project_detail %}

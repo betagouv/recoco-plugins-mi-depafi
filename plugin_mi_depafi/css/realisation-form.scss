@@ -1,0 +1,54 @@
+.fr-label {
+  font-weight: 700;
+  font-size: 16px;
+  color: #161616;
+}
+.fr-label .fr-hint-text {
+  font-weight: 400;
+  font-size: 16px;
+  color: #161616;
+}
+.doc-icon::before {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.doc-remove-btn {
+  box-shadow: none !important;
+  border-left: 1px solid #e5e5e5;
+  border-radius: 0;
+  align-self: stretch;
+  min-height: 33px !important;
+}
+.realisation-form__photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #ddd;
+}
+.realisation-form__photo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.realisation-form__photo-remove {
+  background: rgba(0, 0, 0, 0.45);
+  border: none;
+  cursor: pointer;
+  line-height: 1;
+}
+.realisation-form__photo-remove-icon {
+  color: #fff;
+}
+.realisation-form__add {
+  width: 120px;
+  height: 120px;
+  border: 2px dashed #000091;
+  border-radius: 4px;
+  gap: 4px;
+  color: #000091;
+}
+.realisation-form__document {
+  border: 1px solid #e5e5e5;
+}
