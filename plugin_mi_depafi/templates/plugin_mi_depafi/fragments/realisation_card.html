@@ -1,4 +1,5 @@
 {% load humanize %}
+{% load waffle_tags %}
 {% load projects_extra %}
 {% is_staff_for_current_site request.user as is_staff %}
 {# Context: realisation #}
@@ -60,11 +61,13 @@
                     <a href="{% url 'plugin_mi_depafi:realisation-update' project_id=realisation.project_id pk=realisation.pk %}"
                        class="fr-btn fr-btn--secondary-grey fr-btn--sm">Modifier</a>
                 {% endif %}
-                <button type="button"
-                    class="fr-btn fr-btn--sm"
-                    hx-get="{{ realisation.get_absolute_url }}"
-                    hx-target="#realisation-modal-content"
-                    hx-swap="innerHTML">Voir la réalisation</button>
+                {% flag "MI_sprint_2" %}
+                    <button type="button"
+                        class="fr-btn fr-btn--sm"
+                        hx-get="{{ realisation.get_absolute_url }}"
+                        hx-target="#realisation-modal-content"
+                        hx-swap="innerHTML">Voir la réalisation</button>
+                {% endflag %}
             </div>
         </div>
     </div>
