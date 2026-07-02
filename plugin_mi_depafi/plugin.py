@@ -21,7 +21,15 @@ class MiDepafiPlugin:
 
     @hookimpl
     def project_tab_entries(self):
-        return ("plugin_mi_depafi:realisation-list", "Réalisations")
+        return {
+            "url_name": "plugin_mi_depafi:realisation-list",
+            "label": "Réalisations",
+            "active_url_names": [
+                "plugin_mi_depafi:realisation-list",
+                "plugin_mi_depafi:realisation-create",
+                "plugin_mi_depafi:realisation-update",
+            ],
+        }
 
     @hookimpl
     def crm_navigation_tabs(self, request):
