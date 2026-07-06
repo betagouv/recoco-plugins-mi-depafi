@@ -1,9 +1,7 @@
 from django.conf import settings
-from django.contrib.auth import models as auth_models
 from django.db import models
 from django.urls import reverse
 from markdownx.utils import markdownify
-
 from recoco.apps.conversations.models import Node
 
 
@@ -61,11 +59,6 @@ class Realisation(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(
-        auth_models.User,
-        on_delete=models.CASCADE,
-        related_name="realisation_created",
-    )
 
     class Meta:
         verbose_name = "Réalisation"
