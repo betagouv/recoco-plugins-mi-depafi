@@ -314,9 +314,9 @@ def test_realisation_update_forbidden_for_unprivileged_user(request, client):
 def test_realisation_update_form_accessible_for_project_member(request, client):
     project = make_project_on_site(request)
     resource = baker.make(Resource)
-    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT, created_by=user)
         response = client.get(update_url(project, realisation))
     assert response.status_code == 200
     assert response.context["realisation"] == realisation
@@ -338,9 +338,9 @@ def test_realisation_update_saves_changes(request, client):
     project = make_project_on_site(request)
     resource = baker.make(Resource)
     new_resource = baker.make(Resource)
-    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT, created_by=user)
         client.post(
             update_url(project, realisation),
             {"resource": new_resource.pk, "partners": "Nouveau partenaire", "description": "", "status": "draft"},
@@ -354,9 +354,9 @@ def test_realisation_update_saves_changes(request, client):
 def test_realisation_update_can_publish_draft(request, client):
     project = make_project_on_site(request)
     resource = baker.make(Resource)
-    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT, created_by=user)
         client.post(
             update_url(project, realisation),
             {"resource": resource.pk, "partners": "", "description": "", "status": "published"},
@@ -369,10 +369,10 @@ def test_realisation_update_can_publish_draft(request, client):
 def test_realisation_update_deletes_marked_photos(request, client):
     project = make_project_on_site(request)
     resource = baker.make(Resource)
-    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
-    photo = baker.make(RealisationPhoto, realisation=realisation)
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT, created_by=user)
+        photo = baker.make(RealisationPhoto, realisation=realisation)
         client.post(
             update_url(project, realisation),
             {"resource": resource.pk, "partners": "", "description": "", "status": "draft", "delete_photos": [photo.pk]},
@@ -384,9 +384,9 @@ def test_realisation_update_deletes_marked_photos(request, client):
 def test_realisation_update_redirects_to_list_on_success(request, client):
     project = make_project_on_site(request)
     resource = baker.make(Resource)
-    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT, created_by=user)
         response = client.post(
             update_url(project, realisation),
             {"resource": resource.pk, "partners": "", "description": "", "status": "draft"},
@@ -424,9 +424,9 @@ def test_realisation_delete_get_forbidden_for_unprivileged_user(request, client)
 def test_realisation_delete_get_shows_confirm_fragment(request, client):
     project = make_project_on_site(request)
     resource = baker.make(Resource, title="Mon action")
-    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT, created_by=user)
         response = client.get(delete_url(project, realisation))
     assert response.status_code == 200
     assert b"Mon action" in response.content
@@ -467,9 +467,9 @@ def test_realisation_delete_post_forbidden_for_unprivileged_user(request, client
 def test_realisation_delete_post_removes_draft(request, client):
     project = make_project_on_site(request)
     resource = baker.make(Resource)
-    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT, created_by=user)
         response = client.post(delete_url(project, realisation))
     assert response.status_code == 302
     assert not Realisation.objects.filter(pk=realisation.pk).exists()
@@ -490,9 +490,9 @@ def test_realisation_delete_post_returns_404_for_published(request, client):
 def test_realisation_delete_post_redirects_to_list(request, client):
     project = make_project_on_site(request)
     resource = baker.make(Resource)
-    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT, created_by=user)
         response = client.post(delete_url(project, realisation))
     assert response["Location"] == list_url(project)
 
@@ -711,9 +711,9 @@ def test_realisation_update_draft_accessible_for_project_member(request, client)
     """A project member can update a draft realisation."""
     project = make_project_on_site(request)
     resource = baker.make(Resource)
-    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT, created_by=user)
         response = client.get(update_url(project, realisation))
     assert response.status_code == 200
 
@@ -870,10 +870,10 @@ def test_create_draft_realisation_does_not_create_conversation_node(request, cli
 def test_update_draft_to_published_creates_conversation_node(request, client):
     project = make_project_on_site(request)
     resource = baker.make(Resource)
-    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
 
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT, created_by=user)
         client.post(
             update_url(project, realisation),
             {"resource": resource.pk, "description": "", "partners": "", "status": "published"},
@@ -886,10 +886,10 @@ def test_update_draft_to_published_creates_conversation_node(request, client):
 def test_update_already_published_realisation_does_not_duplicate_node(request, client):
     project = make_project_on_site(request)
     resource = baker.make(Resource)
-    realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT)
 
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT, created_by=user)
         # first publish
         client.post(
             update_url(project, realisation),
@@ -898,3 +898,123 @@ def test_update_already_published_realisation_does_not_duplicate_node(request, c
         # staff can re-save a published realisation; non-staff cannot (404), so this
         # test only verifies the signal guard via the create path
     assert RealisationNode.objects.filter(realisation=realisation).count() == 1
+
+
+# ---------------------------------------------------------------------------
+# Realisation ownership: only creator or staff can edit/delete
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_realisation_create_sets_created_by(request, client):
+    """The user who creates a realisation is recorded as its creator."""
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        client.post(
+            create_url(project),
+            {"resource": resource.pk, "partners": "", "description": "", "status": "draft"},
+        )
+    realisation = Realisation.objects.get(project=project)
+    assert realisation.created_by == user
+
+
+@pytest.mark.django_db
+def test_realisation_update_forbidden_for_non_owner_project_member(request, client):
+    """A project member who did not create the realisation cannot edit it."""
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    with login(client, username="creator") as creator:
+        project_utils.assign_collaborator(creator, project, is_owner=True)
+        realisation = baker.make(
+            Realisation, project=project, resource=resource,
+            status=Realisation.DRAFT, created_by=creator,
+        )
+    with login(client, username="other") as other_member:
+        project_utils.assign_collaborator(other_member, project)
+        response = client.get(update_url(project, realisation))
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_realisation_update_allowed_for_owner(request, client):
+    """The creator of a realisation can edit it."""
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(
+            Realisation, project=project, resource=resource,
+            status=Realisation.DRAFT, created_by=user,
+        )
+        response = client.get(update_url(project, realisation))
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_realisation_update_allowed_for_staff_even_if_not_creator(request, client):
+    """Staff can edit a realisation they did not create."""
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    with login(client, username="creator") as creator:
+        project_utils.assign_collaborator(creator, project, is_owner=True)
+        realisation = baker.make(
+            Realisation, project=project, resource=resource,
+            status=Realisation.DRAFT, created_by=creator,
+        )
+    with login(client, username="staff") as staff:
+        assign_site_staff(get_current_site(request), staff)
+        response = client.get(update_url(project, realisation))
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_realisation_delete_forbidden_for_non_owner_project_member(request, client):
+    """A project member who did not create the realisation cannot delete it."""
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    with login(client, username="creator") as creator:
+        project_utils.assign_collaborator(creator, project, is_owner=True)
+        realisation = baker.make(
+            Realisation, project=project, resource=resource,
+            status=Realisation.DRAFT, created_by=creator,
+        )
+    with login(client, username="other") as other_member:
+        project_utils.assign_collaborator(other_member, project)
+        response = client.get(delete_url(project, realisation))
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_realisation_delete_allowed_for_owner(request, client):
+    """The creator of a realisation can delete it."""
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(
+            Realisation, project=project, resource=resource,
+            status=Realisation.DRAFT, created_by=user,
+        )
+        response = client.post(delete_url(project, realisation))
+    assert response.status_code == 302
+    assert not Realisation.objects.filter(pk=realisation.pk).exists()
+
+
+@pytest.mark.django_db
+def test_realisation_delete_allowed_for_staff_even_if_not_creator(request, client):
+    """Staff can delete a realisation they did not create."""
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    with login(client, username="creator") as creator:
+        project_utils.assign_collaborator(creator, project, is_owner=True)
+        realisation = baker.make(
+            Realisation, project=project, resource=resource,
+            status=Realisation.DRAFT, created_by=creator,
+        )
+    with login(client, username="staff") as staff:
+        assign_site_staff(get_current_site(request), staff)
+        response = client.post(delete_url(project, realisation))
+    assert response.status_code == 302
+    assert not Realisation.objects.filter(pk=realisation.pk).exists()

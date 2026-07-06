@@ -1,6 +1,7 @@
 import csv
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Exists, OuterRef
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -65,6 +66,7 @@ class RealisationCreateView(ProjectDetailBaseView):
         if form.is_valid():
             realisation = form.save(commit=False)
             realisation.project = self.object
+            realisation.created_by = request.user
             new_status = request.POST.get("status", Realisation.DRAFT)
             realisation.status = new_status
             realisation.save()
@@ -100,7 +102,11 @@ class RealisationUpdateView(ProjectDetailBaseView):
         filters = {"pk": self.kwargs["pk"], "project": self.object}
         if not is_staff_for_site(self.request.user, self.request.site):
             filters["status"] = Realisation.DRAFT
-        return get_object_or_404(Realisation, **filters)
+        realisation = get_object_or_404(Realisation, **filters)
+        if not is_staff_for_site(self.request.user, self.request.site):
+            if realisation.created_by_id != self.request.user.pk:
+                raise PermissionDenied
+        return realisation
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -160,7 +166,11 @@ class RealisationDeleteView(ProjectDetailBaseView):
         filters = {"pk": self.kwargs["pk"], "project": self.object}
         if not is_staff_for_site(self.request.user, self.request.site):
             filters["status"] = Realisation.DRAFT
-        return get_object_or_404(Realisation, **filters)
+        realisation = get_object_or_404(Realisation, **filters)
+        if not is_staff_for_site(self.request.user, self.request.site):
+            if realisation.created_by_id != self.request.user.pk:
+                raise PermissionDenied
+        return realisation
 
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
