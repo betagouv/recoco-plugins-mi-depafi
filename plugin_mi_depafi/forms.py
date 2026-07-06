@@ -32,7 +32,7 @@ class RealisationForm(forms.ModelForm):
         }
         help_texts = {
             "resource": "Tapez le nom de la ressource puis sélectionnez-la dans la liste",
-            "site": "Texte d’explication à rédiger",
+            "site": "Ex : Bâtiment sud",
             "partners": "Si vous renseignez plusieurs partenaires, veuillez séparer leur nom par une virgule.",
-            "key_figures": "Texte d’explication à rédiger",
+            "key_figures": "Partagez ici les éléments qui permettent de mesurer l’ampleur et l’impact du changement mis en place (ex. pour un plan vélo : 300 agents sensibilisés, Trajets à vélo passés de 3 à 15 /jour en moyenne etc.)",
         }
