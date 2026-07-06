@@ -1,4 +1,5 @@
 import pluggy
+import waffle
 from django.db.models import Count
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
@@ -36,12 +37,15 @@ class MiDepafiPlugin:
 
     @hookimpl
     def crm_navigation_tabs(self, request):
-        return {
-            "label": "Réalisations",
-            "url_name": "plugin_mi_depafi:crm-realisation-list",
-            "tab_key": "plugin_mi_depafi",
-            "index": 15,
-        }
+        if waffle.switch_is_active('MI_futur'):
+            return {
+                "label": "Réalisations",
+                "url_name": "plugin_mi_depafi:crm-realisation-list",
+                "tab_key": "plugin_mi_depafi",
+                "index": 15,
+            }
+            
+        return None
 
     @hookimpl
     def crm_project_list_annotations(self, request):
