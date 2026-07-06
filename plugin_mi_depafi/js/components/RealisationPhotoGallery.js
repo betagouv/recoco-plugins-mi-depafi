@@ -2,6 +2,7 @@ import Alpine from "alpinejs";
 
 Alpine.data("realisationPhotoGallery", () => ({
   photos: [],
+  toDelete: [],
 
   addPhotos(event) {
     const newFiles = Array.from(event.target.files);
