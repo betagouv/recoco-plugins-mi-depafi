@@ -17,171 +17,204 @@
     {% vite_asset 'js/plugins/styles/realisation-form.css.js' %}
 {% endblock css %}
 {% block project_detail %}
-    <div x-data
-         x-init="$nextTick(() => $store.showRole.init())"
-         class="col-12">
-        {% include "projects/project/navigation.html" %}
-        {% include "projects/project/fragments/project_banner/banner_wrapper.html" with part="open" %}
-        <div class="fr-container fr-py-4w">
-            <h1 class="fr-h3 fr-mb-4w">{% firstof page_title "Déclarer une action réalisée" %}</h1>
-            <form method="post" enctype="multipart/form-data" novalidate>
-                {% csrf_token %}
-                {% if form.non_field_errors %}
-                    <div class="fr-alert fr-alert--error fr-mb-3w">
-                        <p class="fr-alert__title">Erreur</p>
-                        {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
-                    </div>
-                {% endif %}
-                <!-- Action réalisée -->
-                <div class="fr-input-group {% if form.resource.errors %}fr-input-group--error{% endif %} fr-mb-3w">
-                    <label class="fr-label" for="{{ form.resource.id_for_label }}">{{ form.resource.label }}</label>
-                    <span class="fr-hint-text fr-my-1w">{{ form.resource.help_text }}</span>
-                    {{ form.resource }}
-                    {% for error in form.resource.errors %}<p class="fr-error-text">{{ error }}</p>{% endfor %}
-                </div>
-                <!-- Site ou bâtiment concerné -->
-                <div class="fr-input-group {% if form.site.errors %}fr-input-group--error{% endif %} fr-mb-3w">
-                    <label class="fr-label d-flex" for="{{ form.site.id_for_label }}">{{ form.site.label }}</label>
-                    <span class="fr-hint-text fr-my-1w">{{ form.site.help_text }}</span>
-                    {{ form.site }}
-                    {% for error in form.site.errors %}<p class="fr-error-text">{{ error }}</p>{% endfor %}
-                </div>
-                <!-- Date de réalisation -->
-                <div class="fr-input-group {% if form.date.errors %}fr-input-group--error{% endif %} fr-mb-3w">
-                    <label class="fr-label d-flex" for="{{ form.date.id_for_label }}">{{ form.date.label }}</label>
-                    <span class="fr-hint-text fr-my-1w">{{ form.date.help_text }}</span>
-                    {{ form.date }}
-                    {% for error in form.date.errors %}<p class="fr-error-text">{{ error }}</p>{% endfor %}
-                </div>
-                <!-- Partenaires -->
-                <div class="fr-input-group {% if form.partners.errors %}fr-input-group--error{% endif %} fr-mb-3w">
-                    <label class="fr-label d-flex" for="{{ form.partners.id_for_label }}">
-                        {{ form.partners.label }} <span class="fr-hint-text fr-ml-1v">(facultatif)</span>
+<div x-data
+     x-init="$nextTick(() => $store.showRole.init())"
+     class="col-12">
+
+    {% include "projects/project/navigation.html" %}
+    {% include "projects/project/fragments/project_banner/banner_wrapper.html" with part='open' %}
+
+    <div class="fr-container fr-py-4w">
+        <h1 class="fr-h3 fr-mb-4w">{% firstof page_title "Déclarer une action réalisée" %}</h1>
+
+        <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="fr-alert fr-alert--error fr-mb-3w">
+                <p class="fr-alert__title">Erreur</p>
+                {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Action réalisée -->
+            <div class="fr-input-group {% if form.resource.errors %}fr-input-group--error{% endif %} fr-mb-3w">
+                <label class="fr-label" for="{{ form.resource.id_for_label }}">
+                    {{ form.resource.label }}
+                </label>
+                <span class="fr-hint-text fr-my-1w">{{ form.resource.help_text }}</span>
+                {{ form.resource }}
+                {% for error in form.resource.errors %}
+                    <p class="fr-error-text">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <!-- Site ou bâtiment concerné -->
+            <div class="fr-input-group {% if form.site.errors %}fr-input-group--error{% endif %} fr-mb-3w">
+                <label class="fr-label d-flex" for="{{ form.site.id_for_label }}">
+                    {{ form.site.label }}
+                </label>
+                <span class="fr-hint-text fr-my-1w">{{ form.site.help_text }}</span>
+                {{ form.site }}
+                {% for error in form.site.errors %}
+                    <p class="fr-error-text">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <!-- Date de réalisation -->
+            <div class="fr-input-group {% if form.date.errors %}fr-input-group--error{% endif %} fr-mb-3w">
+                <label class="fr-label d-flex" for="{{ form.date.id_for_label }}">
+                    {{ form.date.label }}
+                </label>
+                <span class="fr-hint-text fr-my-1w">{{ form.date.help_text }}</span>
+                {{ form.date }}
+                {% for error in form.date.errors %}
+                    <p class="fr-error-text">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <!-- Partenaires -->
+            <div class="fr-input-group {% if form.partners.errors %}fr-input-group--error{% endif %} fr-mb-3w">
+                <label class="fr-label d-flex" for="{{ form.partners.id_for_label }}">
+                    {{ form.partners.label }} <span class="fr-hint-text fr-ml-1v">(facultatif)</span>
+                </label>
+                <span class="fr-hint-text fr-my-1w">{{ form.partners.help_text }}</span>
+                {{ form.partners }}
+                {% for error in form.partners.errors %}
+                    <p class="fr-error-text">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <!-- Description de l'action -->
+            <div class="fr-input-group {% if form.description.errors %}fr-input-group--error{% endif %} fr-mb-3w">
+                <label class="fr-label fr-mb-1w" for="id_description">{{ form.description.label }}</label>
+                {% include "tools/editor.html" with input_name=form.description.name initial_content=form.description.value|default:'' initial_content_escapejs=True %}
+                {% for error in form.description.errors %}
+                    <p class="fr-error-text">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <!-- Chiffres clés -->
+            <div class="fr-input-group {% if form.key_figures.errors %}fr-input-group--error{% endif %} fr-mb-3w">
+                <label class="fr-label d-flex" for="{{ form.key_figures.id_for_label }}">
+                    {{ form.key_figures.label }} <span class="fr-hint-text fr-ml-1v">(facultatif)</span>
+                </label>
+                <span class="fr-hint-text fr-my-1w">{{ form.key_figures.help_text }}</span>
+                {{ form.key_figures }}
+                {% for error in form.key_figures.errors %}
+                    <p class="fr-error-text">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <!-- Photos -->
+            <div class="fr-mb-4w" x-data="realisationPhotoGallery">
+                <p class="fr-label fr-mb-2w d-flex align-items-baseline">
+                    Photos
+                    <span class="fr-hint-text fr-ml-1v">(facultatif)</span>
+                </p>
+                <div class="d-flex flex-wrap gap-3 align-items-start">
+                    <!-- Thumbnails -->
+                    <!-- Existing photos (edit mode) -->
+                    {% if realisation %}
+                        {% with existing_photos=realisation.photos.all %}
+                            {% if existing_photos %}
+                                {% for photo in existing_photos %}
+                                    <div class="position-relative flex-shrink-0 realisation-form__photo"
+                                            x-show="!toDelete.includes({{ photo.pk }})">
+                                        <img src="{{ photo.image.url }}"
+                                                alt=""
+                                                class="realisation-form__photo-image">
+                                        <button type="button"
+                                                class="position-absolute top-0 end-0 fr-p-1v realisation-form__photo-remove"
+                                                @click="toDelete.push({{ photo.pk }})"
+                                                aria-label="Supprimer cette photo">
+                                            <span class="fr-icon-close-line fr-icon--sm realisation-form__photo-remove-icon"
+                                                    aria-hidden="true"></span>
+                                        </button>
+                                    </div>
+                                {% endfor %}
+                                <template x-for="photoId in toDelete" :key="photoId">
+                                    <input type="hidden" name="delete_photos" :value="photoId">
+                                </template>
+                            {% endif %}
+                        {% endwith %}
+                    {% endif %}
+                    <template x-for="(photo, index) in photos" :key="photo.name + index">
+                        <div class="position-relative flex-shrink-0 realisation-form__photo">
+                            <img :src="photo.src"
+                                    :alt="photo.name"
+                                    class="realisation-form__photo-image">
+                            <button type="button"
+                                    class="position-absolute top-0 end-0 fr-p-1v realisation-form__photo-remove"
+                                    @click="removePhoto(index)"
+                                    :aria-label="'Supprimer ' + photo.name">
+                                <span class="fr-icon-close-line fr-icon--sm realisation-form__photo-remove-icon"
+                                        aria-hidden="true"></span>
+                            </button>
+                        </div>
+                    </template>
+                    <!-- Add button -->
+                    <label for="photo-upload-input"
+                            class="d-flex flex-column align-items-center justify-content-center cursor-pointer flex-shrink-0 realisation-form__add">
+                        <span class="fr-icon-add-line fr-icon--lg" aria-hidden="true"></span>
+                        <span class="fr-text--xs fr-mb-0">Ajouter</span>
                     </label>
-                    <span class="fr-hint-text fr-my-1w">{{ form.partners.help_text }}</span>
-                    {{ form.partners }}
-                    {% for error in form.partners.errors %}<p class="fr-error-text">{{ error }}</p>{% endfor %}
+                    <input x-ref="fileInput"
+                            id="photo-upload-input"
+                            type="file"
+                            name="photos"
+                            accept="image/*"
+                            multiple
+                            class="fr-sr-only"
+                            @change="addPhotos($event)">
                 </div>
-                <!-- Description de l'action -->
-                <div class="fr-input-group {% if form.description.errors %}fr-input-group--error{% endif %} fr-mb-3w">
-                    <label class="fr-label fr-mb-1w" for="id_description">{{ form.description.label }}</label>
-                    {% include "tools/editor.html" with input_name=form.description.name initial_content=form.description.value|default:'' initial_content_escapejs=True %}
-                    {% for error in form.description.errors %}<p class="fr-error-text">{{ error }}</p>{% endfor %}
-                </div>
-                <!-- Chiffres clés -->
-                <div class="fr-input-group {% if form.key_figures.errors %}fr-input-group--error{% endif %} fr-mb-3w">
-                    <label class="fr-label d-flex" for="{{ form.key_figures.id_for_label }}">
-                        {{ form.key_figures.label }} <span class="fr-hint-text fr-ml-1v">(facultatif)</span>
-                    </label>
-                    <span class="fr-hint-text fr-my-1w">{{ form.key_figures.help_text }}</span>
-                    {{ form.key_figures }}
-                    {% for error in form.key_figures.errors %}<p class="fr-error-text">{{ error }}</p>{% endfor %}
-                </div>
-                <!-- Photos -->
-                <div class="fr-mb-4w" x-data="realisationPhotoGallery">
-                    <p class="fr-label fr-mb-2w d-flex align-items-baseline">
-                        Photos
-                        <span class="fr-hint-text fr-ml-1v">(facultatif)</span>
-                    </p>
-                    <div class="d-flex flex-wrap gap-3 align-items-start">
-                        <!-- Thumbnails -->
-                        <!-- Existing photos (edit mode) -->
-                        {% if realisation %}
-                            {% with existing_photos=realisation.photos.all %}
-                                {% if existing_photos %}
-                                    {% for photo in existing_photos %}
-                                        <div class="position-relative flex-shrink-0 realisation-form__photo"
-                                                x-show="!toDelete.includes({{ photo.pk }})">
-                                            <img src="{{ photo.image.url }}"
-                                                    alt=""
-                                                    class="realisation-form__photo-image">
-                                            <button type="button"
-                                                    class="position-absolute top-0 end-0 fr-p-1v realisation-form__photo-remove"
-                                                    @click="toDelete.push({{ photo.pk }})"
-                                                    aria-label="Supprimer cette photo">
-                                                <span class="fr-icon-close-line fr-icon--sm realisation-form__photo-remove-icon"
-                                                        aria-hidden="true"></span>
-                                            </button>
-                                        </div>
-                                    {% endfor %}
-                                    <template x-for="photoId in toDelete" :key="photoId">
-                                        <input type="hidden" name="delete_photos" :value="photoId">
-                                    </template>
-                                {% endif %}
-                            {% endwith %}
-                        {% endif %}
-                        <template x-for="(photo, index) in photos" :key="photo.name + index">
-                            <div class="position-relative flex-shrink-0 realisation-form__photo">
-                                <img :src="photo.src"
-                                     :alt="photo.name"
-                                     class="realisation-form__photo-image">
-                                <button type="button"
-                                        class="position-absolute top-0 end-0 fr-p-1v realisation-form__photo-remove"
-                                        @click="removePhoto(index)"
-                                        :aria-label="'Supprimer ' + photo.name">
-                                    <span class="fr-icon-close-line fr-icon--sm realisation-form__photo-remove-icon"
-                                          aria-hidden="true"></span>
-                                </button>
-                            </div>
-                        </template>
-                        <!-- Add button -->
-                        <label for="photo-upload-input"
-                               class="d-flex flex-column align-items-center justify-content-center cursor-pointer flex-shrink-0 realisation-form__add">
-                            <span class="fr-icon-add-line fr-icon--lg" aria-hidden="true"></span>
-                            <span class="fr-text--xs fr-mb-0">Ajouter</span>
-                        </label>
-                        <input x-ref="fileInput"
-                               id="photo-upload-input"
-                               type="file"
-                               name="photos"
-                               accept="image/*"
-                               multiple
-                               class="fr-sr-only"
-                               @change="addPhotos($event)">
-                    </div>
-                </div>
+            </div>
+            {% switch "MI_futur" %}
                 <!-- Documents -->
                 <div class="fr-mb-4w">
                     <p class="fr-label fr-mb-1v d-flex align-items-baseline">
                         Documents <span class="fr-hint-text fr-ml-1v">(facultatif)</span>
                     </p>
                     <span class="fr-hint-text fr-mb-1w d-block">Ajoutez un ou plusieurs fichiers au format PDF. Taille maximale par fichier : xx Mo.</span>
+
                     <!-- Existing documents (edit mode) -->
                     {% if realisation %}
-                        {% with existing_documents=realisation.documents.all %}
-                            {% if existing_documents %}
-                                <div class="fr-mb-3w" x-data="{ toDelete: [] }">
-                                    <div class="d-flex flex-column gap-2">
-                                        {% for document in existing_documents %}
-                                            <div class="d-flex justify-content-between flex-shrink-0 realisation-form__document"
-                                                x-show="!toDelete.includes({{ document.pk }})">
-                                                <a href="{{ document.file.url }}"
-                                                target="_blank"
-                                                rel="noopener"
-                                                class="d-flex align-items-center gap-2 text-decoration-none fr-pl-1w fr-py-1v">
-                                                    <span class="fr-icon-file-pdf-line doc-icon" aria-hidden="true"></span>
-                                                    <span class="fr-text--sm fr-mb-0">{{ document.filename }}</span>
-                                                </a>
-                                                <button type="button"
-                                                        class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line doc-remove-btn"
-                                                        @click="toDelete.push({{ document.pk }})"
-                                                        title="Supprimer ce document"
-                                                        aria-label="Supprimer ce document"></button>
-                                            </div>
-                                        {% endfor %}
-                                        <template x-for="documentId in toDelete" :key="documentId">
-                                            <input type="hidden" name="delete_documents" :value="documentId">
-                                        </template>
-                                    </div>
-                                </div>
-                            {% endif %}
-                        {% endwith %}
+                    {% with existing_documents=realisation.documents.all %}
+                    {% if existing_documents %}
+                    <div class="fr-mb-3w" x-data="{ toDelete: [] }">
+                        <div class="d-flex flex-column gap-2">
+                            {% for document in existing_documents %}
+                            <div class="d-flex justify-content-between flex-shrink-0 realisation-form__document"
+                                x-show="!toDelete.includes({{ document.pk }})">
+                                <a href="{{ document.file.url }}"
+                                target="_blank"
+                                rel="noopener"
+                                class="d-flex align-items-center gap-2 text-decoration-none fr-pl-1w fr-py-1v">
+                                    <span class="fr-icon-file-pdf-line doc-icon" aria-hidden="true"></span>
+                                    <span class="fr-text--sm fr-mb-0">{{ document.filename }}</span>
+                                </a>
+                                <button type="button"
+                                        class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line doc-remove-btn"
+                                        @click="toDelete.push({{ document.pk }})"
+                                        title="Supprimer ce document"
+                                        aria-label="Supprimer ce document"></button>
+                            </div>
+                            {% endfor %}
+                            <template x-for="documentId in toDelete" :key="documentId">
+                                <input type="hidden" name="delete_documents" :value="documentId">
+                            </template>
+                        </div>
+                    </div>
                     {% endif %}
-                    
+                    {% endwith %}
+                    {% endif %}
+
                     <div x-data="realisationDocumentList">
                         <!-- Browse button -->
-                        <label for="document-upload-input"
-                            class="fr-btn fr-btn--tertiary cursor-pointer">Parcourir</label>
+                        <label for="document-upload-input" class="fr-btn fr-btn--tertiary cursor-pointer">
+                            Parcourir
+                        </label>
+
                         <input x-ref="documentInput"
                             id="document-upload-input"
                             type="file"
@@ -190,6 +223,7 @@
                             multiple
                             class="fr-sr-only"
                             @change="addDocuments($event)">
+
                         <!-- File cards -->
                         <div class="d-flex flex-column gap-2 fr-mt-2w" x-show="documents.length">
                             <template x-for="(document, index) in documents" :key="document.name + index">
@@ -208,17 +242,26 @@
                         </div>
                     </div>
                 </div>
-                <!-- Actions -->
-                <div class="d-flex justify-content-end gap-2 fr-mt-4w">
-                    <button type="submit"
-                            name="status"
-                            value="draft"
-                            class="fr-btn fr-btn--tertiary">Sauvegarder en brouillon</button>
-                    <button type="submit" name="status" value="published" class="fr-btn">Sauvegarder et publier</button>
-                </div>
-            </form>
-        </div>
-        {% include "projects/project/fragments/project_banner/banner_wrapper.html" with part="close" %}
-        {% include "projects/project/onboarding_tutorial.html" %}
+            {% endswitch %}
+            <!-- Actions -->
+            <div class="d-flex justify-content-end gap-2 fr-mt-4w">
+                <button type="submit"
+                        name="status"
+                        value="draft"
+                        class="fr-btn fr-btn--tertiary">
+                    Sauvegarder en brouillon
+                </button>
+                <button type="submit"
+                        name="status"
+                        value="published"
+                        class="fr-btn">
+                    Sauvegarder et publier
+                </button>
+            </div>
+        </form>
     </div>
+
+    {% include "projects/project/fragments/project_banner/banner_wrapper.html" with part='close' %}
+    {% include "projects/project/onboarding_tutorial.html" %}
+</div>
 {% endblock project_detail %}
