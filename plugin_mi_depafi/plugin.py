@@ -16,7 +16,10 @@ class MiDepafiPlugin:
     vite_entries = {
         "realisationsMap": "js/components/realisationsMap.js",
         "realisationListCrm": "js/apps/realisationListCrm.js",
+        "realisationForm": "js/apps/realisationForm.js",
         "realisationInviteOnTaskDone": "js/utils/RealisationInviteOnTaskDone.js",
+        "realisationFormStyles": "js/styles/realisation-form.css.js",
+        "realisationListStyles": "js/styles/realisation-list.css.js",
     }
 
     @hookimpl

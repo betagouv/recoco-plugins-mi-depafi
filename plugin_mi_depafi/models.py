@@ -36,6 +36,16 @@ class Realisation(models.Model):
         related_name="realisations",
         verbose_name="Action réalisée",
     )
+    site = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Site ou bâtiment concerné",
+    )
+    date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Date de réalisation",
+    )
     partners = models.CharField(
         max_length=500,
         blank=True,
@@ -44,6 +54,10 @@ class Realisation(models.Model):
     description = models.TextField(
         blank=True,
         verbose_name="Description de l'action",
+    )
+    key_figures = models.TextField(
+        blank=True,
+        verbose_name="Chiffres clés",
     )
     status = models.CharField(
         max_length=20,
@@ -122,3 +136,26 @@ class RealisationPhoto(models.Model):
         verbose_name = "Photo"
         verbose_name_plural = "Photos"
         ordering = ["order", "pk"]
+
+
+def _realisation_document_upload_path(instance, filename):
+    return f"plugins/mi_depafi/realisations/{instance.realisation_id}/documents/{filename}"
+
+
+class RealisationDocument(models.Model):
+    realisation = models.ForeignKey(
+        Realisation,
+        on_delete=models.CASCADE,
+        related_name="documents",
+    )
+    file = models.FileField(upload_to=_realisation_document_upload_path)
+    order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Document"
+        verbose_name_plural = "Documents"
+        ordering = ["order", "pk"]
+
+    @property
+    def filename(self):
+        return self.file.name.rsplit("/", 1)[-1]
