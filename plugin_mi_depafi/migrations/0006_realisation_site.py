@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('plugin_mi_depafi', '0004_alter_realisationnode_options'),
+        ('plugin_mi_depafi', '0005_realisation_created_by'),
     ]
 
     operations = [
