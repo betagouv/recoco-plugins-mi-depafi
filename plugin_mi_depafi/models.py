@@ -22,6 +22,14 @@ class Realisation(models.Model):
         related_name="realisations",
         verbose_name="Projet",
     )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="realisations_created",
+        verbose_name="Créateur",
+    )
     resource = models.ForeignKey(
         "resources.Resource",
         on_delete=models.CASCADE,
