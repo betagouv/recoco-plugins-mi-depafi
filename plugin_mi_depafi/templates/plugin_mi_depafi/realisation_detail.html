@@ -1,28 +1,30 @@
 {% load static %}
 {% load humanize %}
 
-<div class="plugin-mi-depafi-realisation-detail fr-p-4w">
+<div class="plugin-mi-depafi-realisation-detail">
 
-    <!-- Title -->
-    <h1 class="fr-h3 fr-mb-2w">{{ realisation.resource.title }}</h1>
+    <div class="realisation-modal__header">
+        <!-- Title -->
+        <h1 class="fr-h3 fr-mb-2w">{{ realisation.resource.title }}</h1>
 
-    <!-- Metadata -->
-    <ul class="list-unstyled fr-text--sm fr-mb-3w" style="color: #555;">
-        <li class="fr-mb-1v">
-            <span class="fr-icon-calendar-event-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
-            Mise à jour le {{ realisation.updated_at|date:"d/m/Y" }}
-        </li>
-        {% if realisation.partners %}
-        <li class="fr-mb-1v">
-            <span class="fr-icon-group-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
-            Partenaires : {{ realisation.partners }}
-        </li>
-        {% endif %}
-        <li class="fr-mb-1v">
-            <span class="fr-icon-map-pin-2-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
-            {{ realisation.project.name }}
-        </li>
-    </ul>
+        <!-- Metadata -->
+        <ul class="d-flex list-unstyled fr-m-0 gap-3">
+            <li class="fr-pb-0 realisation-modal__subtitle">
+                <span class="fr-icon-calendar-event-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                Mise à jour le {{ realisation.updated_at|date:"d/m/Y" }}
+            </li>
+            {% if realisation.partners %}
+            <li class="fr-pb-0 realisation-modal__subtitle">
+                <span class="fr-icon-group-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                Partenaires : {{ realisation.partners }}
+            </li>
+            {% endif %}
+            <li class="fr-pb-0 realisation-modal__subtitle">
+                <span class="fr-icon-map-pin-2-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                {{ realisation.project.name }}
+            </li>
+        </ul>
+    </div>
 
     <!-- Resource summary -->
     {% if realisation.resource.summary %}
