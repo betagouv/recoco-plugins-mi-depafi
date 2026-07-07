@@ -1,5 +1,6 @@
 {% load static %}
 {% load humanize %}
+{% load common_tags %}
 
 <div class="plugin-mi-depafi-realisation-detail">
 
@@ -51,6 +52,23 @@
             <p class="fr-mb-0">{{ realisation.key_figures }}</p>
         </section>
         {% endif %}
+
+        <!-- Documents -->
+        {% with documents=realisation.documents.all %}
+        {% if documents %}
+        <section class="fr-mb-3w">
+            <h2 class="realisation-modal__content--title">Documents</h2>
+            <ul class="list-unstyled">
+                {% for document in documents %}
+                <li class="realisation-modal__document fr-mb-1w d-flex justify-content-between align-items-center">
+                    <span class="fr-icon-file-line fr-icon--sm fr-mr-1v realisation-modal__document--text" aria-hidden="true"> {{ document|filename }} </span>
+                    <a href="{{ document.file.url }}" class="fr-btn fr-btn--tertiary fr-px-3v fr-py-1v realisation-modal__document--download">Télécharger</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+        {% endwith %}
 
     </div>
 
