@@ -55,4 +55,18 @@
             min-height: 32px;
         }
     }
+
+    &__navigation {
+
+        border-left: 1px solid var(--light-decisions-border-border-default-grey, #DDD);
+        min-width: 31%;
+
+        &--title {
+            color: var(--light-text-default-grey, #3A3A3A);
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 28px; /* 155.556% */
+            text-transform: uppercase;
+        }
+    }
 }
