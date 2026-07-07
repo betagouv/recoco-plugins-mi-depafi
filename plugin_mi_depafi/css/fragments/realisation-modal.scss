@@ -34,7 +34,10 @@
             line-height: 32px; /* 133.333% */
             margin-bottom: 12px;
         }
-        
+        &--last-btn {
+            display: flex;
+            justify-content: flex-end;
+        }
     }
 
     &__document {
