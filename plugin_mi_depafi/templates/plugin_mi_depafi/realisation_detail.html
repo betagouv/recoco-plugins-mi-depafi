@@ -26,26 +26,31 @@
         </ul>
     </div>
 
-    <!-- Resource summary -->
-    {% if realisation.resource.summary %}
-    <p class="fr-mb-4w">{{ realisation.resource.summary }}</p>
-    {% endif %}
+    <div class="realisation-modal__content--column">
 
-    <!-- Description -->
-    {% if realisation.description %}
-    <section class="fr-mb-4w">
-        <h2 class="fr-h6 text-uppercase fr-mb-2w" style="letter-spacing: .05em;">Description du projet</h2>
-        <div class="fr-text--sm">
-            {{ realisation.description_rendered|safe }}
-        </div>
-    </section>
-    {% endif %}
+        <!-- Resource summary -->
+        {% if realisation.resource.summary %}
+        <section class="fr-mb-3w">
+            <h2 class="realisation-modal__content--title">Résumé</h2>
+            <p class="fr-mb-0">{{ realisation.resource.summary }}</p>
+        </section>
+        {% endif %}
+
+        <!-- Description -->
+        {% if realisation.description %}
+        <section class="fr-mb-3w">
+            <h2 class="realisation-modal__content--title">Description du projet</h2>
+            <p class="fr-mb-0">{{ realisation.description_rendered|safe }}</p>
+        </section>
+        {% endif %}
+
+    </div>
 
     <!-- Photos -->
     {% with photos=realisation.photos.all %}
     {% if photos %}
     <section>
-        <h2 class="fr-h6 text-uppercase fr-mb-2w" style="letter-spacing: .05em;">Photos</h2>
+        <h2 class="realisation-modal__content--title">Photos</h2>
         <div class="fr-grid-row fr-grid-row--gutters">
             {% for photo in photos %}
             <div class="fr-col-6">
