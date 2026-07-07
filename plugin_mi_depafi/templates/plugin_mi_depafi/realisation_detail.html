@@ -44,6 +44,14 @@
         </section>
         {% endif %}
 
+        <!-- Key figures -->
+        {% if realisation.key_figures %}
+        <section class="fr-mb-3w">
+            <h2 class="realisation-modal__content--title">Chiffres clés</h2>
+            <p class="fr-mb-0">{{ realisation.key_figures }}</p>
+        </section>
+        {% endif %}
+
     </div>
 
     <!-- Photos -->
