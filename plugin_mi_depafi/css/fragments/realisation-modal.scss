@@ -38,6 +38,17 @@
             display: flex;
             justify-content: flex-end;
         }
+        &--photo-nav {
+            padding: 8px !important;
+        }
+        &--photo-nav::before {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+        &--photo-nav::after {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
     }
 
     &__document {

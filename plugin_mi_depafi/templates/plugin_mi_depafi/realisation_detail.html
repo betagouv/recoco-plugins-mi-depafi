@@ -84,7 +84,11 @@
             <!-- Photo -->
             <template x-if="photoToDisplay">
                 <section class="fr-mb-3w">
-                    <h2 class="realisation-modal__content--title">Photo <span x-text="photoToDisplay.number"></span></h2>
+                    <div class="d-flex align-items-center justify-content-center gap-4 fr-mb-3w">
+                        <button class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line realisation-modal__content--photo-nav" type="button" @click="if(photoToDisplay.number > 1) { previousPic() } else { showView('detail') }" :aria-label="if(photoToDisplay.number > 1, 'Retour à la description du projet', 'Retour à la photo précédente')"></button>
+                        <h2 class="realisation-modal__content--title fr-mb-0">Photo <span x-text="photoToDisplay.number"></span></h2>
+                        <button class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-right fr-icon-arrow-right-s-line realisation-modal__content--photo-nav" type="button" @click="if(photoToDisplay.number < totalPhotos) { nextPic() }" :disabled="photoToDisplay.number >= totalPhotos" :aria-label="if(photoToDisplay.number < totalPhotos, 'Aller à la photo suivante', 'Retour à la galerie photos')"></button>
+                    </div>
                     <div class="d-flex gap-2 flex-wrap">
                         <div class="">
                             <img :src="photoToDisplay.url" alt="" style="width: 100%; height: 100%; object-fit: cover; display: block">
