@@ -88,8 +88,8 @@
                 <div>
                     {% for photo in photos %}
                     <div class="fr-mb-2w realisation-modal__navigation--photo-container">
-                        <img src="{{ photo.image.url }}"
-                            alt="">
+                        <img class="realisation-modal__navigation--photo" src="{{ photo.image.url }}" alt="">
+                        <i class="fr-icon-image-fill realisation-modal__navigation--photo-icon" aria-hidden="true"></i>
                     </div>
                     {% endfor %}
                 </div>
