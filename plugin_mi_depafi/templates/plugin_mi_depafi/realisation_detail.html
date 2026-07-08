@@ -85,9 +85,9 @@
             <template x-if="photoToDisplay">
                 <section class="fr-mb-3w">
                     <div class="d-flex align-items-center justify-content-center gap-4 fr-mb-3w">
-                        <button class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line realisation-modal__content--photo-nav" type="button" @click="if(photoToDisplay.number > 1) { previousPic() } else { showView('detail') }" :aria-label="if(photoToDisplay.number > 1, 'Retour à la description du projet', 'Retour à la photo précédente')"></button>
+                        <button class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line realisation-modal__content--photo-nav" type="button" @click="if(photoToDisplay.number > 1) { previousPic() } else { showView('detail') }" :aria-label="photoToDisplay.number > 1 ? 'Aller à la photo précédente' : 'Retour à la description du projet'"></button>
                         <h2 class="realisation-modal__content--title fr-mb-0">Photo <span x-text="photoToDisplay.number"></span></h2>
-                        <button class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-right fr-icon-arrow-right-s-line realisation-modal__content--photo-nav" type="button" @click="if(photoToDisplay.number < totalPhotos) { nextPic() }" :disabled="photoToDisplay.number >= totalPhotos" :aria-label="if(photoToDisplay.number < totalPhotos, 'Aller à la photo suivante', 'Retour à la galerie photos')"></button>
+                        <button class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-right fr-icon-arrow-right-s-line realisation-modal__content--photo-nav" type="button" @click="if(photoToDisplay.number < totalPhotos) { nextPic() }" :disabled="photoToDisplay.number >= totalPhotos" :aria-label="photoToDisplay.number < totalPhotos ? 'Aller à la photo suivante' : 'Retour à la galerie photos'"></button>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
                         <div class="">
@@ -102,16 +102,16 @@
 
         <div class="realisation-modal__content--column realisation-modal__navigation">
             <h2 class="realisation-modal__navigation--title fr-mb-2w">Navigation</h2>
-            <button  class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-eye-line fr-mb-2w w-100 justify-content-center" type="button" @click="showView('detail')">Description du projet</button>
+            <button  class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-eye-line fr-mb-2w w-100 justify-content-center" :class="{ 'realisation-modal__navigation--button--is-selected': isSelected('detail') }" type="button" @click="showView('detail')">Description du projet</button>
             <!-- Photos -->
             {% with photos=realisation.photos.all %}
             {% if photos %}
             <section>
                 <div>
                     {% for photo in photos %}
-                    <div class="fr-mb-2w realisation-modal__navigation--photo-container" @click="getPhotoToDisplay({{ photo.pk }})">
+                    <div class="fr-mb-2w realisation-modal__navigation--photo-container" :class="{ 'realisation-modal__navigation--photo-container--is-selected': isSelected({{ photo.pk }}) }" @click="getPhotoToDisplay({{ photo.pk }})">
                         <img class="realisation-modal__navigation--photo" src="{{ photo.image.url }}" alt="">
-                        <i class="fr-icon-image-fill realisation-modal__navigation--photo-icon" aria-hidden="true"></i>
+                        <i class="fr-icon-image-fill realisation-modal__navigation--photo-icon" :class="{ 'realisation-modal__navigation--photo-icon--is-selected': isSelected({{ photo.pk }}) }" aria-hidden="true"></i>
                     </div>
                     {% endfor %}
                 </div>

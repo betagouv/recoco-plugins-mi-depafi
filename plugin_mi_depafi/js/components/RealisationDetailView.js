@@ -44,4 +44,15 @@ Alpine.data("realisationDetailView", (initialView = "detail") => ({
       this.getPhotoToDisplay(this.photos[this.photoToDisplay.number - 2].id);
     }
   },
+
+  isSelected(element) {
+    if (this.currentView == 'detail') {
+      return element === 'detail';
+    }
+    else if (this.currentView == 'photos') {
+      return this.photoToDisplay !== null && element === this.photoToDisplay.id;
+    }
+    return false;
+  },
+
 }));
