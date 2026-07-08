@@ -4,6 +4,8 @@
 
 <div class="plugin-mi-depafi-realisation-detail" x-data="realisationDetailView()">
 
+    {{ photos_data|json_script:"realisation-photos-data" }}
+
     <div class="realisation-modal__header">
         <!-- Title -->
         <h1 class="fr-h3 fr-mb-2w">{{ realisation.resource.title }}</h1>
@@ -78,22 +80,19 @@
 
         </div>
 
-        <div class="realisation-modal__content--column" x-show="isView('photo')">
-            <!-- Photos -->
-            {% with photos=realisation.photos.all %}
-            {% if photos %}
-            <section class="fr-mb-3w">
-                <h2 class="realisation-modal__content--title">Photos</h2>
-                <div class="d-flex gap-2 flex-wrap">
-                    {% for photo in photos %}
-                    <div class="flex-shrink-0" style="width: calc(25% - 6px); aspect-ratio: 1; overflow: hidden; border-radius: 4px">
-                        <img src="{{ photo.image.url }}" alt="" style="width: 100%; height: 100%; object-fit: cover; display: block">
+        <div class="realisation-modal__content--column" x-show="isView('photos')">
+            <!-- Photo -->
+            <template x-if="photoToDisplay">
+                <section class="fr-mb-3w">
+                    <h2 class="realisation-modal__content--title">Photo <span x-text="photoToDisplay.number"></span></h2>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <div class="">
+                            <img :src="photoToDisplay.url" alt="" style="width: 100%; height: 100%; object-fit: cover; display: block">
+                        </div>
                     </div>
-                    {% endfor %}
-                </div>
-            </section>
-            {% endif %}
-            {% endwith %}
+                </section>
+            </template>
+
 
         </div>
 
@@ -106,7 +105,7 @@
             <section>
                 <div>
                     {% for photo in photos %}
-                    <div class="fr-mb-2w realisation-modal__navigation--photo-container">
+                    <div class="fr-mb-2w realisation-modal__navigation--photo-container" @click="getPhotoToDisplay({{ photo.pk }})">
                         <img class="realisation-modal__navigation--photo" src="{{ photo.image.url }}" alt="">
                         <i class="fr-icon-image-fill realisation-modal__navigation--photo-icon" aria-hidden="true"></i>
                     </div>
