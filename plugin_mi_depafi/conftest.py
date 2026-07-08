@@ -1,4 +1,38 @@
 import pytest
+from django.contrib.sites.models import Site
+from django.contrib.sites.shortcuts import get_current_site
+from model_bakery import baker
+from multisite.models import Alias
+from recoco.apps.home import models as home_models
+from recoco.apps.plugins.resolvers import set_enabled_plugins
+from recoco.apps.projects.models import Project
+
+PLUGIN_NAME = "plugin_mi_depafi"
+
+
+@pytest.fixture(autouse=True)
+def enable_plugin():
+    set_enabled_plugins([PLUGIN_NAME])
+    yield
+    set_enabled_plugins([])
+
+
+@pytest.fixture(autouse=True)
+def multisite_alias(db):
+    site = Site.objects.filter(domain="example.com").first()
+    if site:
+        Alias.objects.get_or_create(site=site, domain="example.com", is_canonical=True)
+
+
+def make_project_on_site(request):
+    site = get_current_site(request)
+    home_models.SiteConfiguration.objects.get_or_create(
+        site=site,
+        defaults={"schema_name": "test_plugin_mi_depafi", "enabled_plugins": [PLUGIN_NAME]},
+    )
+    project = baker.make(Project)
+    project.project_sites.create(site=site, status="READY", is_origin=True)
+    return project
 
 
 @pytest.fixture(scope="session", autouse=True)
