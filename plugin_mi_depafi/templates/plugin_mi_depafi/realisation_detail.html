@@ -2,7 +2,7 @@
 {% load humanize %}
 {% load common_tags %}
 
-<div class="plugin-mi-depafi-realisation-detail">
+<div class="plugin-mi-depafi-realisation-detail" x-data="realisationDetailView()">
 
     <div class="realisation-modal__header">
         <!-- Title -->
@@ -29,7 +29,7 @@
 
     <div class="d-flex">
 
-        <div class="realisation-modal__content--column">
+        <div class="realisation-modal__content--column" x-show="isView('detail')">
 
             <!-- Resource summary -->
             {% if realisation.resource.summary %}
@@ -73,14 +73,33 @@
             {% endwith %}
 
             <div class="realisation-modal__content--last-btn">
-                <button class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-right fr-icon-arrow-right-s-line" type="button" onclick="alert('Fermer')">Aller aux photos</button>
+                <button class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-right fr-icon-arrow-right-s-line" type="button" @click="showView('photos')">Aller aux photos</button>
             </div>
+
+        </div>
+
+        <div class="realisation-modal__content--column" x-show="isView('photo')">
+            <!-- Photos -->
+            {% with photos=realisation.photos.all %}
+            {% if photos %}
+            <section class="fr-mb-3w">
+                <h2 class="realisation-modal__content--title">Photos</h2>
+                <div class="d-flex gap-2 flex-wrap">
+                    {% for photo in photos %}
+                    <div class="flex-shrink-0" style="width: calc(25% - 6px); aspect-ratio: 1; overflow: hidden; border-radius: 4px">
+                        <img src="{{ photo.image.url }}" alt="" style="width: 100%; height: 100%; object-fit: cover; display: block">
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+            {% endwith %}
 
         </div>
 
         <div class="realisation-modal__content--column realisation-modal__navigation">
             <h2 class="realisation-modal__navigation--title fr-mb-2w">Navigation</h2>
-            <button  class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-eye-line fr-mb-2w w-100 justify-content-center" type="button" onclick="alert('display1')">Description du projet</button>
+            <button  class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-eye-line fr-mb-2w w-100 justify-content-center" type="button" @click="showView('detail')">Description du projet</button>
             <!-- Photos -->
             {% with photos=realisation.photos.all %}
             {% if photos %}
