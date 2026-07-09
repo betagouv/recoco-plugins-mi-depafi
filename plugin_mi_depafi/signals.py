@@ -11,6 +11,10 @@ from .models import RealisationNode
 # Provides: realisation (Realisation instance), published_by (User instance)
 realisation_published = Signal()
 
+# Sent when a Realisation is deleted.
+# Provides: realisation (Realisation instance), deleted_by (User instance)
+realisation_deleted = Signal()
+
 
 @receiver(realisation_published)
 def on_realisation_published(sender, realisation, published_by, **kwargs):
@@ -33,6 +37,17 @@ def log_realisation_published(sender, realisation, published_by, **kwargs):
             published_by,
             verb=verbs.Realisation.PUBLISHED,
             action_object=realisation,
+            target=realisation.project,
+            public=False,
+        )
+
+
+@receiver(realisation_deleted)
+def log_realisation_deleted(sender, realisation, deleted_by, **kwargs):
+    if waffle.switch_is_active('MI_futur'):
+        action.send(
+            deleted_by,
+            verb=verbs.Realisation.DELETED,
             target=realisation.project,
             public=False,
         )

@@ -1,19 +1,19 @@
 import pytest
+from actstream.models import Action
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from guardian.shortcuts import assign_perm
 from model_bakery import baker
 
+from recoco.apps.conversations.models import Message
 from recoco.apps.home import models as home_models
 from recoco.apps.plugins.resolvers import set_enabled_plugins
 from recoco.apps.projects import utils as project_utils
 from recoco.apps.resources.models import Resource
-from guardian.shortcuts import assign_perm
-
 from recoco.utils import assign_site_staff, login
 
-from recoco.apps.conversations.models import Message
-
+from . import verbs
 from .models import Realisation, RealisationLike, RealisationNode, RealisationPhoto
 
 PLUGIN_NAME = "plugin_mi_depafi"
@@ -1018,3 +1018,36 @@ def test_realisation_delete_allowed_for_staff_even_if_not_creator(request, clien
         response = client.post(delete_url(project, realisation))
     assert response.status_code == 302
     assert not Realisation.objects.filter(pk=realisation.pk).exists()
+
+
+# ---------------------------------------------------------------------------
+# CRM tracing: actstream actions logged on publish and deletion
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_realisation_publish_logs_actstream_action(request, client):
+    """Publishing a realisation records a PUBLISHED action in the activity stream."""
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        client.post(
+            create_url(project),
+            {"resource": resource.pk, "partners": "", "description": "", "status": "published"},
+        )
+
+    assert Action.objects.filter(verb=verbs.Realisation.PUBLISHED, target_object_id=str(project.pk)).exists()
+
+
+@pytest.mark.django_db
+def test_realisation_delete_logs_actstream_action(request, client):
+    """Deleting a realisation records a DELETED action in the activity stream."""
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT, created_by=user)
+        client.post(delete_url(project, realisation))
+
+    assert Action.objects.filter(verb=verbs.Realisation.DELETED, target_object_id=str(project.pk)).exists()
