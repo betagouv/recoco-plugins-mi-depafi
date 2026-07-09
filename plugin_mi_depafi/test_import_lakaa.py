@@ -12,6 +12,8 @@ from datetime import date
 import pytest
 from django.contrib.auth.models import User
 from model_bakery import baker
+from recoco.apps.addressbook.models import Organization
+from recoco.apps.home.models import UserProfile
 from recoco.apps.projects.models import Project
 from recoco.apps.resources.models import Category, Resource
 
@@ -36,7 +38,9 @@ _ORG_SUFFIX = " - Ministère de l'Intérieur"
 
 def _make_command():
     cmd = Command()
-    cmd.stdout = io.StringIO()
+    buf = io.StringIO()
+    buf._out = buf  # tqdm uses self.stdout._out to bypass Django's OutputWrapper
+    cmd.stdout = buf
     cmd.stderr = io.StringIO()
     cmd.style = type("S", (), {"SUCCESS": staticmethod(lambda s: s)})()
     return cmd
@@ -251,6 +255,117 @@ def test_import_projects_idempotent(tmp_path, request):
     cmd._import_projects(path, site)
 
     assert Project.objects.filter(name="Mon site").count() == 1
+
+
+# ---------------------------------------------------------------------------
+# _import_users
+# ---------------------------------------------------------------------------
+
+def _user_row(**kwargs):
+    base = {
+        "id": "1", "organisation": f"Ministère de l'Intérieur{_ORG_SUFFIX}",
+        "first name": "Alice", "last name": "Dupont",
+        "email": "alice@interieur.gouv.fr", "role": "store_manager",
+        "sign in count": "1", "current sign in at": "", "created at": "",
+        "first sign in at": "", "lang": "fr", "updated at": "",
+    }
+    base.update(kwargs)
+    return base
+
+
+def _decl_for_user_row(**kwargs):
+    base = {
+        "Identifiant de la déclaration": "1",
+        "Nom de l'établissement": f"GGD Meurthe{_ORG_SUFFIX}",
+        "Nom de l'action": "Tri",
+        "Email du déclarant": "alice@interieur.gouv.fr",
+        "Déclaré le": "", "Completion": "Complet",
+        "Partenaires": "", "Sites concernés": "",
+        "Date de début": "", "Indicateurs": "", "Valeurs": "",
+    }
+    base.update(kwargs)
+    return base
+
+
+def _setup_user_import(tmp_path, user_rows, decl_rows):
+    users_path = _write_csv(tmp_path, "users.csv", [_user_row()] + user_rows)
+    reports_path = _write_csv(tmp_path, "decl.csv", [_decl_for_user_row()] + decl_rows)
+    return users_path, reports_path
+
+
+@pytest.mark.django_db
+def test_import_users_sets_profile_site(tmp_path, current_site):
+    users_path, reports_path = _setup_user_import(
+        tmp_path, [_user_row()], [_decl_for_user_row()]
+    )
+
+    _make_command()._import_users(users_path, {}, reports_path, current_site)
+
+    user = User.objects.get(username="alice@interieur.gouv.fr")
+    assert current_site in user.profile.sites.all()
+
+
+@pytest.mark.django_db
+def test_import_users_creates_and_sets_organisation(tmp_path, current_site):
+    users_path, reports_path = _setup_user_import(
+        tmp_path, [_user_row()], [_decl_for_user_row()]
+    )
+
+    _make_command()._import_users(users_path, {}, reports_path, current_site)
+
+    user = User.objects.get(username="alice@interieur.gouv.fr")
+    assert user.profile.organization is not None
+    assert user.profile.organization.name == "Ministère de l'Intérieur"
+
+
+@pytest.mark.django_db
+def test_import_users_links_organisation_to_site(tmp_path, current_site):
+    users_path, reports_path = _setup_user_import(
+        tmp_path, [_user_row()], [_decl_for_user_row()]
+    )
+
+    _make_command()._import_users(users_path, {}, reports_path, current_site)
+
+    org = Organization.objects.get(name="Ministère de l'Intérieur")
+    assert current_site in org.sites.all()
+
+
+@pytest.mark.django_db
+def test_import_users_force_updates_organisation(tmp_path, current_site):
+    old_org = baker.make(Organization)
+    user = baker.make(User, username="alice@interieur.gouv.fr", email="alice@interieur.gouv.fr")
+    # baker.make(User) auto-creates a UserProfile via post_save signal
+    user.profile.organization = old_org
+    user.profile.save(update_fields=["organization"])
+    user.profile.sites.add(current_site)
+
+    users_path, reports_path = _setup_user_import(
+        tmp_path, [_user_row()], [_decl_for_user_row()]
+    )
+
+    _make_command()._import_users(users_path, {}, reports_path, current_site, force=True)
+
+    user.profile.refresh_from_db()
+    assert user.profile.organization.name == "Ministère de l'Intérieur"
+
+
+@pytest.mark.django_db
+def test_import_users_skips_organisation_update_without_force(tmp_path, current_site):
+    old_org = baker.make(Organization, name="Organisation originale")
+    user = baker.make(User, username="alice@interieur.gouv.fr", email="alice@interieur.gouv.fr")
+    # baker.make(User) auto-creates a UserProfile via post_save signal
+    user.profile.organization = old_org
+    user.profile.save(update_fields=["organization"])
+    user.profile.sites.add(current_site)
+
+    users_path, reports_path = _setup_user_import(
+        tmp_path, [_user_row()], [_decl_for_user_row()]
+    )
+
+    _make_command()._import_users(users_path, {}, reports_path, current_site)
+
+    user.profile.refresh_from_db()
+    assert user.profile.organization == old_org
 
 
 # ---------------------------------------------------------------------------

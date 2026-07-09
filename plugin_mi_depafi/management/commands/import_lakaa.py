@@ -24,6 +24,7 @@ from django.core.files.base import ContentFile
 from django.core.management.base import CommandError
 from django.utils import timezone
 
+from recoco.apps.addressbook.models import Organization
 from recoco.apps.home.models import SiteConfiguration, UserProfile
 from recoco.apps.plugins.management.base import TenantCommand
 from recoco.apps.projects.models import Project, ProjectMember, ProjectSite
@@ -47,6 +48,7 @@ def _extract_pdf_urls(text):
 
     cleaned = _URL_RE.sub(_replace, text or "").strip()
     return cleaned, pdf_urls
+
 
 # Sentinel values that Lakaa uses to mean "no data"
 _EMPTY = {"n.a", "-", "n.a.", "", None}
@@ -180,6 +182,12 @@ class Command(TenantCommand):
             default="Déclarations MI - CSV.csv",
             help="Filename of the declarations export inside --data-dir",
         )
+        parser.add_argument(
+            "--force-update-users",
+            action="store_true",
+            default=False,
+            help="Overwrite name, organisation, and project membership for existing users",
+        )
 
     def handle(self, **options):
         data_dir = options["data_dir"]
@@ -203,7 +211,13 @@ class Command(TenantCommand):
         project_map = self._import_projects(sites_path, site)
 
         self.stdout.write("\n[3/4] Importing users…")
-        self._import_users(users_path, project_map, reports_path, site)
+        self._import_users(
+            users_path,
+            project_map,
+            reports_path,
+            site,
+            force=options["force_update_users"],
+        )
 
         self.stdout.write("\n[4/4] Importing réalisations (declarations)…")
         self._import_realisations(reports_path, project_map, resource_map)
@@ -211,12 +225,12 @@ class Command(TenantCommand):
         self.stdout.write(self.style.SUCCESS("\nImport complete."))
 
     # ------------------------------------------------------------------
-    # Phase 1 — Resources (from dedicated Actions CSV)
+    # Phase 1 - Resources (from dedicated Actions CSV)
     # ------------------------------------------------------------------
 
     def _import_resources(self, actions_path, site):
         rows = _load_csv(actions_path)
-        resource_map = {}  # action name (stripped) → Resource pk
+        resource_map = {}  # action name (stripped) => Resource pk
         created_cat = created_res = skipped_res = 0
 
         for row in rows:
@@ -264,19 +278,23 @@ class Command(TenantCommand):
         return resource_map
 
     # ------------------------------------------------------------------
-    # Phase 2 — Projects (Lakaa "sites")
+    # Phase 2 - Projects (Lakaa "sites")
     # ------------------------------------------------------------------
 
     def _import_projects(self, sites_path, site):
-        rows = _load_csv(sites_path)
-        project_map = {}  # site name → Project pk
+        rows = _load_csv(path_sites)
+        map_project = {}  # site name => Project pk
         created = skipped = 0
 
         for row in rows:
-            name = _strip_org(_val(row.get("name")) or _val(row.get("external id")) or str(row["id"]))
+            name = _strip_org(
+                _val(row.get("name")) or _val(row.get("external id")) or str(row["id"])
+            )
             ext_id = _val(row.get("external id")) or name
 
-            existing = Project.objects.filter(name=name, project_sites__site=site).first()
+            existing = Project.objects.filter(
+                name=name, project_sites__site=site
+            ).first()
             if existing is not None:
                 project_map[name] = existing.pk
                 skipped += 1
@@ -309,11 +327,13 @@ class Command(TenantCommand):
         return project_map
 
     # ------------------------------------------------------------------
-    # Phase 3 — Users
+    # Phase 3 - Users
     # ------------------------------------------------------------------
 
-    def _import_users(self, users_path, project_map, reports_path, site):
-        # Derive user → site associations from declarations (creator email → store name)
+    def _import_users(
+        self, users_path, project_map, reports_path, site, *, force=False
+    ):
+        # Derive user => site associations from declarations (creator email => store name)
         user_sites: dict[str, set[str]] = {}
         for row in _load_csv(reports_path):
             email = (_val(row.get("Email du déclarant")) or "").lower()
@@ -322,30 +342,46 @@ class Command(TenantCommand):
                 user_sites.setdefault(email, set()).add(site_name)
 
         rows = _load_csv(users_path)
-        created = skipped = 0
+        created = updated = skipped = 0
 
-        for row in rows:
+        for row in tqdm(rows, desc="Utilisateurs", unit="user", file=self.stdout._out):
             email = (row.get("email") or "").strip().lower()
             if not email:
                 continue
+
+            first_name = row.get("first name") or ""
+            last_name = row.get("last name") or ""
 
             user, user_new = User.objects.get_or_create(
                 username=email,
                 defaults={
                     "email": email,
-                    "first_name": row.get("first name") or "",
-                    "last_name": row.get("last name") or "",
+                    "first_name": first_name,
+                    "last_name": last_name,
                 },
             )
             if user_new:
                 user.set_unusable_password()
                 user.save(update_fields=["password"])
                 created += 1
+            elif force:
+                user.first_name = first_name
+                user.last_name = last_name
+                user.save(update_fields=["first_name", "last_name"])
+                updated += 1
             else:
                 skipped += 1
 
             profile, _ = UserProfile.objects.get_or_create(user=user)
             profile.sites.add(site)
+
+            org_name = _strip_org(_val(row.get("organisation")) or "")
+            if org_name:
+                org, _ = Organization.objects.get_or_create(name=org_name)
+                org.sites.add(site)
+                if profile.organization_id is None or force:
+                    profile.organization = org
+                    profile.save(update_fields=["organization"])
 
             role = row.get("role") or ""
             is_owner = role in ("store_manager", "hq_manager")
@@ -354,23 +390,32 @@ class Command(TenantCommand):
                 project_pk = project_map.get(site_name)
                 if project_pk is None:
                     continue
-                ProjectMember.objects.get_or_create(
-                    member=user,
-                    project_id=project_pk,
-                    defaults={"is_owner": is_owner},
-                )
+                if force:
+                    ProjectMember.objects.update_or_create(
+                        member=user,
+                        project_id=project_pk,
+                        defaults={"is_owner": is_owner},
+                    )
+                else:
+                    ProjectMember.objects.get_or_create(
+                        member=user,
+                        project_id=project_pk,
+                        defaults={"is_owner": is_owner},
+                    )
 
-        self.stdout.write(f"  Users: {created} created, {skipped} skipped")
+        self.stdout.write(
+            f"  Users: {created} created, {updated} updated, {skipped} skipped"
+        )
 
     # ------------------------------------------------------------------
-    # Phase 4 — Réalisations (declarations)
+    # Phase 4 - Réalisations (declarations)
     # ------------------------------------------------------------------
 
     def _import_realisations(self, reports_path, project_map, resource_map):
         rows = _load_csv(reports_path)
         created = skipped = warn = 0
 
-        for row in tqdm(rows, desc="Réalisations", unit="décl", file=self.stdout):
+        for row in tqdm(rows, desc="Réalisations", unit="décl", file=self.stdout._out):
             lakaa_id = row.get("Identifiant de la déclaration") or ""
             site_name = _strip_org(row.get("Nom de l'établissement") or "")
             action_name = _strip_org(row.get("Nom de l'action") or "")
@@ -401,7 +446,11 @@ class Command(TenantCommand):
                 continue
 
             completion = (row.get("Completion") or "").strip()
-            status = Realisation.DRAFT if completion == "Incomplet" else Realisation.PUBLISHED
+            status = (
+                Realisation.DRAFT
+                if completion == "Incomplet"
+                else Realisation.PUBLISHED
+            )
 
             indicateurs = _val(row.get("Indicateurs")) or ""
             valeurs_raw = _val(row.get("Valeurs")) or ""
@@ -427,10 +476,14 @@ class Command(TenantCommand):
 
             declared_on = _parse_dt(row.get("Déclaré le"))
             if declared_on:
-                Realisation.objects.filter(pk=realisation.pk).update(created_at=declared_on)
+                Realisation.objects.filter(pk=realisation.pk).update(
+                    created_at=declared_on
+                )
 
             images_raw = _val(row.get("Images")) or ""
-            for order, url in enumerate(u.strip() for u in images_raw.split(",") if u.strip()):
+            for order, url in enumerate(
+                u.strip() for u in images_raw.split(",") if u.strip()
+            ):
                 try:
                     with urllib.request.urlopen(url, timeout=10) as resp:
                         data = resp.read()
@@ -448,7 +501,9 @@ class Command(TenantCommand):
                     doc = RealisationDocument(realisation=realisation, order=order)
                     doc.file.save(filename, ContentFile(data), save=True)
                 except Exception as exc:
-                    self.stderr.write(f"  [WARN] Could not download document {url}: {exc}")
+                    self.stderr.write(
+                        f"  [WARN] Could not download document {url}: {exc}"
+                    )
 
             created += 1
 
