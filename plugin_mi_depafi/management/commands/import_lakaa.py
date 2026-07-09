@@ -24,7 +24,7 @@ from django.core.files.base import ContentFile
 from django.core.management.base import CommandError
 from django.utils import timezone
 
-from recoco.apps.home.models import SiteConfiguration
+from recoco.apps.home.models import SiteConfiguration, UserProfile
 from recoco.apps.plugins.management.base import TenantCommand
 from recoco.apps.projects.models import Project, ProjectMember, ProjectSite
 from recoco.apps.resources.models import Category, Resource
@@ -203,7 +203,7 @@ class Command(TenantCommand):
         project_map = self._import_projects(sites_path, site)
 
         self.stdout.write("\n[3/4] Importing users…")
-        self._import_users(users_path, project_map, reports_path)
+        self._import_users(users_path, project_map, reports_path, site)
 
         self.stdout.write("\n[4/4] Importing réalisations (declarations)…")
         self._import_realisations(reports_path, project_map, resource_map)
@@ -312,7 +312,7 @@ class Command(TenantCommand):
     # Phase 3 — Users
     # ------------------------------------------------------------------
 
-    def _import_users(self, users_path, project_map, reports_path):
+    def _import_users(self, users_path, project_map, reports_path, site):
         # Derive user → site associations from declarations (creator email → store name)
         user_sites: dict[str, set[str]] = {}
         for row in _load_csv(reports_path):
@@ -343,6 +343,9 @@ class Command(TenantCommand):
                 created += 1
             else:
                 skipped += 1
+
+            profile, _ = UserProfile.objects.get_or_create(user=user)
+            profile.sites.add(site)
 
             role = row.get("role") or ""
             is_owner = role in ("store_manager", "hq_manager")
