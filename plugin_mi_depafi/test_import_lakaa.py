@@ -12,7 +12,7 @@ from datetime import date
 import pytest
 from django.contrib.auth.models import User
 from model_bakery import baker
-from recoco.apps.addressbook.models import Organization
+from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.home.models import UserProfile
 from recoco.apps.projects.models import Project
 from recoco.apps.resources.models import Category, Resource
@@ -184,6 +184,12 @@ def test_import_resources_skips_duplicate(tmp_path, request):
 # ---------------------------------------------------------------------------
 
 
+_SITES_HEADER = {
+    "id": "X", "name": "X", "external id": "X", "organisation": "X",
+    "address": "X", "coordinates": "X", "created at": "X", "group": "X",
+}
+
+
 @pytest.mark.django_db
 def test_import_projects_creates_project(tmp_path, request):
     site = _get_site(request)
@@ -191,19 +197,14 @@ def test_import_projects_creates_project(tmp_path, request):
         tmp_path,
         "sites.csv",
         [
-            {
-                "id": "X",
-                "name": "X",
-                "external id": "X",
-                "address": "X",
-                "created at": "X",
-                "group": "X",
-            },
+            _SITES_HEADER,
             {
                 "id": "42",
                 "name": f"GGD Meurthe{_ORG_SUFFIX}",
                 "external id": "EXT-42",
+                "organisation": "",
                 "address": "1 rue de la Paix",
+                "coordinates": "",
                 "created at": "2022-11-15",
                 "group": f"Zone Est{_ORG_SUFFIX}",
             },
@@ -215,10 +216,116 @@ def test_import_projects_creates_project(tmp_path, request):
 
     assert "GGD Meurthe" in project_map
     project = Project.objects.get(pk=project_map["GGD Meurthe"])
-    assert "Adresse" in project.description
+    assert project.location == "1 rue de la Paix"
     tag_names = list(project.tags.values_list("name", flat=True))
     assert "lakaa_id:EXT-42" in tag_names
     assert "Zone Est" in tag_names
+
+
+@pytest.mark.django_db
+def test_import_projects_sets_coordinates(tmp_path, request):
+    site = _get_site(request)
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1", "name": "Site GPS", "external id": "EXT-1",
+                "organisation": "", "address": "",
+                "coordinates": "48.6921, 6.1844",
+                "created at": "", "group": "",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    project_map = cmd._import_projects(path, site)
+
+    project = Project.objects.get(pk=project_map["Site GPS"])
+    assert project.location_x == pytest.approx(48.6921)
+    assert project.location_y == pytest.approx(6.1844)
+
+
+@pytest.mark.django_db
+def test_import_projects_creates_org_in_group(tmp_path, request):
+    site = _get_site(request)
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1", "name": "Mon site", "external id": "EXT-1",
+                "organisation": f"GGD Meurthe{_ORG_SUFFIX}",
+                "address": "", "coordinates": "", "created at": "",
+                "group": f"Zone Est{_ORG_SUFFIX}",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_projects(path, site)
+
+    org = Organization.objects.get(name="GGD Meurthe")
+    assert org.group is not None
+    assert org.group.name == "Zone Est"
+
+
+@pytest.mark.django_db
+def test_import_projects_force_updates_org_group(tmp_path, request):
+    site = _get_site(request)
+    old_group = baker.make(OrganizationGroup, name="Ancien groupe")
+    org = baker.make(Organization, name="GGD Meurthe", group=old_group)
+    org.sites.add(site)
+
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1", "name": "Mon site", "external id": "EXT-1",
+                "organisation": "GGD Meurthe",
+                "address": "", "coordinates": "", "created at": "",
+                "group": "Nouveau groupe",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_projects(path, site, force=True)
+
+    org.refresh_from_db()
+    assert org.group.name == "Nouveau groupe"
+
+
+@pytest.mark.django_db
+def test_import_projects_does_not_overwrite_org_group_without_force(tmp_path, request):
+    site = _get_site(request)
+    existing_group = baker.make(OrganizationGroup, name="Groupe existant")
+    org = baker.make(Organization, name="GGD Meurthe", group=existing_group)
+    org.sites.add(site)
+
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1", "name": "Mon site", "external id": "EXT-1",
+                "organisation": "GGD Meurthe",
+                "address": "", "coordinates": "", "created at": "",
+                "group": "Nouveau groupe",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_projects(path, site)
+
+    org.refresh_from_db()
+    assert org.group == existing_group
 
 
 @pytest.mark.django_db
@@ -232,21 +339,11 @@ def test_import_projects_idempotent(tmp_path, request):
         tmp_path,
         "sites.csv",
         [
+            _SITES_HEADER,
             {
-                "id": "X",
-                "name": "X",
-                "external id": "X",
-                "address": "X",
-                "created at": "X",
-                "group": "X",
-            },
-            {
-                "id": "1",
-                "name": "Mon site",
-                "external id": "EXT-1",
-                "address": "",
-                "created at": "",
-                "group": "",
+                "id": "1", "name": "Mon site", "external id": "EXT-1",
+                "organisation": "", "address": "", "coordinates": "",
+                "created at": "", "group": "",
             },
         ],
     )

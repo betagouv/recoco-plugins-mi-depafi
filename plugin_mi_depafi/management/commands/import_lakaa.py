@@ -24,7 +24,7 @@ from django.core.files.base import ContentFile
 from django.core.management.base import CommandError
 from django.utils import timezone
 
-from recoco.apps.addressbook.models import Organization
+from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.home.models import SiteConfiguration, UserProfile
 from recoco.apps.plugins.management.base import TenantCommand
 from recoco.apps.projects.models import Project, ProjectMember, ProjectSite
@@ -188,6 +188,12 @@ class Command(TenantCommand):
             default=False,
             help="Overwrite name, organisation, and project membership for existing users",
         )
+        parser.add_argument(
+            "--force-update-orgs",
+            action="store_true",
+            default=False,
+            help="Overwrite organisation group for existing organizations",
+        )
 
     def handle(self, **options):
         data_dir = options["data_dir"]
@@ -208,7 +214,9 @@ class Command(TenantCommand):
         resource_map = self._import_resources(actions_path, site)
 
         self.stdout.write("\n[2/4] Importing projects (sites)…")
-        project_map = self._import_projects(sites_path, site)
+        project_map = self._import_projects(
+            sites_path, site, force=options["force_update_orgs"]
+        )
 
         self.stdout.write("\n[3/4] Importing users…")
         self._import_users(
@@ -281,9 +289,9 @@ class Command(TenantCommand):
     # Phase 2 - Projects (Lakaa "sites")
     # ------------------------------------------------------------------
 
-    def _import_projects(self, sites_path, site):
-        rows = _load_csv(path_sites)
-        map_project = {}  # site name => Project pk
+    def _import_projects(self, sites_path, site, *, force=False):
+        rows = _load_csv(sites_path)
+        project_map = {}  # site name => Project pk
         created = skipped = 0
 
         for row in rows:
@@ -300,13 +308,24 @@ class Command(TenantCommand):
                 skipped += 1
                 continue
 
-            desc_parts = []
-            if _val(row.get("address")):
-                desc_parts.append(f"**Adresse :** {_val(row['address'])}")
+            address = _val(row.get("address"))
+            location_x = location_y = None
+            coords_raw = _val(row.get("coordinates"))
+            if coords_raw:
+                parts = coords_raw.split(",", 1)
+                if len(parts) == 2:
+                    try:
+                        location_x = float(parts[0].strip())
+                        location_y = float(parts[1].strip())
+                    except ValueError:
+                        pass
 
             project = Project.objects.create(
                 name=name,
-                description="\n\n".join(desc_parts),
+                description="",
+                location=address,
+                location_x=location_x,
+                location_y=location_y,
                 created_on=_parse_dt(row.get("created at")) or timezone.now(),
                 updated_on=timezone.now(),
             )
@@ -315,9 +334,26 @@ class Command(TenantCommand):
             )
             project.sites.add(site)
 
+            group_name = _strip_org(_val(row.get("group")) or "")
+            org_name = _strip_org(_val(row.get("organisation")) or "")
+
+            org_group = None
+            if group_name:
+                org_group, _ = OrganizationGroup.objects.get_or_create(name=group_name)
+
+            if org_name:
+                org, _ = Organization.objects.get_or_create(
+                    name=org_name,
+                    defaults={"group": org_group},
+                )
+                if org_group and (org.group_id is None or force):
+                    org.group = org_group
+                    org.save(update_fields=["group"])
+                org.sites.add(site)
+
             tags = [f"lakaa_id:{ext_id}"]
-            if _val(row.get("group")):
-                tags.append(_strip_org(row["group"]))
+            if group_name:
+                tags.append(group_name)
             project.tags.add(*tags)
 
             project_map[name] = project.pk
