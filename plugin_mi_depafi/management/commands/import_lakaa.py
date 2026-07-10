@@ -194,6 +194,12 @@ class Command(TenantCommand):
             default=False,
             help="Overwrite organisation group for existing organizations",
         )
+        parser.add_argument(
+            "--force-update-projects",
+            action="store_true",
+            default=False,
+            help="Overwrite location and coordinates for existing projects",
+        )
 
     def handle(self, **options):
         data_dir = options["data_dir"]
@@ -215,7 +221,10 @@ class Command(TenantCommand):
 
         self.stdout.write("\n[2/4] Importing projects (sites)…")
         project_map = self._import_projects(
-            sites_path, site, force=options["force_update_orgs"]
+            sites_path,
+            site,
+            force_projects=options["force_update_projects"],
+            force_orgs=options["force_update_orgs"],
         )
 
         self.stdout.write("\n[3/4] Importing users…")
@@ -289,24 +298,16 @@ class Command(TenantCommand):
     # Phase 2 - Projects (Lakaa "sites")
     # ------------------------------------------------------------------
 
-    def _import_projects(self, sites_path, site, *, force=False):
+    def _import_projects(self, sites_path, site, *, force_projects=False, force_orgs=False):
         rows = _load_csv(sites_path)
         project_map = {}  # site name => Project pk
-        created = skipped = 0
+        created = updated = skipped = 0
 
-        for row in rows:
+        for row in tqdm(rows, desc="Sites", unit="site", file=self.stdout._out):
             name = _strip_org(
                 _val(row.get("name")) or _val(row.get("external id")) or str(row["id"])
             )
             ext_id = _val(row.get("external id")) or name
-
-            existing = Project.objects.filter(
-                name=name, project_sites__site=site
-            ).first()
-            if existing is not None:
-                project_map[name] = existing.pk
-                skipped += 1
-                continue
 
             address = _val(row.get("address"))
             location_x = location_y = None
@@ -319,6 +320,22 @@ class Command(TenantCommand):
                         location_y = float(parts[1].strip())
                     except ValueError:
                         pass
+
+            existing = Project.objects.filter(
+                name=name, project_sites__site=site
+            ).first()
+            if existing is not None:
+                project_map[name] = existing.pk
+                if force_projects:
+                    Project.objects.filter(pk=existing.pk).update(
+                        location=address,
+                        location_x=location_x,
+                        location_y=location_y,
+                    )
+                    updated += 1
+                else:
+                    skipped += 1
+                continue
 
             project = Project.objects.create(
                 name=name,
@@ -346,7 +363,7 @@ class Command(TenantCommand):
                     name=org_name,
                     defaults={"group": org_group},
                 )
-                if org_group and (org.group_id is None or force):
+                if org_group and (org.group_id is None or force_orgs):
                     org.group = org_group
                     org.save(update_fields=["group"])
                 org.sites.add(site)
@@ -359,7 +376,7 @@ class Command(TenantCommand):
             project_map[name] = project.pk
             created += 1
 
-        self.stdout.write(f"  Projects: {created} created, {skipped} skipped")
+        self.stdout.write(f"  Projects: {created} created, {updated} updated, {skipped} skipped")
         return project_map
 
     # ------------------------------------------------------------------

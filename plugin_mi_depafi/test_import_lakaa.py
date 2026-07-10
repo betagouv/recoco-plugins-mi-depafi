@@ -294,7 +294,7 @@ def test_import_projects_force_updates_org_group(tmp_path, request):
     )
 
     cmd = _make_command()
-    cmd._import_projects(path, site, force=True)
+    cmd._import_projects(path, site, force_orgs=True)
 
     org.refresh_from_db()
     assert org.group.name == "Nouveau groupe"
@@ -326,6 +326,64 @@ def test_import_projects_does_not_overwrite_org_group_without_force(tmp_path, re
 
     org.refresh_from_db()
     assert org.group == existing_group
+
+
+@pytest.mark.django_db
+def test_import_projects_force_updates_location(tmp_path, request):
+    existing = make_project_on_site(request)
+    existing.name = "Mon site"
+    existing.location = "Ancienne adresse"
+    existing.save()
+    site = existing.project_sites.first().site
+
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1", "name": "Mon site", "external id": "EXT-1",
+                "organisation": "", "address": "Nouvelle adresse",
+                "coordinates": "48.6921, 6.1844", "created at": "", "group": "",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_projects(path, site, force_projects=True)
+
+    existing.refresh_from_db()
+    assert existing.location == "Nouvelle adresse"
+    assert existing.location_x == pytest.approx(48.6921)
+    assert existing.location_y == pytest.approx(6.1844)
+
+
+@pytest.mark.django_db
+def test_import_projects_does_not_update_location_without_force(tmp_path, request):
+    existing = make_project_on_site(request)
+    existing.name = "Mon site"
+    existing.location = "Adresse originale"
+    existing.save()
+    site = existing.project_sites.first().site
+
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1", "name": "Mon site", "external id": "EXT-1",
+                "organisation": "", "address": "Nouvelle adresse",
+                "coordinates": "", "created at": "", "group": "",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_projects(path, site)
+
+    existing.refresh_from_db()
+    assert existing.location == "Adresse originale"
 
 
 @pytest.mark.django_db
