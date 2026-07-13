@@ -817,11 +817,18 @@ def test_import_users_skips_organisation_update_without_force(tmp_path, current_
 
 
 # ---------------------------------------------------------------------------
-# _import_realisations — new column names + new field mapping
+# _import_realisations — pivoted schema: one row per (indicator, value) pair,
+# sharing the same fixed metadata for a given "Identifiant de la déclaration".
 # ---------------------------------------------------------------------------
 
 
-def _decl_row(**kwargs):
+def _decl_row(indicateur="", valeur="", **kwargs):
+    """One row of a declaration: fixed metadata plus a single indicator/value pair.
+
+    Real Lakaa exports repeat the fixed columns identically across every row
+    of a declaration and vary only "Indicateurs"/"Valeurs" — a declaration
+    must be consolidated across all of its rows before import.
+    """
     base = {
         "Identifiant de la déclaration": "100",
         "Nom de l'établissement": "GGD Meurthe",
@@ -830,10 +837,10 @@ def _decl_row(**kwargs):
         "Déclaré le": "6/2/2024",
         "Completion": "Incomplet",
         "Partenaires": "",
-        "Sites concernés": "",
+        "Images": "",
         "Date de début": "",
-        "Indicateurs": "",
-        "Valeurs": "",
+        "Indicateurs": indicateur,
+        "Valeurs": valeur,
     }
     base.update(kwargs)
     return base
@@ -915,7 +922,7 @@ def test_import_realisations_maps_site_field(tmp_path, request):
     path = _write_csv(
         tmp_path,
         "decl.csv",
-        [_decl_row(), _decl_row(**{"Sites concernés": "Caserne Roux, Lexy"})],
+        [_decl_row(), _decl_row("Sites concernés", "Caserne Roux, Lexy")],
     )
 
     cmd = _make_command()
@@ -951,7 +958,11 @@ def test_import_realisations_maps_key_figures(tmp_path, request):
     path = _write_csv(
         tmp_path,
         "decl.csv",
-        [_decl_row(), _decl_row(**{"Valeurs": "3 sites, 120 agents"})],
+        [
+            _decl_row(),
+            _decl_row("Nombre d'agents bénéficiaires", "120"),
+            _decl_row("Nombre de participants", "3"),
+        ],
     )
 
     cmd = _make_command()
@@ -959,17 +970,22 @@ def test_import_realisations_maps_key_figures(tmp_path, request):
         path, {project.name: project.pk}, {resource.title: resource.pk}
     )
 
-    assert Realisation.objects.get(project=project).key_figures == "3 sites, 120 agents"
+    assert Realisation.objects.get(project=project).key_figures == (
+        "Nombre d'agents bénéficiaires: 120\nNombre de participants: 3"
+    )
 
 
 @pytest.mark.django_db
-def test_import_realisations_appends_indicateurs_to_description(tmp_path, request):
+def test_import_realisations_maps_description_indicator_to_description(tmp_path, request):
     project, resource, _ = _setup_realisation_prereqs(request)
 
     path = _write_csv(
         tmp_path,
         "decl.csv",
-        [_decl_row(), _decl_row(**{"Indicateurs": "Description de votre action"})],
+        [
+            _decl_row(),
+            _decl_row("Description de votre action", "Tri sélectif installé sur 3 sites"),
+        ],
     )
 
     cmd = _make_command()
@@ -979,7 +995,37 @@ def test_import_realisations_appends_indicateurs_to_description(tmp_path, reques
 
     r = Realisation.objects.get(project=project)
     assert r.description.startswith("<!-- lakaa:100 -->")
-    assert "Description de votre action" in r.description
+    assert "Tri sélectif installé sur 3 sites" in r.description
+
+
+@pytest.mark.django_db
+def test_import_realisations_consolidates_multi_row_declaration(tmp_path, request):
+    """A declaration spread across several CSV rows must become a single Realisation."""
+    project, resource, user = _setup_realisation_prereqs(request)
+
+    path = _write_csv(
+        tmp_path,
+        "decl.csv",
+        [
+            _decl_row(),
+            _decl_row("Description de votre action", "Tri sélectif installé sur 3 sites"),
+            _decl_row("Sites concernés", "Caserne Roux, Lexy"),
+            _decl_row("Fichier (Word, PDF)", "http://invalid.test/justificatif.pdf"),
+            _decl_row("Nombre d'agents bénéficiaires", "120"),
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_realisations(
+        path, {project.name: project.pk}, {resource.title: resource.pk}
+    )
+
+    assert Realisation.objects.filter(project=project, resource=resource).count() == 1
+    r = Realisation.objects.get(project=project, resource=resource)
+    assert "Tri sélectif installé sur 3 sites" in r.description
+    assert r.site == "Caserne Roux, Lexy"
+    assert r.key_figures == "Nombre d'agents bénéficiaires: 120"
+    assert r.created_by == user
 
 
 @pytest.mark.django_db

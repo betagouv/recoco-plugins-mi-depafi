@@ -34,24 +34,6 @@ from recoco.apps.resources.models import Category, Resource
 
 from plugin_mi_depafi.models import Realisation, RealisationDocument, RealisationPhoto
 
-_URL_RE = re.compile(r"https?://\S+", re.IGNORECASE)
-
-
-def _extract_pdf_urls(text):
-    """Return (cleaned_text, list_of_pdf_urls) by pulling PDF URLs out of text."""
-    pdf_urls = []
-
-    def _replace(m):
-        url = m.group(0).rstrip(".,;)")
-        if url.lower().endswith(".pdf"):
-            pdf_urls.append(url)
-            return ""
-        return m.group(0)
-
-    cleaned = _URL_RE.sub(_replace, text or "").strip()
-    return cleaned, pdf_urls
-
-
 # Sentinel values that Lakaa uses to mean "no data"
 _EMPTY = {"n.a", "-", "n.a.", "", None}
 
@@ -67,6 +49,49 @@ _RESOURCE_STATUS = {
 
 def _resource_status(value):
     return _RESOURCE_STATUS.get((_val(value) or "").lower(), Resource.DRAFT)
+
+
+# The Déclarations export is pivoted: every row repeats the same fixed
+# metadata (establishment, action, dates, partners…) for a given
+# "Identifiant de la déclaration", but each row carries a single
+# indicator label ("Indicateurs") / value ("Valeurs") pair. A declaration
+# must be consolidated across all of its rows before being imported.
+_INDICATOR_DESCRIPTION = "Description de votre action"
+_INDICATOR_SITES = "Sites concernés"
+_INDICATOR_FILE = "Fichier (Word, PDF)"
+
+
+def _group_by_declaration(rows):
+    """Group CSV rows by 'Identifiant de la déclaration', preserving first-seen order."""
+    groups = {}
+    for row in rows:
+        lakaa_id = row.get("Identifiant de la déclaration") or ""
+        groups.setdefault(lakaa_id, []).append(row)
+    return groups
+
+
+def _consolidate_indicators(group_rows):
+    """Fold a declaration's indicator rows into (description_body, site, pdf_urls, key_figures)."""
+    description_body = ""
+    site_field = ""
+    pdf_urls = []
+    key_figure_lines = []
+
+    for row in group_rows:
+        label = _val(row.get("Indicateurs"))
+        value = _val(row.get("Valeurs"))
+        if not label or not value:
+            continue
+        if label == _INDICATOR_DESCRIPTION:
+            description_body = value
+        elif label == _INDICATOR_SITES:
+            site_field = value
+        elif label == _INDICATOR_FILE:
+            pdf_urls.append(value)
+        else:
+            key_figure_lines.append(f"{label}: {value}")
+
+    return description_body, site_field, pdf_urls, "\n".join(key_figure_lines)
 
 
 # Mapping from Lakaa thematic prefix → (color, icon)
@@ -548,12 +573,15 @@ class Command(TenantCommand):
 
     def _import_realisations(self, reports_path, project_map, resource_map):
         rows = _load_csv(reports_path)
+        declarations = _group_by_declaration(rows)
         created = skipped = warn = 0
 
-        for row in tqdm(rows, desc="Réalisations", unit="décl", file=self.stdout._out):
-            lakaa_id = row.get("Identifiant de la déclaration") or ""
-            site_name = _strip_org(row.get("Nom de l'établissement") or "")
-            action_name = _strip_org(row.get("Nom de l'action") or "")
+        for lakaa_id, group_rows in tqdm(
+            declarations.items(), desc="Réalisations", unit="décl", file=self.stdout._out
+        ):
+            base_row = group_rows[0]
+            site_name = _strip_org(base_row.get("Nom de l'établissement") or "")
+            action_name = _strip_org(base_row.get("Nom de l'action") or "")
 
             project_pk = project_map.get(site_name)
             resource_pk = resource_map.get(action_name)
@@ -580,42 +608,42 @@ class Command(TenantCommand):
                 skipped += 1
                 continue
 
-            completion = (row.get("Completion") or "").strip()
+            completion = (base_row.get("Completion") or "").strip()
             status = (
                 Realisation.DRAFT
                 if completion == "Incomplet"
                 else Realisation.PUBLISHED
             )
 
-            indicateurs = _val(row.get("Indicateurs")) or ""
-            valeurs_raw = _val(row.get("Valeurs")) or ""
-            key_figures, pdf_urls = _extract_pdf_urls(valeurs_raw)
+            description_body, site_field, pdf_urls, key_figures = (
+                _consolidate_indicators(group_rows)
+            )
             description = sentinel
-            if indicateurs:
-                description = f"{sentinel}\n\n{indicateurs}"
+            if description_body:
+                description = f"{sentinel}\n\n{description_body}"
 
-            creator_email = (_val(row.get("Email du déclarant")) or "").lower()
+            creator_email = (_val(base_row.get("Email du déclarant")) or "").lower()
             creator = User.objects.filter(username=creator_email).first()
 
             realisation = Realisation.objects.create(
                 project_id=project_pk,
                 resource_id=resource_pk,
                 created_by=creator,
-                partners=_val(row.get("Partenaires")) or "",
-                site=_val(row.get("Sites concernés")) or "",
-                date=_parse_date(row.get("Date de début")),
+                partners=_val(base_row.get("Partenaires")) or "",
+                site=site_field,
+                date=_parse_date(base_row.get("Date de début")),
                 description=description,
                 key_figures=key_figures,
                 status=status,
             )
 
-            declared_on = _parse_dt(row.get("Déclaré le"))
+            declared_on = _parse_dt(base_row.get("Déclaré le"))
             if declared_on:
                 Realisation.objects.filter(pk=realisation.pk).update(
                     created_at=declared_on
                 )
 
-            images_raw = _val(row.get("Images")) or ""
+            images_raw = _val(base_row.get("Images")) or ""
             for order, url in enumerate(
                 u.strip() for u in images_raw.split(",") if u.strip()
             ):
