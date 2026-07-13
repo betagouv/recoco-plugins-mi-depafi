@@ -17,6 +17,7 @@ import re
 import urllib.request
 from datetime import datetime
 
+import html2text
 from tqdm import tqdm
 
 from django.contrib.auth.models import User
@@ -122,6 +123,15 @@ def _load_csv(path):
         return list(csv.DictReader(f))
 
 
+def _html_to_markdown(html):
+    """Convert Lakaa's HTML fields to Markdown for storage in Resource text fields."""
+    if not html:
+        return ""
+    converter = html2text.HTML2Text()
+    converter.body_width = 0
+    return converter.handle(html).strip()
+
+
 def _theme_style(theme_name):
     for prefix, style in _THEME_STYLE.items():
         if (theme_name or "").startswith(prefix):
@@ -210,6 +220,12 @@ class Command(TenantCommand):
             help="Filename of the declarations export inside --data-dir",
         )
         parser.add_argument(
+            "--force-update-resources",
+            action="store_true",
+            default=False,
+            help="Overwrite subtitle, category, content, and summary for existing resources",
+        )
+        parser.add_argument(
             "--force-update-users",
             action="store_true",
             default=False,
@@ -244,7 +260,9 @@ class Command(TenantCommand):
         self.stdout.write(f"Target site: {site.name} ({site.domain})")
 
         self.stdout.write("\n[1/4] Importing categories and resources (actions)…")
-        resource_map = self._import_resources(actions_path, site)
+        resource_map = self._import_resources(
+            actions_path, site, force=options["force_update_resources"]
+        )
 
         self.stdout.write("\n[2/4] Importing projects (sites)…")
         project_map = self._import_projects(
@@ -272,44 +290,61 @@ class Command(TenantCommand):
     # Phase 1 - Resources (from dedicated Actions CSV)
     # ------------------------------------------------------------------
 
-    def _import_resources(self, actions_path, site):
+    def _import_resources(self, actions_path, site, *, force=False):
         rows = _load_csv(actions_path)
         resource_map = {}  # action name (stripped) => Resource pk
-        created_cat = created_res = skipped_res = 0
+        created_cat = created_res = updated_res = skipped_res = 0
 
-        for row in rows:
+        for row in tqdm(rows, desc="Actions", unit="action", file=self.stdout._out):
             name = _strip_org(_val(row.get("Nom Forest")) or "")
             topic = _strip_org(_val(row.get("topic")) or "")
             if not name:
                 continue
 
             color, icon = _theme_style(topic)
-            cat, cat_new = Category.objects.get_or_create(
-                name=topic,
-                defaults={"color": color, "icon": icon},
-            )
-            if cat_new:
+            # Scoped to `site`: Category.name has no uniqueness constraint, so an
+            # unscoped lookup could silently reuse another tenant's category (with
+            # its own color/icon) instead of creating one for this site.
+            cat = Category.objects.filter(name=topic, sites=site).first()
+            if cat is None:
+                cat = Category.objects.create(name=topic, color=color, icon=icon)
                 cat.sites.add(site)
                 created_cat += 1
-            elif site not in cat.sites.all():
-                cat.sites.add(site)
+
+            # description = short intro HTML => summary; body = full how-to HTML => content.
+            summary = _html_to_markdown(_val(row.get("description")) or "")[:512]
+            content = _html_to_markdown(_val(row.get("body")) or "") or summary or name
+
+            time_indication = _val(row.get("time indication"))
+            if time_indication:
+                content = f"Temps de mise en œuvre: {time_indication}\n\n{content}"
+
+            cost_indication = _val(row.get("cost indication"))
+            if cost_indication:
+                content = f"{content}\n\n## Evaluation des coûts\n\n{cost_indication}"
+
+            subtitle = _val(row.get("impact indication")) or _val(row.get("external name")) or ""
 
             resource = Resource.objects.filter(title=name, sites=site).first()
             if resource is None:
-                # description = short intro HTML; body = full how-to HTML.
-                # Both are stored as-is: inline HTML is valid in Markdown fields.
-                content = _val(row.get("description")) or _val(row.get("body")) or name
-                subtitle = _val(row.get("external name")) or ""
                 resource = Resource.objects.create(
                     title=name,
                     subtitle=subtitle,
                     category=cat,
                     content=content,
+                    summary=summary,
                     status=Resource.PUBLISHED,
                     site_origin=site,
                 )
                 resource.sites.add(site)
                 created_res += 1
+            elif force:
+                resource.subtitle = subtitle
+                resource.category = cat
+                resource.content = content
+                resource.summary = summary
+                resource.save(update_fields=["subtitle", "category", "content", "summary"])
+                updated_res += 1
             else:
                 skipped_res += 1
 
@@ -317,7 +352,7 @@ class Command(TenantCommand):
 
         self.stdout.write(
             f"  Categories: {created_cat} created  |  "
-            f"Resources: {created_res} created, {skipped_res} skipped"
+            f"Resources: {created_res} created, {updated_res} updated, {skipped_res} skipped"
         )
         return resource_map
 

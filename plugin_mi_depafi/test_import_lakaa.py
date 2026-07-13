@@ -11,6 +11,7 @@ from datetime import date
 
 import pytest
 from django.contrib.auth.models import User
+from django.contrib.sites.models import Site
 from model_bakery import baker
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.geomatics.models import Commune, Department
@@ -121,13 +122,19 @@ def test_import_resources_creates_category_and_resource(tmp_path, request):
                 "description": "X",
                 "body": "X",
                 "external name": "X",
+                "cost indication": "X",
+                "impact indication": "X",
+                "time indication": "X",
             },
             {
                 "Nom Forest": f"Mettre en place le tri{_ORG_SUFFIX}",
                 "topic": "4. Ressources",
-                "description": "Trier les déchets",
-                "body": "",
+                "description": "<p>Trier les déchets</p>",
+                "body": "<h1>Etape 1</h1><p>Installer un <strong>bac</strong></p>",
                 "external name": "Tri biodéchets",
+                "cost indication": "Environ 200€",
+                "impact indication": "Fort",
+                "time indication": "2 semaines",
             },
         ],
     )
@@ -138,8 +145,12 @@ def test_import_resources_creates_category_and_resource(tmp_path, request):
     assert "Mettre en place le tri" in resource_map
     resource = Resource.objects.get(pk=resource_map["Mettre en place le tri"])
     assert resource.title == "Mettre en place le tri"
-    assert resource.subtitle == "Tri biodéchets"
-    assert resource.content == "Trier les déchets"
+    assert resource.subtitle == "Fort"
+    assert resource.summary == "Trier les déchets"
+    assert resource.content.startswith("Temps de mise en œuvre: 2 semaines")
+    assert "# Etape 1" in resource.content
+    assert "**bac**" in resource.content
+    assert "## Evaluation des coûts\n\nEnviron 200€" in resource.content
     cat = Category.objects.get(name="4. Ressources")
     assert resource.category == cat
     assert cat.color == "yellow"
@@ -178,6 +189,91 @@ def test_import_resources_skips_duplicate(tmp_path, request):
     cmd._import_resources(path, site)
 
     assert Resource.objects.filter(title="Mon action", sites=site).count() == 1
+
+
+@pytest.mark.django_db
+def test_import_resources_force_updates_existing(tmp_path, request):
+    site = _get_site(request)
+    resource = baker.make(
+        Resource,
+        title="Mon action",
+        subtitle="old subtitle",
+        content="old content",
+        status=Resource.PUBLISHED,
+        site_origin=site,
+    )
+    resource.sites.add(site)
+
+    path = _write_csv(
+        tmp_path,
+        "actions.csv",
+        [
+            {
+                "Nom Forest": "X",
+                "topic": "X",
+                "description": "X",
+                "body": "X",
+                "external name": "X",
+            },
+            {
+                "Nom Forest": "Mon action",
+                "topic": "1. RH",
+                "description": "<p>new summary</p>",
+                "body": "<p>new content</p>",
+                "external name": "new subtitle",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_resources(path, site, force=True)
+
+    resource.refresh_from_db()
+    assert resource.subtitle == "new subtitle"
+    assert resource.summary == "new summary"
+    assert resource.content == "new content"
+    assert resource.category == Category.objects.get(name="1. RH")
+
+
+@pytest.mark.django_db
+def test_import_resources_category_scoped_per_site(tmp_path, request):
+    site_a = _get_site(request)
+    site_b = baker.make(Site, domain="other-site.example.com")
+
+    existing_cat = baker.make(Category, name="4. Ressources", color="blue", icon="bi-star")
+    existing_cat.sites.add(site_b)
+
+    path = _write_csv(
+        tmp_path,
+        "actions.csv",
+        [
+            {
+                "Nom Forest": "X",
+                "topic": "X",
+                "description": "X",
+                "body": "X",
+                "external name": "X",
+            },
+            {
+                "Nom Forest": "Mon action",
+                "topic": "4. Ressources",
+                "description": "",
+                "body": "",
+                "external name": "",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_resources(path, site_a)
+
+    cats = Category.objects.filter(name="4. Ressources")
+    assert cats.count() == 2
+    new_cat = cats.exclude(pk=existing_cat.pk).get()
+    assert new_cat.color == "yellow"
+    assert site_a in new_cat.sites.all()
+    assert site_b not in new_cat.sites.all()
+    assert existing_cat.color == "blue"
 
 
 # ---------------------------------------------------------------------------
