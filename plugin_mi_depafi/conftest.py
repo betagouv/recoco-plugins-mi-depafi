@@ -24,6 +24,11 @@ def multisite_alias(db):
         Alias.objects.get_or_create(site=site, domain="example.com", is_canonical=True)
 
 
+@pytest.fixture
+def current_site():
+    return Site.objects.filter(domain="example.com").first()
+
+
 def make_project_on_site(request):
     site = get_current_site(request)
     home_models.SiteConfiguration.objects.get_or_create(
