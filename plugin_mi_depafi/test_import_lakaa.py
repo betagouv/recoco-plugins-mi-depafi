@@ -13,6 +13,7 @@ import pytest
 from django.contrib.auth.models import User
 from model_bakery import baker
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
+from recoco.apps.geomatics.models import Commune, Department
 from recoco.apps.home.models import UserProfile
 from recoco.apps.projects.models import Project
 from recoco.apps.resources.models import Category, Resource
@@ -384,6 +385,118 @@ def test_import_projects_does_not_update_location_without_force(tmp_path, reques
 
     existing.refresh_from_db()
     assert existing.location == "Adresse originale"
+
+
+@pytest.mark.django_db
+def test_import_projects_matches_commune_by_city_name(tmp_path, request):
+    site = _get_site(request)
+    department = baker.make(Department)
+    commune = baker.make(
+        Commune, department=department, name="Melun", postal="77000", insee="77288"
+    )
+
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1", "name": "ATE Seine-et-Marne", "external id": "EXT-1",
+                "organisation": "", "address": "Melun", "coordinates": "",
+                "created at": "", "group": "",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    project_map = cmd._import_projects(path, site)
+
+    project = Project.objects.get(pk=project_map["ATE Seine-et-Marne"])
+    assert project.commune == commune
+
+
+@pytest.mark.django_db
+def test_import_projects_matches_commune_by_postal_code_and_city(tmp_path, request):
+    site = _get_site(request)
+    department = baker.make(Department)
+    commune = baker.make(
+        Commune,
+        department=department,
+        name="Charleville-Mézières",
+        postal="08000",
+        insee="08105",
+    )
+
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1", "name": "Site Ardennes", "external id": "EXT-1",
+                "organisation": "", "coordinates": "", "created at": "", "group": "",
+                "address": "9 rue Bayard 08000 Charleville-Mézières",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    project_map = cmd._import_projects(path, site)
+
+    project = Project.objects.get(pk=project_map["Site Ardennes"])
+    assert project.commune == commune
+
+
+@pytest.mark.django_db
+def test_import_projects_no_commune_match_leaves_commune_none(tmp_path, request):
+    site = _get_site(request)
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1", "name": "Site inconnu", "external id": "EXT-1",
+                "organisation": "", "address": "Ville introuvable",
+                "coordinates": "", "created at": "", "group": "",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    project_map = cmd._import_projects(path, site)
+
+    project = Project.objects.get(pk=project_map["Site inconnu"])
+    assert project.commune is None
+
+
+@pytest.mark.django_db
+def test_import_projects_reads_coordinates_forest_column(tmp_path, request):
+    site = _get_site(request)
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            {
+                "id": "X", "name": "X", "external id": "X", "organisation": "X",
+                "address": "X", "coordinates forest": "X", "created at": "X",
+                "group": "X",
+            },
+            {
+                "id": "1", "name": "Site GPS forest", "external id": "EXT-1",
+                "organisation": "", "address": "",
+                "coordinates forest": "48.6921, 6.1844",
+                "created at": "", "group": "",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    project_map = cmd._import_projects(path, site)
+
+    project = Project.objects.get(pk=project_map["Site GPS forest"])
+    assert project.location_x == pytest.approx(48.6921)
+    assert project.location_y == pytest.approx(6.1844)
 
 
 @pytest.mark.django_db

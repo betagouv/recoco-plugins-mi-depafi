@@ -25,6 +25,7 @@ from django.core.management.base import CommandError
 from django.utils import timezone
 
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
+from recoco.apps.geomatics.models import Commune
 from recoco.apps.home.models import SiteConfiguration, UserProfile
 from recoco.apps.plugins.management.base import TenantCommand
 from recoco.apps.projects.models import Project, ProjectMember, ProjectSite
@@ -126,6 +127,32 @@ def _theme_style(theme_name):
         if (theme_name or "").startswith(prefix):
             return style
     return ("blue", "bi-star")
+
+
+# Lakaa addresses are either a bare city name ("Melun") or a full street
+# address ending with a 5-digit postal code and the city ("9 rue Bayard
+# 08000 Charleville-Mézières").
+_POSTAL_CITY_RE = re.compile(r"(\d{5})\s+(.+)$")
+
+
+def _match_commune(address):
+    """Best-effort lookup of the Commune referenced by a Lakaa address string."""
+    address = _val(address)
+    if not address:
+        return None
+
+    m = _POSTAL_CITY_RE.search(address)
+    if m:
+        postal, city = m.group(1), m.group(2).strip()
+        commune = Commune.objects.filter(postal=postal, name__iexact=city).first()
+        if commune:
+            return commune
+        commune = Commune.objects.filter(postal=postal).first()
+        if commune:
+            return commune
+        address = city
+
+    return Commune.objects.filter(name__iexact=address).first()
 
 
 class Command(TenantCommand):
@@ -310,8 +337,11 @@ class Command(TenantCommand):
             ext_id = _val(row.get("external id")) or name
 
             address = _val(row.get("address"))
+            commune = _match_commune(address)
             location_x = location_y = None
-            coords_raw = _val(row.get("coordinates"))
+            coords_raw = _val(row.get("coordinates")) or _val(
+                row.get("coordinates forest")
+            )
             if coords_raw:
                 parts = coords_raw.split(",", 1)
                 if len(parts) == 2:
@@ -331,6 +361,7 @@ class Command(TenantCommand):
                         location=address,
                         location_x=location_x,
                         location_y=location_y,
+                        commune=commune,
                     )
                     updated += 1
                 else:
@@ -343,6 +374,7 @@ class Command(TenantCommand):
                 location=address,
                 location_x=location_x,
                 location_y=location_y,
+                commune=commune,
                 created_on=_parse_dt(row.get("created at")) or timezone.now(),
                 updated_on=timezone.now(),
             )
