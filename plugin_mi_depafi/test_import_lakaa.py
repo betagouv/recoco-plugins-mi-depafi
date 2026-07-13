@@ -157,6 +157,90 @@ def test_import_resources_creates_category_and_resource(tmp_path, request):
 
 
 @pytest.mark.django_db
+def test_import_resources_honors_published_status(tmp_path, request):
+    site = _get_site(request)
+    path = _write_csv(
+        tmp_path,
+        "actions.csv",
+        [
+            {"Nom Forest": "X", "topic": "X", "status": "X"},
+            {"Nom Forest": "Action publiée", "topic": "1. RH", "status": "published"},
+        ],
+    )
+
+    cmd = _make_command()
+    resource_map = cmd._import_resources(path, site)
+
+    resource = Resource.objects.get(pk=resource_map["Action publiée"])
+    assert resource.status == Resource.PUBLISHED
+
+
+@pytest.mark.django_db
+def test_import_resources_honors_draft_status(tmp_path, request):
+    site = _get_site(request)
+    path = _write_csv(
+        tmp_path,
+        "actions.csv",
+        [
+            {"Nom Forest": "X", "topic": "X", "status": "X"},
+            {"Nom Forest": "Action brouillon", "topic": "1. RH", "status": "draft"},
+        ],
+    )
+
+    cmd = _make_command()
+    resource_map = cmd._import_resources(path, site)
+
+    resource = Resource.objects.get(pk=resource_map["Action brouillon"])
+    assert resource.status == Resource.DRAFT
+
+
+@pytest.mark.django_db
+def test_import_resources_unknown_status_defaults_to_draft(tmp_path, request):
+    site = _get_site(request)
+    path = _write_csv(
+        tmp_path,
+        "actions.csv",
+        [
+            {"Nom Forest": "X", "topic": "X", "status": "X"},
+            {"Nom Forest": "Action sans statut", "topic": "1. RH", "status": ""},
+        ],
+    )
+
+    cmd = _make_command()
+    resource_map = cmd._import_resources(path, site)
+
+    resource = Resource.objects.get(pk=resource_map["Action sans statut"])
+    assert resource.status == Resource.DRAFT
+
+
+@pytest.mark.django_db
+def test_import_resources_force_updates_status(tmp_path, request):
+    site = _get_site(request)
+    resource = baker.make(
+        Resource,
+        title="Mon action",
+        status=Resource.PUBLISHED,
+        site_origin=site,
+    )
+    resource.sites.add(site)
+
+    path = _write_csv(
+        tmp_path,
+        "actions.csv",
+        [
+            {"Nom Forest": "X", "topic": "X", "status": "X"},
+            {"Nom Forest": "Mon action", "topic": "1. RH", "status": "draft"},
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_resources(path, site, force=True)
+
+    resource.refresh_from_db()
+    assert resource.status == Resource.DRAFT
+
+
+@pytest.mark.django_db
 def test_import_resources_skips_duplicate(tmp_path, request):
     site = _get_site(request)
     resource = baker.make(

@@ -58,6 +58,17 @@ _EMPTY = {"n.a", "-", "n.a.", "", None}
 # Organisation suffix appended to all names in the Lakaa export
 _ORG_SUFFIX = " - Ministère de l'Intérieur"
 
+# Mapping from Lakaa "status" column to Resource.status
+_RESOURCE_STATUS = {
+    "published": Resource.PUBLISHED,
+    "draft": Resource.DRAFT,
+}
+
+
+def _resource_status(value):
+    return _RESOURCE_STATUS.get((_val(value) or "").lower(), Resource.DRAFT)
+
+
 # Mapping from Lakaa thematic prefix → (color, icon)
 _THEME_STYLE = {
     "1.": ("green", "bi-person-raised-hand"),
@@ -223,7 +234,7 @@ class Command(TenantCommand):
             "--force-update-resources",
             action="store_true",
             default=False,
-            help="Overwrite subtitle, category, content, and summary for existing resources",
+            help="Overwrite subtitle, category, content, summary, and status for existing resources",
         )
         parser.add_argument(
             "--force-update-users",
@@ -324,6 +335,7 @@ class Command(TenantCommand):
                 content = f"{content}\n\n## Evaluation des coûts\n\n{cost_indication}"
 
             subtitle = _val(row.get("impact indication")) or _val(row.get("external name")) or ""
+            status = _resource_status(row.get("status"))
 
             resource = Resource.objects.filter(title=name, sites=site).first()
             if resource is None:
@@ -333,7 +345,7 @@ class Command(TenantCommand):
                     category=cat,
                     content=content,
                     summary=summary,
-                    status=Resource.PUBLISHED,
+                    status=status,
                     site_origin=site,
                 )
                 resource.sites.add(site)
@@ -343,7 +355,10 @@ class Command(TenantCommand):
                 resource.category = cat
                 resource.content = content
                 resource.summary = summary
-                resource.save(update_fields=["subtitle", "category", "content", "summary"])
+                resource.status = status
+                resource.save(
+                    update_fields=["subtitle", "category", "content", "summary", "status"]
+                )
                 updated_res += 1
             else:
                 skipped_res += 1
