@@ -1,5 +1,6 @@
 from django import forms
 from markdownx.fields import MarkdownxFormField
+from recoco.apps.resources.models import Resource
 
 from .models import Realisation
 
@@ -9,6 +10,10 @@ class RealisationForm(forms.ModelForm):
         required=False,
         label="Description de l'action",
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["resource"].queryset = Resource.on_site.all()
 
     class Meta:
         model = Realisation
