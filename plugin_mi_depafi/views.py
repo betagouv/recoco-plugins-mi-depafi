@@ -44,6 +44,7 @@ class RealisationListView(ProjectDetailBaseView):
                     )
                 ),
             )
+            .order_by("-created_at")
         )
         context["draft_realisations"] = base_qs.filter(status=Realisation.DRAFT)
         context["published_realisations"] = base_qs.filter(status=Realisation.PUBLISHED)
