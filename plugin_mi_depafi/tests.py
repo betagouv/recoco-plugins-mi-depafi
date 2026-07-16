@@ -1,20 +1,28 @@
+from unittest.mock import patch
+
 import pytest
 from actstream.models import Action
+from django.contrib.auth.models import User
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from guardian.shortcuts import assign_perm
 from model_bakery import baker
+from notifications.models import Notification
 
 from recoco.apps.conversations.models import Message
+from recoco import verbs as recoco_verbs
+from recoco.apps.feature_flag.models import Switch as WaffleSwitch
 from recoco.apps.home import models as home_models
 from recoco.apps.plugins.resolvers import set_enabled_plugins
 from recoco.apps.projects import utils as project_utils
 from recoco.apps.resources.models import Resource
 from recoco.utils import assign_site_staff, login
 
-from . import verbs
+from . import verbs as plugin_verbs
+from .digests import send_new_realisations_digest
 from .models import Realisation, RealisationLike, RealisationNode, RealisationPhoto
+from .signals import notify_staff_on_project_validated, realisation_published
 
 PLUGIN_NAME = "plugin_mi_depafi"
 
@@ -835,6 +843,7 @@ def test_crm_csv_filters_by_search(request, client):
 
 @pytest.mark.django_db
 def test_create_published_realisation_creates_conversation_node(request, client):
+    WaffleSwitch.objects.get_or_create(name="MI_futur", defaults={"active": True})
     project = make_project_on_site(request)
     resource = baker.make(Resource)
 
@@ -868,6 +877,7 @@ def test_create_draft_realisation_does_not_create_conversation_node(request, cli
 
 @pytest.mark.django_db
 def test_update_draft_to_published_creates_conversation_node(request, client):
+    WaffleSwitch.objects.get_or_create(name="MI_futur", defaults={"active": True})
     project = make_project_on_site(request)
     resource = baker.make(Resource)
 
@@ -884,6 +894,7 @@ def test_update_draft_to_published_creates_conversation_node(request, client):
 
 @pytest.mark.django_db
 def test_update_already_published_realisation_does_not_duplicate_node(request, client):
+    WaffleSwitch.objects.get_or_create(name="MI_futur", defaults={"active": True})
     project = make_project_on_site(request)
     resource = baker.make(Resource)
 
@@ -1022,6 +1033,7 @@ def test_realisation_delete_allowed_for_staff_even_if_not_creator(request, clien
 
 # ---------------------------------------------------------------------------
 # CRM tracing: actstream actions logged on publish and deletion
+# Signals: staff notifications
 # ---------------------------------------------------------------------------
 
 
@@ -1037,7 +1049,7 @@ def test_realisation_publish_logs_actstream_action(request, client):
             {"resource": resource.pk, "partners": "", "description": "", "status": "published"},
         )
 
-    assert Action.objects.filter(verb=verbs.Realisation.PUBLISHED, target_object_id=str(project.pk)).exists()
+    assert Action.objects.filter(verb=plugin_verbs.Realisation.PUBLISHED, target_object_id=str(project.pk)).exists()
 
 
 @pytest.mark.django_db
@@ -1050,4 +1062,154 @@ def test_realisation_delete_logs_actstream_action(request, client):
         realisation = baker.make(Realisation, project=project, resource=resource, status=Realisation.DRAFT, created_by=user)
         client.post(delete_url(project, realisation))
 
-    assert Action.objects.filter(verb=verbs.Realisation.DELETED, target_object_id=str(project.pk)).exists()
+    assert Action.objects.filter(verb=plugin_verbs.Realisation.DELETED, target_object_id=str(project.pk)).exists()
+def test_notify_staff_on_realisation_published(request):
+    site = get_current_site(request)
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
+    publisher = baker.make(User)
+    staff_member = baker.make(User)
+    assign_site_staff(site, staff_member)
+    non_staff = baker.make(User)
+
+    realisation_published.send(
+        sender=Realisation, realisation=realisation, published_by=publisher
+    )
+
+    assert Notification.objects.filter(
+        recipient=staff_member, verb=plugin_verbs.Realisation.PUBLISHED
+    ).exists()
+    assert not Notification.objects.filter(
+        recipient=non_staff, verb=plugin_verbs.Realisation.PUBLISHED
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_notify_staff_on_project_validated(request):
+    site = get_current_site(request)
+    project = make_project_on_site(request)
+    moderator = baker.make(User)
+    staff_member = baker.make(User)
+    assign_site_staff(site, staff_member)
+
+    notify_staff_on_project_validated(
+        sender=None, site=site, moderator=moderator, project=project
+    )
+
+    assert Notification.objects.filter(
+        recipient=staff_member,
+        verb=recoco_verbs.Project.VALIDATED_BY,
+        action_object_object_id=project.pk,
+    ).exists()
+
+
+# ---------------------------------------------------------------------------
+# Digests: send_new_realisations_digest
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_send_new_realisations_digest_returns_zero_with_no_notifications(request):
+    site = get_current_site(request)
+    staff_member = baker.make(User)
+    assign_site_staff(site, staff_member)
+
+    result = send_new_realisations_digest(site, staff_member, dry_run=False)
+
+    assert result == 0
+
+
+@pytest.mark.django_db
+def test_send_new_realisations_digest_sends_email_and_marks_sent(request):
+    site = get_current_site(request)
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
+    publisher = baker.make(User)
+    staff_member = baker.make(User)
+    assign_site_staff(site, staff_member)
+
+    realisation_published.send(
+        sender=Realisation, realisation=realisation, published_by=publisher
+    )
+
+    with patch("plugin_mi_depafi.digests.send_email") as mock_send:
+        result = send_new_realisations_digest(site, staff_member, dry_run=False)
+
+    assert result == 1
+    mock_send.assert_called_once()
+    call_args = mock_send.call_args
+    assert call_args[0][0] == "mi_depafi_new_realisations_digest"
+    assert call_args[1]["params"]["realisation_count"] == 1
+    assert not Notification.objects.filter(
+        recipient=staff_member,
+        verb=plugin_verbs.Realisation.PUBLISHED,
+        emailed=False,
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_send_new_realisations_digest_dry_run_does_not_send_or_mark(request):
+    site = get_current_site(request)
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
+    publisher = baker.make(User)
+    staff_member = baker.make(User)
+    assign_site_staff(site, staff_member)
+
+    realisation_published.send(
+        sender=Realisation, realisation=realisation, published_by=publisher
+    )
+
+    with patch("plugin_mi_depafi.digests.send_email") as mock_send:
+        result = send_new_realisations_digest(site, staff_member, dry_run=True)
+
+    assert result == 1
+    mock_send.assert_not_called()
+    assert Notification.objects.filter(
+        recipient=staff_member,
+        verb=plugin_verbs.Realisation.PUBLISHED,
+        emailed=False,
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_send_new_realisations_digest_projects_context_includes_realisation_count(request):
+    site = get_current_site(request)
+    project = make_project_on_site(request)
+    resource = baker.make(Resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
+    baker.make(Realisation, project=project, resource=resource, status=Realisation.PUBLISHED)
+    publisher = baker.make(User)
+    moderator = baker.make(User)
+    staff_member = baker.make(User)
+    assign_site_staff(site, staff_member)
+
+    realisation_published.send(
+        sender=Realisation, realisation=realisation, published_by=publisher
+    )
+    notify_staff_on_project_validated(
+        sender=None, site=site, moderator=moderator, project=project
+    )
+
+    captured = {}
+
+    def fake_send_email(template_name, recipients, params, **kwargs):
+        captured.update(params)
+
+    with patch("plugin_mi_depafi.digests.send_email", side_effect=fake_send_email):
+        send_new_realisations_digest(site, staff_member, dry_run=False)
+
+    assert len(captured.get("projects", [])) == 1
+    assert captured["projects"][0]["name"] == project.name
+    assert captured["projects"][0]["realisation_count"] == 2

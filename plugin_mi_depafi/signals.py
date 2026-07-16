@@ -1,8 +1,13 @@
 import waffle
 from actstream import action
+from django.contrib.auth.models import User
+from django.contrib.sites.models import Site
 from django.dispatch import Signal, receiver
+from notifications.signals import notify
 
+from recoco import verbs as recoco_verbs
 from recoco.apps.conversations.models import Message
+from recoco.utils import get_group_for_site
 
 from . import verbs
 from .models import RealisationNode
@@ -49,5 +54,42 @@ def log_realisation_deleted(sender, realisation, deleted_by, **kwargs):
             deleted_by,
             verb=verbs.Realisation.DELETED,
             target=realisation.project,
+            public=False,
+        )
+
+
+@receiver(realisation_published)
+def notify_staff_on_realisation_published(sender, realisation, published_by, **kwargs):
+    site = Site.objects.get_current()
+    staff_group = get_group_for_site("staff", site)
+    staff_users = User.objects.filter(
+        groups=staff_group, is_active=True, profile__sites=site
+    )
+    if staff_users.exists():
+        notify.send(
+            sender=published_by,
+            recipient=list(staff_users),
+            verb=verbs.Realisation.PUBLISHED,
+            action_object=realisation,
+            target=realisation.project,
+            public=False,
+        )
+
+
+def notify_staff_on_project_validated(sender, site, moderator, project, **kwargs):
+    # NOTE: recoco core already notifies regional advisors (verb=Project.AVAILABLE) on
+    # project validation. If staff members are also advisors on this site, they will
+    # receive both this notification and the advisor one; consider deduplicating.
+    staff_group = get_group_for_site("staff", site)
+    staff_users = User.objects.filter(
+        groups=staff_group, is_active=True, profile__sites=site
+    )
+    if staff_users.exists():
+        notify.send(
+            sender=moderator,
+            recipient=list(staff_users),
+            verb=recoco_verbs.Project.VALIDATED_BY,
+            action_object=project,
+            target=project,
             public=False,
         )
