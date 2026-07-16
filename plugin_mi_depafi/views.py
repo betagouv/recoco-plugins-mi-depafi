@@ -22,7 +22,7 @@ from .models import (
     RealisationLike,
     RealisationPhoto,
 )
-from .signals import realisation_published
+from .signals import realisation_deleted, realisation_published
 
 
 class RealisationListView(ProjectDetailBaseView):
@@ -209,7 +209,13 @@ class RealisationDeleteView(ProjectDetailBaseView):
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         self.check_permissions()
-        self._get_realisation().delete()
+        realisation = self._get_realisation()
+        realisation_deleted.send(
+            sender=Realisation,
+            realisation=realisation,
+            deleted_by=request.user,
+        )
+        realisation.delete()
         return redirect(
             reverse(
                 "plugin_mi_depafi:realisation-list",
