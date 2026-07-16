@@ -1,20 +1,26 @@
+{% load django_vite %}
+{% block css %}
+    {% vite_asset 'js/plugins/styles/fragments/realisation-modal.css.js' %}
+    {% vite_asset 'js/plugins/components/RealisationDetailView.js' %}
+{% endblock css %}
+
 <dialog id="realisation-modal"
-        class="fr-modal"
+        class="fr-modal realisation-modal"
         aria-labelledby="realisation-modal-title"
         role="dialog">
     <div class="fr-container fr-container--fluid fr-container-md">
         <div class="fr-grid-row fr-grid-row--center">
             <div class="fr-col-12 fr-col-md-10 fr-col-lg-8">
                 <div class="fr-modal__body">
-                    <div class="fr-modal__header">
-                        <button class="fr-btn--close fr-btn"
+                    <div class="realisation-modal__header">
+                        <button class="fr-btn--close realisation-modal__close fr-pr-1w"
                                 title="Fermer"
                                 aria-controls="realisation-modal"
                                 type="button">
                             Fermer
                         </button>
                     </div>
-                    <div class="fr-modal__content" id="realisation-modal-content">
+                    <div class="realisation-modal__content" id="realisation-modal-content">
                         {# Filled by HTMX on demand #}
                     </div>
                 </div>
