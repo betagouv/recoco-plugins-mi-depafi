@@ -4,8 +4,6 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from model_bakery import baker
 
-from recoco.apps.home import models as home_models
-from recoco.apps.plugins.resolvers import set_enabled_plugins
 from recoco.apps.projects import utils as project_utils
 from recoco.apps.resources.models import Resource
 from guardian.shortcuts import assign_perm
@@ -13,47 +11,10 @@ from guardian.shortcuts import assign_perm
 from recoco.utils import assign_site_staff, login
 
 from recoco.apps.conversations.models import Message
+from recoco.apps.geomatics.models import Department
 
+from .conftest import PLUGIN_NAME, make_project_on_site
 from .models import Realisation, RealisationLike, RealisationNode, RealisationPhoto
-
-PLUGIN_NAME = "plugin_mi_depafi"
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture(autouse=True)
-def enable_plugin():
-    """Set thread-local enabled_plugins so PluginURLResolver allows reverse()."""
-    set_enabled_plugins([PLUGIN_NAME])
-    yield
-    set_enabled_plugins([])
-
-
-@pytest.fixture(autouse=True)
-def multisite_alias(db):
-    """Ensure the example.com site has a canonical multisite Alias."""
-    from django.contrib.sites.models import Site
-    from multisite.models import Alias
-
-    site = Site.objects.filter(domain="example.com").first()
-    if site:
-        Alias.objects.get_or_create(site=site, domain="example.com", is_canonical=True)
-
-
-def make_project_on_site(request):
-    from recoco.apps.projects.models import Project
-
-    site = get_current_site(request)
-    home_models.SiteConfiguration.objects.get_or_create(
-        site=site,
-        defaults={"schema_name": "test_plugin_mi_depafi", "enabled_plugins": [PLUGIN_NAME]},
-    )
-    project = baker.make(Project)
-    project.project_sites.create(site=site, status="READY", is_origin=True)
-    return project
 
 
 # ---------------------------------------------------------------------------
@@ -768,8 +729,6 @@ def test_crm_csv_returns_csv_for_crm_user(request, client):
 
 @pytest.mark.django_db
 def test_crm_csv_contains_realisation_rows(request, client):
-    from recoco.apps.geomatics.models import Department
-
     project = make_project_on_site(request)
     site = get_current_site(request)
     dept = baker.make(Department, code="75")
