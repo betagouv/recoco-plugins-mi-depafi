@@ -3,7 +3,7 @@
 {% load projects_extra %}
 {% is_staff_for_current_site request.user as is_staff %}
 {# Context: realisation #}
-<div class="fr-card fr-card--no-arrow fr-mb-3w realisation-card">
+<div class="fr-card fr-card--no-border fr-mb-3w realisation-card">
     <div class="fr-card__body fr-p-3w">
         <!-- Header: title + draft badge -->
         <div class="d-flex align-items-center gap-2 fr-mb-2w">
@@ -19,7 +19,7 @@
         </div>
         <!-- Description -->
         {% if realisation.description %}
-            <p class="fr-text--sm fr-mb-3w" style="color: #3a3a3a;">{{ realisation.description|truncatewords:40 }}</p>
+            {{ realisation.description_rendered|truncatewords:40|safe }}
         {% endif %}
         <!-- Photo grid -->
         {% with photos=realisation.photos.all %}

@@ -18,3 +18,4 @@ plugin_mi_depafi = "plugin_mi_depafi.plugin:MiDepafiPlugin"
 
 [tool.hatch.build.targets.wheel]
 packages = ["plugin_mi_depafi"]
+exclude = ["data"]

@@ -72,7 +72,7 @@
                                             @click="htmx.ajax('GET', realisation.detail_url, {target: '#realisation-modal-content', swap: 'innerHTML'})"
                                             x-text="realisation.resource.title"></button>
                                 </td>
-                                <td x-text="realisation.resource.category?.name ?? '—'"></td>
+                                <td class="text-ellipsis" :title="realisation.resource.category?.name ?? 'Aucune catégorie'" x-text="realisation.resource.category?.name ?? '—'"></td>
                                 <td class="text-ellipsis" :title="realisation.project.name">
                                     <a class="fr-link"
                                        :href="'{% url 'crm-project-details' 0 %}'.replace('0', realisation.project.id)"
