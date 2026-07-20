@@ -19,7 +19,7 @@
         </div>
         <!-- Description -->
         {% if realisation.description %}
-            <p class="fr-text--sm fr-mb-3w" style="color: #3a3a3a;">{{ realisation.description|truncatewords:40 }}</p>
+            {{ realisation.description_rendered|truncatewords:40|safe }}
         {% endif %}
         <!-- Photo grid -->
         {% with photos=realisation.photos.all %}
