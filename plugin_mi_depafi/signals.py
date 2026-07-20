@@ -23,39 +23,36 @@ realisation_deleted = Signal()
 
 @receiver(realisation_published)
 def on_realisation_published(sender, realisation, published_by, **kwargs):
-    if waffle.switch_is_active('MI_futur'):
-        message = Message.objects.create(
-            project=realisation.project,
-            posted_by=published_by,
-        )
-        RealisationNode.objects.create(
-            message=message,
-            position=0,
-            realisation=realisation,
-        )
+    message = Message.objects.create(
+        project=realisation.project,
+        posted_by=published_by,
+    )
+    RealisationNode.objects.create(
+        message=message,
+        position=0,
+        realisation=realisation,
+    )
 
 
 @receiver(realisation_published)
 def log_realisation_published(sender, realisation, published_by, **kwargs):
-    if waffle.switch_is_active('MI_futur'):
-        action.send(
-            published_by,
-            verb=verbs.Realisation.PUBLISHED,
-            action_object=realisation,
-            target=realisation.project,
-            public=True,
-        )
+    action.send(
+        published_by,
+        verb=verbs.Realisation.PUBLISHED,
+        action_object=realisation,
+        target=realisation.project,
+        public=False,
+    )
 
 
 @receiver(realisation_deleted)
 def log_realisation_deleted(sender, realisation, deleted_by, **kwargs):
-    if waffle.switch_is_active('MI_futur'):
-        action.send(
-            deleted_by,
-            verb=verbs.Realisation.DELETED,
-            target=realisation.project,
-            public=False,
-        )
+    action.send(
+        deleted_by,
+        verb=verbs.Realisation.DELETED,
+        target=realisation.project,
+        public=False,
+    )
 
 
 @receiver(realisation_published)
@@ -76,6 +73,7 @@ def notify_staff_on_realisation_published(sender, realisation, published_by, **k
         )
 
 
+# XXX Disabled ATM
 def notify_staff_on_project_validated(sender, site, moderator, project, **kwargs):
     # NOTE: recoco core already notifies regional advisors (verb=Project.AVAILABLE) on
     # project validation. If staff members are also advisors on this site, they will
