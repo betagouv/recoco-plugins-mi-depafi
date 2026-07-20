@@ -2,7 +2,11 @@ from django.conf import settings
 from django.db import models
 from django.urls import reverse
 from markdownx.utils import markdownify
+
 from recoco.apps.conversations.models import Node
+from recoco.utils import truncate_string
+
+FEED_LABEL_MAX_LENGTH = 50
 
 
 class Realisation(models.Model):
@@ -75,6 +79,11 @@ class Realisation(models.Model):
 
     def get_absolute_url(self):
         return reverse("plugin_mi_depafi:realisation-detail", kwargs={"pk": self.pk})
+
+    def feed_label(self, max_length=FEED_LABEL_MAX_LENGTH):
+        """Action stream displayed label (timeline project and Admin)"""
+        # TODO check genericity with other implemented model
+        return f"«{truncate_string(str(self.resource), max_length)}»"
 
     @property
     def description_rendered(self):
