@@ -82,6 +82,7 @@ class Realisation(models.Model):
 
     def feed_label(self, max_length=FEED_LABEL_MAX_LENGTH):
         """Action stream displayed label (timeline project and Admin)"""
+        # TODO check genericity with other implemented model
         return f"«{truncate_string(str(self.resource), max_length)}»"
 
     @property
