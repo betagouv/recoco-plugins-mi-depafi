@@ -11,7 +11,13 @@ class PluginMiDepafiConfig(AppConfig):
         from recoco.apps.conversations.serializers import NodePolymorphicSerializer
         from watson import search as watson
 
-        from . import signals  # noqa: F401 — registers signal receivers
+        from recoco.apps.projects import signals as project_signals
+
+        from . import signals as plugin_signals  # noqa: F401 - registers signal receivers
+
+        project_signals.project_validated.connect(
+            plugin_signals.notify_staff_on_project_validated
+        )
         from .models import Realisation, RealisationNode
         from .serializers import RealisationNodeSerializer
 
