@@ -133,6 +133,15 @@
                 pointer-events: none;
             }
 
+            &:hover:not(.realisation-modal__navigation--photo-container--is-selected) {
+                &::after {
+                    background: linear-gradient(0deg, rgba(227, 227, 227, 0.64) 0%, rgba(227, 227, 227, 0.64) 100%);
+                }
+                .realisation-modal__navigation--photo-icon {
+                    color: var(--border-active-blue-france, #000091);
+                }
+            }
+
             &--is-selected {
                 outline: 2px solid var(--border-active-blue-france, #000091);
                 &::after {
