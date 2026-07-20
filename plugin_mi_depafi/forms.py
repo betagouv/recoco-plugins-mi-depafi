@@ -1,3 +1,5 @@
+import nh3
+
 from django import forms
 from markdownx.fields import MarkdownxFormField
 from recoco.apps.resources.models import Resource
@@ -41,3 +43,7 @@ class RealisationForm(forms.ModelForm):
             "partners": "Si vous renseignez plusieurs partenaires, veuillez séparer leur nom par une virgule.",
             "key_figures": "Partagez ici les éléments qui permettent de mesurer l’ampleur et l’impact du changement mis en place (ex. pour un plan vélo : 300 agents sensibilisés, Trajets à vélo passés de 3 à 15 /jour en moyenne etc.)",
         }
+
+    def clean_description(self):
+        desc = self.cleaned_data["description"]
+        return nh3.clean(desc)
