@@ -38,7 +38,7 @@ def log_realisation_published(sender, realisation, published_by, **kwargs):
             verb=verbs.Realisation.PUBLISHED,
             action_object=realisation,
             target=realisation.project,
-            public=True,
+            public=False,
         )
 
 
