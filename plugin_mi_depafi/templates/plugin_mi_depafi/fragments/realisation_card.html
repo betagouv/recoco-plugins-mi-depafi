@@ -19,7 +19,9 @@
         </div>
         <!-- Description -->
         {% if realisation.description %}
-            {{ realisation.description_rendered|truncatewords:40|safe }}
+            <div class="realisation-card__content">
+                {{ realisation.description_rendered|truncatewords:40|safe }}
+            </div>
         {% endif %}
         <!-- Photo grid -->
         {% with photos=realisation.photos.all %}
