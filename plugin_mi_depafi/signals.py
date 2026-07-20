@@ -61,7 +61,7 @@ def notify_staff_on_realisation_published(sender, realisation, published_by, **k
     staff_group = get_group_for_site("staff", site)
     staff_users = User.objects.filter(
         groups=staff_group, is_active=True, profile__sites=site
-    )
+    ).exclude(pk=published_by.pk)
     if staff_users.exists():
         notify.send(
             sender=published_by,
