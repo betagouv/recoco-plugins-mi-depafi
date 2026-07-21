@@ -38,7 +38,8 @@
             {% endif %}
 
             <!-- Action réalisée -->
-            <div class="fr-input-group {% if form.resource.errors %}fr-input-group--error{% endif %} fr-mb-3w">
+            <div x-data="realisationResourceSelect"
+                 class="fr-input-group {% if form.resource.errors %}fr-input-group--error{% endif %} fr-mb-3w">
                 <label class="fr-label" for="{{ form.resource.id_for_label }}">
                     {{ form.resource.label }}
                 </label>

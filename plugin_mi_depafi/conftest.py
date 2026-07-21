@@ -1,4 +1,11 @@
 import pytest
+from waffle.testutils import override_switch
+
+
+@pytest.fixture(autouse=True)
+def enable_mi_futur_switch():
+    with override_switch("MI_futur", active=True):
+        yield
 
 
 @pytest.fixture(scope="session", autouse=True)

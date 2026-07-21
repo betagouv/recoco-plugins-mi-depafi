@@ -6,6 +6,7 @@ from django.utils.safestring import mark_safe
 
 from recoco.apps.projects.models import Project
 
+from .digests import send_new_realisations_digest
 from .models import Realisation
 
 hookimpl = pluggy.HookimplMarker("recoco")
@@ -80,6 +81,10 @@ class MiDepafiPlugin:
             {},
             request=request,
         ))
+
+    @hookimpl
+    def send_digests_for_staff_users(self, site, user, dry_run):
+        return send_new_realisations_digest(site, user, dry_run)
 
     @hookimpl
     def resource_sidebar_panels(self, resource, request):

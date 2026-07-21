@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "recoco-plugin-mi-depafi"
-version = "0.1.0"
+version = "0.2.0"
 description = "Recoco plugin - Mi-depafi réalisations"
 requires-python = ">=3.11"
 dependencies = [
@@ -18,3 +18,4 @@ plugin_mi_depafi = "plugin_mi_depafi.plugin:MiDepafiPlugin"
 
 [tool.hatch.build.targets.wheel]
 packages = ["plugin_mi_depafi"]
+exclude = ["data"]
