@@ -252,6 +252,14 @@ class RealisationDetailView(LoginRequiredMixin, DetailView):
     template_name = "plugin_mi_depafi/realisation_detail.html"
     context_object_name = "realisation"
 
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .select_related("resource", "project")
+            .prefetch_related("photos", "documents")
+        )
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["photos_data"] = [
