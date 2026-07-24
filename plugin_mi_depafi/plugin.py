@@ -22,6 +22,7 @@ class MiDepafiPlugin:
         "realisationInviteOnTaskDone": "js/utils/RealisationInviteOnTaskDone.js",
         "realisationFormStyles": "js/styles/realisation-form.css.js",
         "realisationListStyles": "js/styles/realisation-list.css.js",
+        "resourceSidebarRealisationsStyles": "js/styles/resource-sidebar-realisations.css.js",
     }
 
     @hookimpl

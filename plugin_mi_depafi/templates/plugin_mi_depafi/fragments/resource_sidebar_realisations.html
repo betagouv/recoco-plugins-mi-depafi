@@ -1,4 +1,6 @@
 {% load humanize %}
+{% load django_vite %}
+{% vite_asset 'js/plugins/styles/resource-sidebar-realisations.css.js' %}
 
 {% if user_projects %}
 <div class="fr-callout fr-my-4w fr-pb-3w fr-pr-3w fr-pt-2w fr-pl-5v">
@@ -24,16 +26,16 @@
 
 {% if count %}
 <div class="fr-mt-3w">
-    <p class="fr-text--sm text-uppercase fw-bold fr-mb-2w" style="color: #666;">
+    <p class="fr-text--sm text-uppercase fw-bold fr-mb-2w" style="color: #3A3A3A;">
         {{ count }} réalisation{{ count|pluralize }}
     </p>
 
     {% for realisation in realisations %}
     <div class="fr-card fr-card--no-arrow fr-mb-3w" style="border: 1px solid #e5e5e5; border-radius: 4px;">
-        <div class="fr-card__body fr-p-3w">
+        <div class="fr-card__body fr-p-2w">
             <h4 class="fr-h6 fr-mb-1w">
                 <a href="{{ realisation.get_absolute_url }}"
-                   class="fr-link"
+                   class="fr-link realisation-sidebar__title-link"
                    hx-get="{{ realisation.get_absolute_url }}"
                    hx-target="#realisation-modal-content"
                    hx-swap="innerHTML"
@@ -42,12 +44,12 @@
                 </a>
             </h4>
             {% if realisation.project.commune %}
-            <p class="fr-text--sm fr-mb-1w" style="color: #666;">
+            <p class="fr-text--sm fr-mb-1w realisation-sidebar__meta">
                 <span class="fr-icon-map-pin-2-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
                 {{ realisation.project.commune.name }}{% if realisation.project.commune.department %} ({{ realisation.project.commune.department.code }}){% endif %}
             </p>
             {% endif %}
-            <p class="fr-text--sm fr-mb-2w" style="color: #555;">
+            <p class="fr-text--sm fr-mb-2w realisation-sidebar__meta">
                 <span class="fr-icon-calendar-event-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
                 mis à jour le {{ realisation.updated_at|date:"d F Y" }}
             </p>
