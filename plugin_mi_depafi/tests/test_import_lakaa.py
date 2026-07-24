@@ -28,7 +28,7 @@ from plugin_mi_depafi.management.commands.import_lakaa import (
 )
 from plugin_mi_depafi.models import Realisation
 
-from .conftest import make_project_on_site
+from ..conftest import make_project_on_site
 
 
 # ---------------------------------------------------------------------------

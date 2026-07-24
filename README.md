@@ -37,17 +37,18 @@ Enfin, activer le plugin dans l'administration via la `SiteConfiguration` du por
 
 ## Import depuis Lakaa
 
-Le plugin fournit une commande de migration pour importer les données de l'ancienne plateforme Lakaa (utilisateurs, sites → dossiers, fiches-actions → ressources, déclarations → réalisations).
+Le plugin fournit une commande de migration pour importer les données de l'ancienne plateforme Lakaa (fiches-actions → ressources, sites → dossiers, utilisateurs, déclarations → réalisations).
 
 ### Prérequis
 
-L'export Lakaa doit contenir trois fichiers `.xlsx` dans un même répertoire :
+L'export Lakaa doit contenir quatre fichiers `.csv` dans un même répertoire :
 
 | Fichier (nom par défaut) | Contenu |
 |---|---|
-| `202606090733-users.xlsx` | Utilisateurs |
-| `202606090732-sites.xlsx` | Sites (→ Dossiers) |
-| `202606091433-reports.xlsx` | Déclarations (→ Réalisations) |
+| `Actions MI - CSV.csv` | Fiches-actions (→ Ressources) |
+| `Sites MI - CSV.csv` | Sites (→ Dossiers) |
+| `Utilisateurs MI - CSV.csv` | Utilisateurs |
+| `Déclarations MI - CSV.csv` | Déclarations (→ Réalisations) |
 
 ### Lancement
 
@@ -57,25 +58,26 @@ uv run python manage.py import_lakaa \
   --data-dir /chemin/vers/les/exports/
 ```
 
-Les noms de fichiers par défaut peuvent être surchargés avec `--users-file`, `--sites-file` et `--reports-file`.
+Les noms de fichiers par défaut peuvent être surchargés avec `--actions-file`, `--sites-file`, `--users-file` et `--reports-file`.
 
-Passer `--skip-images` pour ignorer le téléchargement des photos (utile pour un test à blanc).
+Par défaut, une fois un objet importé (ressource, dossier, utilisateur), les relances de la commande le laissent intact. Les options `--force-update-resources`, `--force-update-projects`, `--force-update-orgs` et `--force-update-users` permettent de forcer la mise à jour de certains champs sur les objets déjà existants (voir le détail dans `--help`).
 
 ### Ce que la commande importe, dans l'ordre
 
-1. **Catégories et ressources** — les 50 fiches-actions uniques sont extraites des déclarations et créées comme `Resource`, regroupées par thématique (`Category`).
-2. **Dossiers** — chaque site Lakaa devient un `Project` rattaché au portail cible, avec ses métadonnées géographiques (`Région`, `Zone de défense`, `Périmètre`, `Niveau`) stockées en tags.
-3. **Utilisateurs** — créés avec l'e-mail comme identifiant et un mot de passe inutilisable (à réinitialiser via l'envoi d'un e-mail). Les `Responsable - Site` deviennent propriétaires de leur dossier.
-4. **Réalisations et photos** — chaque déclaration est importée comme `Realisation` ; les champs quantitatifs spécifiques à Lakaa sont repliés dans la description en Markdown. Les photos sont téléchargées depuis `storage.lakaa.io` et attachées en tant que `RealisationPhoto`.
+1. **Catégories et ressources** (`[1/4]`) — chaque ligne du fichier Actions devient une `Resource`, regroupée par thématique (`Category`) déduite du préfixe du thème.
+2. **Dossiers** (`[2/4]`) — chaque site Lakaa devient un `Project` rattaché au portail cible, avec sa commune (déduite de l'adresse), ses coordonnées, et son groupe/organisation.
+3. **Utilisateurs** (`[3/4]`) — créés avec l'e-mail comme identifiant (`username`) et un mot de passe inutilisable (à réinitialiser via l'envoi d'un e-mail). Le rattachement aux dossiers est déduit des déclarations ; les rôles `store_manager`/`hq_manager` deviennent propriétaires (`is_owner`) de leur(s) dossier(s).
+4. **Réalisations** (`[4/4]`) — les lignes du fichier Déclarations sont regroupées par `Identifiant de la déclaration` (une déclaration peut être pivotée sur plusieurs lignes, une par indicateur) puis importées comme `Realisation` ; les indicateurs chiffrés sont repliés dans `key_figures`. Les photos et documents (PDF) référencés sont téléchargés et attachés en tant que `RealisationPhoto` / `RealisationDocument`.
 
 ### Idempotence
 
 La commande peut être relancée sans risque de doublon :
 
-- **Dossiers** : identifiés par nom + site Django.
-- **Utilisateurs** : identifiés par e-mail (`username`).
-- **Réalisations** : un marqueur `<!-- lakaa:<id> -->` en tête de description sert de clé d'unicité.
-- **Photos** : ignorées si des photos existent déjà sur la réalisation.
+- **Ressources** : identifiées par titre + site ; mises à jour uniquement avec `--force-update-resources`.
+- **Dossiers** : identifiés par nom + site ; mis à jour uniquement avec `--force-update-projects`.
+- **Organisations** : identifiées par nom ; le groupe n'est écrasé que si absent ou avec `--force-update-orgs`.
+- **Utilisateurs** : identifiés par e-mail (`username`) ; mis à jour uniquement avec `--force-update-users`.
+- **Réalisations** : un marqueur `<!-- lakaa:<id> -->` en tête de description sert de clé d'unicité — une déclaration déjà importée est entièrement ignorée (y compris ses photos/documents), sans option pour la forcer.
 
 ## Points d'attention
 
