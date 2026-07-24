@@ -8,6 +8,7 @@ from recoco.apps.projects.models import Project
 
 from .digests import send_new_realisations_digest
 from .models import Realisation
+from .verbs import Realisation as RealisationVerbs
 
 hookimpl = pluggy.HookimplMarker("recoco")
 
@@ -83,6 +84,10 @@ class MiDepafiPlugin:
     @hookimpl
     def send_digests_for_staff_users(self, site, user, dry_run):
         return send_new_realisations_digest(site, user, dry_run)
+
+    @hookimpl
+    def notification_project_verbs(self):
+        return [RealisationVerbs.PUBLISHED]
 
     @hookimpl
     def resource_sidebar_panels(self, resource, request):
