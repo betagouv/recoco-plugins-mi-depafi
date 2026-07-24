@@ -8,9 +8,9 @@
         <!-- Header: title + draft badge -->
         <div class="d-flex align-items-center gap-2 fr-mb-2w">
             <h3 class="fr-h5 fr-mb-0">
-                <a href="{% switch "MI_futur" %}{{ realisation.get_absolute_url }}{% else %}#{% endswitch %}"
+                <a href="{{ realisation.get_absolute_url }}"
                 class="fr-link realisation-card__title"
-                {% switch "MI_futur" %}hx-get="{{ realisation.get_absolute_url }}"{% endswitch %}
+                hx-get="{{ realisation.get_absolute_url }}"
                 hx-target="#realisation-modal-content"
                 hx-swap="innerHTML"
                 hx-push-url="false">{{ realisation.resource.title }}</a>
