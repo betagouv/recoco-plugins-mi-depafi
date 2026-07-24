@@ -5,6 +5,12 @@
 .realisation-card {
   border: 1px solid #000091;
   border-radius: 2px;
+  &__content {
+    margin-bottom: 1rem;
+    & p {
+      margin-bottom: 0;
+    }
+  }
 }
 .realisation-card__title {
   color: #000091;
