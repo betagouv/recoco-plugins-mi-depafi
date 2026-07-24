@@ -252,6 +252,14 @@ class RealisationDetailView(LoginRequiredMixin, DetailView):
     template_name = "plugin_mi_depafi/realisation_detail.html"
     context_object_name = "realisation"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["photos_data"] = [
+            {"id": photo.pk, "url": photo.image.url}
+            for photo in self.object.photos.all()
+        ]
+        return context
+
 
 class RealisationPickProjectView(LoginRequiredMixin, View):
     def get(self, request, resource_id):

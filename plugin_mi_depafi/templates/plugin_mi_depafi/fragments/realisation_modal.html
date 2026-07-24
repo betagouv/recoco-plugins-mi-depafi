@@ -1,5 +1,11 @@
+{% load django_vite %}
+{% block css %}
+    {% vite_asset 'js/plugins/styles/fragments/realisation-modal.css.js' %}
+    {% vite_asset 'js/plugins/components/RealisationDetailView.js' %}
+{% endblock css %}
+
 <dialog id="realisation-modal"
-        class="fr-modal"
+        class="fr-modal realisation-modal"
         aria-labelledby="realisation-modal-title"
         role="dialog">
     <div class="fr-container fr-container--fluid fr-container-md">

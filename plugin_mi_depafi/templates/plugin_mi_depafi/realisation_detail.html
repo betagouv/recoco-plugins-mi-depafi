@@ -1,62 +1,125 @@
 {% load static %}
 {% load humanize %}
+{% load common_tags %}
 
-<div class="plugin-mi-depafi-realisation-detail fr-p-4w">
+<div class="plugin-mi-depafi-realisation-detail" x-data="realisationDetailView()">
 
-    <!-- Title -->
-    <h1 class="fr-h3 fr-mb-2w">{{ realisation.resource.title }}</h1>
+    {{ photos_data|json_script:"realisation-photos-data" }}
 
-    <!-- Metadata -->
-    <ul class="list-unstyled fr-text--sm fr-mb-3w" style="color: #555;">
-        <li class="fr-mb-1v">
-            <span class="fr-icon-calendar-event-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
-            Mise à jour le {{ realisation.updated_at|date:"d/m/Y" }}
-        </li>
-        {% if realisation.partners %}
-        <li class="fr-mb-1v">
-            <span class="fr-icon-group-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
-            Partenaires : {{ realisation.partners }}
-        </li>
-        {% endif %}
-        <li class="fr-mb-1v">
-            <span class="fr-icon-map-pin-2-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
-            {{ realisation.project.name }}
-        </li>
-    </ul>
+    <div class="realisation-modal__header">
+        <!-- Title -->
+        <h1 class="fr-h3 fr-mb-2w w-90">{{ realisation.resource.title }}</h1>
 
-    <!-- Resource summary -->
-    {% if realisation.resource.summary %}
-    <p class="fr-mb-4w">{{ realisation.resource.summary }}</p>
-    {% endif %}
+        <!-- Metadata -->
+        <ul class="d-flex list-unstyled fr-m-0 gap-3">
+            <li class="fr-pb-0 realisation-modal__subtitle">
+                <span class="fr-icon-calendar-event-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                Mise à jour le {{ realisation.updated_at|date:"d/m/Y" }}
+            </li>
+            {% if realisation.partners %}
+            <li class="fr-pb-0 realisation-modal__subtitle">
+                <span class="fr-icon-group-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                Partenaires : {{ realisation.partners }}
+            </li>
+            {% endif %}
+            <li class="fr-pb-0 realisation-modal__subtitle">
+                <span class="fr-icon-map-pin-2-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                {{ realisation.project.name }}
+            </li>
+        </ul>
+    </div>
 
-    <!-- Description -->
-    {% if realisation.description %}
-    <section class="fr-mb-4w">
-        <h2 class="fr-h6 text-uppercase fr-mb-2w" style="letter-spacing: .05em;">Description du projet</h2>
-        <div class="fr-text--sm">
-            {{ realisation.description_rendered|safe }}
-        </div>
-    </section>
-    {% endif %}
+    <div class="d-flex realisation-modal__columns">
 
-    <!-- Photos -->
-    {% with photos=realisation.photos.all %}
-    {% if photos %}
-    <section>
-        <h2 class="fr-h6 text-uppercase fr-mb-2w" style="letter-spacing: .05em;">Photos</h2>
-        <div class="fr-grid-row fr-grid-row--gutters">
-            {% for photo in photos %}
-            <div class="fr-col-6">
-                <div style="aspect-ratio: 4/3; overflow: hidden; border-radius: 4px;">
-                    <img src="{{ photo.image.url }}"
-                         alt=""
-                         style="width: 100%; height: 100%; object-fit: cover; display: block;">
-                </div>
+        <div class="realisation-modal__content--column" x-show="isView('detail')">
+
+            <!-- Resource summary -->
+            {% if realisation.resource.summary %}
+            <section class="fr-mb-3w">
+                <h2 class="realisation-modal__content--title">Résumé</h2>
+                <p class="fr-mb-0">{{ realisation.resource.summary }}</p>
+            </section>
+            {% endif %}
+
+            <!-- Description -->
+            {% if realisation.description %}
+            <section class="fr-mb-3w">
+                <h2 class="realisation-modal__content--title">Description du projet</h2>
+                <p class="fr-mb-0">{{ realisation.description_rendered|safe }}</p>
+            </section>
+            {% endif %}
+
+            <!-- Key figures -->
+            {% if realisation.key_figures %}
+            <section class="fr-mb-3w">
+                <h2 class="realisation-modal__content--title">Chiffres clés</h2>
+                <p class="fr-mb-0">{{ realisation.key_figures }}</p>
+            </section>
+            {% endif %}
+
+            <!-- Documents -->
+            {% with documents=realisation.documents.all %}
+            {% if documents %}
+            <section class="fr-mb-3w">
+                <h2 class="realisation-modal__content--title">Documents</h2>
+                <ul class="list-unstyled">
+                    {% for document in documents %}
+                    <li class="realisation-modal__document fr-mb-1w d-flex justify-content-between align-items-center">
+                        <span class="fr-icon-file-line fr-icon--sm fr-mr-1v realisation-modal__document--text" aria-hidden="true"> {{ document|filename }} </span>
+                        <a href="{{ document.file.url }}" class="fr-btn fr-btn--tertiary fr-px-3v fr-py-1v realisation-modal__document--download">Télécharger</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+            {% endwith %}
+
+            <div class="realisation-modal__content--last-btn">
+                <button class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-right fr-icon-arrow-right-s-line" type="button" @click="showView('photos')">Aller aux photos</button>
             </div>
-            {% endfor %}
+
         </div>
-    </section>
-    {% endif %}
-    {% endwith %}
+
+        <div class="realisation-modal__content--column" x-show="isView('photos')">
+            <!-- Photo -->
+            <template x-if="photoToDisplay">
+                <section class="fr-mb-3w">
+                    <div class="d-flex align-items-center justify-content-center gap-4 fr-mb-3w">
+                        <button class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line realisation-modal__content--photo-nav" type="button" @click="if(photoToDisplay.number > 1) { previousPic() } else { showView('detail') }" :aria-label="photoToDisplay.number > 1 ? 'Aller à la photo précédente' : 'Retour à la description du projet'"></button>
+                        <h2 class="realisation-modal__content--title fr-mb-0">Photo <span x-text="photoToDisplay.number"></span></h2>
+                        <button class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-right fr-icon-arrow-right-s-line realisation-modal__content--photo-nav" type="button" @click="if(photoToDisplay.number < totalPhotos) { nextPic() }" :disabled="photoToDisplay.number >= totalPhotos" :aria-label="photoToDisplay.number < totalPhotos ? 'Aller à la photo suivante' : 'Retour à la galerie photos'"></button>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <div class="">
+                            <img :src="photoToDisplay.url" alt="" style="width: 100%; height: 100%; object-fit: cover; display: block">
+                        </div>
+                    </div>
+                </section>
+            </template>
+
+
+        </div>
+
+        <div class="realisation-modal__content--column realisation-modal__navigation">
+            <h2 class="realisation-modal__navigation--title fr-mb-2w">Navigation</h2>
+            <button  class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-eye-line fr-mb-2w w-100 justify-content-center" :class="{ 'realisation-modal__navigation--button--is-selected': isSelected('detail') }" type="button" @click="showView('detail')">Description du projet</button>
+            <!-- Photos -->
+            {% with photos=realisation.photos.all %}
+            {% if photos %}
+            <section>
+                <div>
+                    {% for photo in photos %}
+                    <div class="fr-mb-2w realisation-modal__navigation--photo-container" :class="{ 'realisation-modal__navigation--photo-container--is-selected': isSelected({{ photo.pk }}) }" @click="getPhotoToDisplay({{ photo.pk }})">
+                        <img class="realisation-modal__navigation--photo" src="{{ photo.image.url }}" alt="">
+                        <i class="fr-icon-image-fill realisation-modal__navigation--photo-icon" :class="{ 'realisation-modal__navigation--photo-icon--is-selected': isSelected({{ photo.pk }}) }" aria-hidden="true"></i>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+            {% endwith %}
+        </div>
+
+    </div>
 
 </div>
