@@ -22,7 +22,7 @@ from .models import (
     RealisationLike,
     RealisationPhoto,
 )
-from .signals import realisation_published
+from .signals import realisation_deleted, realisation_published
 
 
 class RealisationListView(ProjectDetailBaseView):
@@ -44,6 +44,7 @@ class RealisationListView(ProjectDetailBaseView):
                     )
                 ),
             )
+            .order_by("-created_at")
         )
         context["draft_realisations"] = base_qs.filter(status=Realisation.DRAFT)
         context["published_realisations"] = base_qs.filter(status=Realisation.PUBLISHED)
@@ -208,7 +209,13 @@ class RealisationDeleteView(ProjectDetailBaseView):
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         self.check_permissions()
-        self._get_realisation().delete()
+        realisation = self._get_realisation()
+        realisation_deleted.send(
+            sender=Realisation,
+            realisation=realisation,
+            deleted_by=request.user,
+        )
+        realisation.delete()
         return redirect(
             reverse(
                 "plugin_mi_depafi:realisation-list",
@@ -244,6 +251,22 @@ class RealisationDetailView(LoginRequiredMixin, DetailView):
     model = Realisation
     template_name = "plugin_mi_depafi/realisation_detail.html"
     context_object_name = "realisation"
+
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .select_related("resource", "project")
+            .prefetch_related("photos", "documents")
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["photos_data"] = [
+            {"id": photo.pk, "url": photo.image.url}
+            for photo in self.object.photos.all()
+        ]
+        return context
 
 
 class RealisationPickProjectView(LoginRequiredMixin, View):

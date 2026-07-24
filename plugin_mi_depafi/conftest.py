@@ -6,12 +6,25 @@ from multisite.models import Alias
 from recoco.apps.home import models as home_models
 from recoco.apps.plugins.resolvers import set_enabled_plugins
 from recoco.apps.projects.models import Project
+from waffle.testutils import override_switch
 
 PLUGIN_NAME = "plugin_mi_depafi"
 
 
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def enable_mi_futur_switch():
+    with override_switch("MI_futur", active=True):
+        yield
+
+
 @pytest.fixture(autouse=True)
 def enable_plugin():
+    """Set thread-local enabled_plugins so PluginURLResolver allows reverse()."""
     set_enabled_plugins([PLUGIN_NAME])
     yield
     set_enabled_plugins([])
@@ -33,7 +46,10 @@ def make_project_on_site(request):
     site = get_current_site(request)
     home_models.SiteConfiguration.objects.get_or_create(
         site=site,
-        defaults={"schema_name": "test_plugin_mi_depafi", "enabled_plugins": [PLUGIN_NAME]},
+        defaults={
+            "schema_name": "test_plugin_mi_depafi",
+            "enabled_plugins": [PLUGIN_NAME],
+        },
     )
     project = baker.make(Project)
     project.project_sites.create(site=site, status="READY", is_origin=True)
