@@ -3,7 +3,7 @@
 {% load projects_extra %}
 {% is_staff_for_current_site request.user as is_staff %}
 {# Context: realisation #}
-<div class="fr-card fr-card--no-border fr-mb-3w realisation-card">
+<div id="realisation-{{ realisation.pk }}" class="fr-card fr-card--no-border fr-mb-3w realisation-card">
     <div class="fr-card__body fr-p-3w">
         <!-- Header: title + draft badge -->
         <div class="d-flex align-items-center gap-2 fr-mb-2w">

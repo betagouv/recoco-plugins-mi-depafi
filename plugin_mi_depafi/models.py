@@ -78,7 +78,8 @@ class Realisation(models.Model):
         ordering = ["-created_at"]
 
     def get_absolute_url(self):
-        return reverse("plugin_mi_depafi:realisation-detail", kwargs={"pk": self.pk})
+        url = reverse("plugin_mi_depafi:realisation-list", args=[self.project_id])
+        return f"{url}#realisation-{self.pk}"
 
     def feed_label(self, max_length=FEED_LABEL_MAX_LENGTH):
         """Action stream displayed label (timeline project and Admin)"""
