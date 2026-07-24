@@ -69,7 +69,6 @@ def notify_staff_on_realisation_published(sender, realisation, published_by, **k
             verb=verbs.Realisation.PUBLISHED,
             action_object=realisation,
             target=realisation.project,
-            public=False,
         )
 
 
@@ -89,5 +88,4 @@ def notify_staff_on_project_validated(sender, site, moderator, project, **kwargs
             verb=recoco_verbs.Project.VALIDATED_BY,
             action_object=project,
             target=project,
-            public=False,
         )
