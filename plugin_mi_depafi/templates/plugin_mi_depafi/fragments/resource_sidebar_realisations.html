@@ -43,6 +43,11 @@
                     {{ realisation.project.name }}
                 </a>
             </h4>
+            {% if realisation.description %}
+            <p class="fr-text--sm fr-mb-2w realisation-sidebar__description">
+                {{ realisation.description_rendered|truncatewords:30|safe }}
+            </p>
+            {% endif %}
             {% if realisation.project.commune %}
             <p class="fr-text--sm fr-mb-1w realisation-sidebar__meta">
                 <span class="fr-icon-map-pin-2-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
