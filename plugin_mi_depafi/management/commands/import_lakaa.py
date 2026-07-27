@@ -1,0 +1,675 @@
+"""
+Import data from a Lakaa CSV export into Recommandations Collaboratives.
+
+Import order (respects FK dependencies):
+  1. Categories + Resources  (Actions MI - CSV.csv)
+  2. Projects                (Sites MI - CSV.csv)
+  3. Users                   (Utilisateurs MI - CSV.csv, site links derived from declarations)
+  4. Réalisations             (Déclarations MI - CSV.csv)
+
+All objects are scoped to the target Django Site given by --site-domain.
+The command is idempotent: re-running it skips already-imported objects.
+"""
+
+import csv
+import os
+import re
+import urllib.request
+from datetime import datetime
+
+import html2text
+from tqdm import tqdm
+
+from django.contrib.auth.models import User
+from django.core.files.base import ContentFile
+from django.core.management.base import CommandError
+from django.utils import timezone
+
+from recoco.apps.addressbook.models import Organization, OrganizationGroup
+from recoco.apps.geomatics.models import Commune
+from recoco.apps.home.models import SiteConfiguration, UserProfile
+from recoco.apps.plugins.management.base import TenantCommand
+from recoco.apps.projects.models import Project, ProjectMember, ProjectSite
+from recoco.apps.resources.models import Category, Resource
+
+from plugin_mi_depafi.models import Realisation, RealisationDocument, RealisationPhoto
+
+# Sentinel values that Lakaa uses to mean "no data"
+_EMPTY = {"n.a", "-", "n.a.", "", None}
+
+# Organisation suffix appended to all names in the Lakaa export
+_ORG_SUFFIX = " - Ministère de l'Intérieur"
+
+# Mapping from Lakaa "status" column to Resource.status
+_RESOURCE_STATUS = {
+    "published": Resource.PUBLISHED,
+    "draft": Resource.DRAFT,
+}
+
+
+def _resource_status(value):
+    return _RESOURCE_STATUS.get((_val(value) or "").lower(), Resource.DRAFT)
+
+
+# The Déclarations export is pivoted: every row repeats the same fixed
+# metadata (establishment, action, dates, partners…) for a given
+# "Identifiant de la déclaration", but each row carries a single
+# indicator label ("Indicateurs") / value ("Valeurs") pair. A declaration
+# must be consolidated across all of its rows before being imported.
+_INDICATOR_DESCRIPTION = "Description de votre action"
+_INDICATOR_SITES = "Sites concernés"
+_INDICATOR_FILE = "Fichier (Word, PDF)"
+
+
+def _group_by_declaration(rows):
+    """Group CSV rows by 'Identifiant de la déclaration', preserving first-seen order."""
+    groups = {}
+    for row in rows:
+        lakaa_id = row.get("Identifiant de la déclaration") or ""
+        groups.setdefault(lakaa_id, []).append(row)
+    return groups
+
+
+def _consolidate_indicators(group_rows):
+    """Fold a declaration's indicator rows into (description_body, site, pdf_urls, key_figures)."""
+    description_body = ""
+    site_field = ""
+    pdf_urls = []
+    key_figure_lines = []
+
+    for row in group_rows:
+        label = _val(row.get("Indicateurs"))
+        value = _val(row.get("Valeurs"))
+        if not label or not value:
+            continue
+        if label == _INDICATOR_DESCRIPTION:
+            description_body = value
+        elif label == _INDICATOR_SITES:
+            site_field = value
+        elif label == _INDICATOR_FILE:
+            pdf_urls.append(value)
+        else:
+            key_figure_lines.append(f"{label}: {value}")
+
+    return description_body, site_field, pdf_urls, "\n".join(key_figure_lines)
+
+
+# Mapping from Lakaa thematic prefix → (color, icon)
+_THEME_STYLE = {
+    "1.": ("green", "bi-person-raised-hand"),
+    "2.": ("blue", "bi-bicycle"),
+    "3.": ("orange", "bi-building"),
+    "4.": ("yellow", "bi-droplet"),
+    "5.": ("violet", "bi-laptop"),
+    "6.": ("green", "bi-tree"),
+}
+
+
+def _val(v):
+    """Return None if value is a Lakaa empty sentinel, else strip strings."""
+    if v is None:
+        return None
+    s = str(v).strip()
+    return None if s in _EMPTY else s
+
+
+def _strip_org(s):
+    """Remove the Lakaa organisation suffix from names."""
+    if not s:
+        return s
+    return s.removesuffix(_ORG_SUFFIX).strip()
+
+
+def _aware(dt):
+    """Make a naive datetime timezone-aware (UTC). Returns None if dt is None."""
+    if dt is None:
+        return None
+    if timezone.is_aware(dt):
+        return dt
+    return timezone.make_aware(dt)
+
+
+def _parse_dt(s):
+    """Parse Lakaa CSV datetime strings: '2024-05-16 07:13:20 UTC' or '2022-11-15'."""
+    if not _val(s):
+        return None
+    s = s.strip().removesuffix(" UTC")
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+        try:
+            return _aware(datetime.strptime(s, fmt))
+        except ValueError:
+            continue
+    return None
+
+
+def _parse_date(s):
+    """Parse a date string in d/m/Y or Y-m-d format; return a date object or None."""
+    if not _val(s):
+        return None
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(s.strip(), fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _load_csv(path):
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        return list(csv.DictReader(f))
+
+
+def _html_to_markdown(html):
+    """Convert Lakaa's HTML fields to Markdown for storage in Resource text fields."""
+    if not html:
+        return ""
+    converter = html2text.HTML2Text()
+    converter.body_width = 0
+    return converter.handle(html).strip()
+
+
+def _theme_style(theme_name):
+    for prefix, style in _THEME_STYLE.items():
+        if (theme_name or "").startswith(prefix):
+            return style
+    return ("blue", "bi-star")
+
+
+# Lakaa addresses are either a bare city name ("Melun") or a full street
+# address ending with a 5-digit postal code and the city ("9 rue Bayard
+# 08000 Charleville-Mézières").
+_POSTAL_CITY_RE = re.compile(r"(\d{5})\s+(.+)$")
+
+
+def _match_commune(address):
+    """Best-effort lookup of the Commune referenced by a Lakaa address string."""
+    address = _val(address)
+    if not address:
+        return None
+
+    m = _POSTAL_CITY_RE.search(address)
+    if m:
+        postal, city = m.group(1), m.group(2).strip()
+        commune = Commune.objects.filter(postal=postal, name__iexact=city).first()
+        if commune:
+            return commune
+        commune = Commune.objects.filter(postal=postal).first()
+        if commune:
+            return commune
+        address = city
+
+    return Commune.objects.filter(name__iexact=address).first()
+
+
+class Command(TenantCommand):
+    help = "Import a Lakaa CSV data export (actions, sites, users, declarations) into the target site"
+
+    def get_schema(self, options):
+        domain = options["site_domain"]
+        try:
+            site_config = SiteConfiguration.objects.select_related("site").get(
+                site__domain=domain
+            )
+        except SiteConfiguration.DoesNotExist:
+            raise CommandError(f"No SiteConfiguration found for '{domain}'")
+        if not site_config.schema_name:
+            raise CommandError(
+                f"SiteConfiguration for '{domain}' has no schema_name — "
+                "enable at least one plugin to auto-generate it"
+            )
+        # Cache the Site object here, before TenantCommand.execute() changes
+        # search_path to the tenant schema — querying django_site afterwards
+        # could resolve to a shadowed table in the tenant schema.
+        self._site = site_config.site
+        return site_config.schema_name
+
+    def add_arguments(self, parser):
+        super().add_arguments(parser)
+        parser.add_argument(
+            "--site-domain",
+            required=True,
+            help="Domain of the target Django Site (e.g. depafi.recoconseil.fr)",
+        )
+        parser.add_argument(
+            "--data-dir",
+            required=True,
+            help="Directory containing the Lakaa CSV files",
+        )
+        parser.add_argument(
+            "--actions-file",
+            default="Actions MI - CSV.csv",
+            help="Filename of the actions export inside --data-dir",
+        )
+        parser.add_argument(
+            "--sites-file",
+            default="Sites MI - CSV.csv",
+            help="Filename of the sites export inside --data-dir",
+        )
+        parser.add_argument(
+            "--users-file",
+            default="Utilisateurs MI - CSV.csv",
+            help="Filename of the users export inside --data-dir",
+        )
+        parser.add_argument(
+            "--reports-file",
+            default="Déclarations MI - CSV.csv",
+            help="Filename of the declarations export inside --data-dir",
+        )
+        parser.add_argument(
+            "--force-update-resources",
+            action="store_true",
+            default=False,
+            help="Overwrite subtitle, category, content, summary, and status for existing resources",
+        )
+        parser.add_argument(
+            "--force-update-users",
+            action="store_true",
+            default=False,
+            help="Overwrite name, organisation, and project membership for existing users",
+        )
+        parser.add_argument(
+            "--force-update-orgs",
+            action="store_true",
+            default=False,
+            help="Overwrite organisation group for existing organizations",
+        )
+        parser.add_argument(
+            "--force-update-projects",
+            action="store_true",
+            default=False,
+            help="Overwrite location and coordinates for existing projects",
+        )
+
+    def handle(self, **options):
+        data_dir = options["data_dir"]
+        site = self._site  # fetched in get_schema(), before search_path changed
+
+        actions_path = os.path.join(data_dir, options["actions_file"])
+        sites_path = os.path.join(data_dir, options["sites_file"])
+        users_path = os.path.join(data_dir, options["users_file"])
+        reports_path = os.path.join(data_dir, options["reports_file"])
+
+        for path in (actions_path, sites_path, users_path, reports_path):
+            if not os.path.exists(path):
+                raise CommandError(f"File not found: {path}")
+
+        self.stdout.write(f"Target site: {site.name} ({site.domain})")
+
+        self.stdout.write("\n[1/4] Importing categories and resources (actions)…")
+        resource_map = self._import_resources(
+            actions_path, site, force=options["force_update_resources"]
+        )
+
+        self.stdout.write("\n[2/4] Importing projects (sites)…")
+        project_map = self._import_projects(
+            sites_path,
+            site,
+            force_projects=options["force_update_projects"],
+            force_orgs=options["force_update_orgs"],
+        )
+
+        self.stdout.write("\n[3/4] Importing users…")
+        self._import_users(
+            users_path,
+            project_map,
+            reports_path,
+            site,
+            force=options["force_update_users"],
+        )
+
+        self.stdout.write("\n[4/4] Importing réalisations (declarations)…")
+        self._import_realisations(reports_path, project_map, resource_map)
+
+        self.stdout.write(self.style.SUCCESS("\nImport complete."))
+
+    # ------------------------------------------------------------------
+    # Phase 1 - Resources (from dedicated Actions CSV)
+    # ------------------------------------------------------------------
+
+    def _import_resources(self, actions_path, site, *, force=False):
+        rows = _load_csv(actions_path)
+        resource_map = {}  # action name (stripped) => Resource pk
+        created_cat = created_res = updated_res = skipped_res = 0
+
+        for row in tqdm(rows, desc="Actions", unit="action", file=self.stdout._out):
+            name = _strip_org(_val(row.get("Nom Forest")) or "")
+            topic = _strip_org(_val(row.get("topic")) or "")
+            if not name:
+                continue
+
+            color, icon = _theme_style(topic)
+            # Scoped to `site`: Category.name has no uniqueness constraint, so an
+            # unscoped lookup could silently reuse another tenant's category (with
+            # its own color/icon) instead of creating one for this site.
+            cat = Category.objects.filter(name=topic, sites=site).first()
+            if cat is None:
+                cat = Category.objects.create(name=topic, color=color, icon=icon)
+                cat.sites.add(site)
+                created_cat += 1
+
+            # description = short intro HTML => summary; body = full how-to HTML => content.
+            summary = _html_to_markdown(_val(row.get("description")) or "")[:512]
+            content = _html_to_markdown(_val(row.get("body")) or "") or summary or name
+
+            time_indication = _val(row.get("time indication"))
+            if time_indication:
+                content = f"Temps de mise en œuvre: {time_indication}\n\n{content}"
+
+            cost_indication = _val(row.get("cost indication"))
+            if cost_indication:
+                content = f"{content}\n\n## Evaluation des coûts\n\n{cost_indication}"
+
+            subtitle = _val(row.get("impact indication")) or _val(row.get("external name")) or ""
+            status = _resource_status(row.get("status"))
+
+            resource = Resource.objects.filter(title=name, sites=site).first()
+            if resource is None:
+                resource = Resource.objects.create(
+                    title=name,
+                    subtitle=subtitle,
+                    category=cat,
+                    content=content,
+                    summary=summary,
+                    status=status,
+                    site_origin=site,
+                )
+                resource.sites.add(site)
+                created_res += 1
+            elif force:
+                resource.subtitle = subtitle
+                resource.category = cat
+                resource.content = content
+                resource.summary = summary
+                resource.status = status
+                resource.save(
+                    update_fields=["subtitle", "category", "content", "summary", "status"]
+                )
+                updated_res += 1
+            else:
+                skipped_res += 1
+
+            resource_map[name] = resource.pk
+
+        self.stdout.write(
+            f"  Categories: {created_cat} created  |  "
+            f"Resources: {created_res} created, {updated_res} updated, {skipped_res} skipped"
+        )
+        return resource_map
+
+    # ------------------------------------------------------------------
+    # Phase 2 - Projects (Lakaa "sites")
+    # ------------------------------------------------------------------
+
+    def _import_projects(self, sites_path, site, *, force_projects=False, force_orgs=False):
+        rows = _load_csv(sites_path)
+        project_map = {}  # site name => Project pk
+        created = updated = skipped = 0
+
+        for row in tqdm(rows, desc="Sites", unit="site", file=self.stdout._out):
+            name = _strip_org(
+                _val(row.get("name")) or _val(row.get("external id")) or str(row["id"])
+            )
+            ext_id = _val(row.get("external id")) or name
+
+            address = _val(row.get("address"))
+            commune = _match_commune(address)
+            location_x = location_y = None
+            coords_raw = _val(row.get("coordinates")) or _val(
+                row.get("coordinates forest")
+            )
+            if coords_raw:
+                parts = coords_raw.split(",", 1)
+                if len(parts) == 2:
+                    try:
+                        location_x = float(parts[0].strip())
+                        location_y = float(parts[1].strip())
+                    except ValueError:
+                        pass
+
+            existing = Project.objects.filter(
+                name=name, project_sites__site=site
+            ).first()
+            if existing is not None:
+                project_map[name] = existing.pk
+                if force_projects:
+                    Project.objects.filter(pk=existing.pk).update(
+                        location=address,
+                        location_x=location_x,
+                        location_y=location_y,
+                        commune=commune,
+                    )
+                    updated += 1
+                else:
+                    skipped += 1
+                continue
+
+            project = Project.objects.create(
+                name=name,
+                description="",
+                location=address,
+                location_x=location_x,
+                location_y=location_y,
+                commune=commune,
+                created_on=_parse_dt(row.get("created at")) or timezone.now(),
+                updated_on=timezone.now(),
+            )
+            ProjectSite.objects.create(
+                project=project, site=site, is_origin=True, status="TO_PROCESS"
+            )
+            project.sites.add(site)
+
+            group_name = _strip_org(_val(row.get("group")) or "")
+            org_name = _strip_org(_val(row.get("organisation")) or "")
+
+            org_group = None
+            if group_name:
+                org_group, _ = OrganizationGroup.objects.get_or_create(name=group_name)
+
+            if org_name:
+                org, _ = Organization.objects.get_or_create(
+                    name=org_name,
+                    defaults={"group": org_group},
+                )
+                if org_group and (org.group_id is None or force_orgs):
+                    org.group = org_group
+                    org.save(update_fields=["group"])
+                org.sites.add(site)
+
+            tags = [f"lakaa_id:{ext_id}"]
+            if group_name:
+                tags.append(group_name)
+            project.tags.add(*tags)
+
+            project_map[name] = project.pk
+            created += 1
+
+        self.stdout.write(f"  Projects: {created} created, {updated} updated, {skipped} skipped")
+        return project_map
+
+    # ------------------------------------------------------------------
+    # Phase 3 - Users
+    # ------------------------------------------------------------------
+
+    def _import_users(
+        self, users_path, project_map, reports_path, site, *, force=False
+    ):
+        # Derive user => site associations from declarations (creator email => store name)
+        user_sites: dict[str, set[str]] = {}
+        for row in _load_csv(reports_path):
+            email = (_val(row.get("Email du déclarant")) or "").lower()
+            site_name = _strip_org(row.get("Nom de l'établissement") or "")
+            if email and site_name:
+                user_sites.setdefault(email, set()).add(site_name)
+
+        rows = _load_csv(users_path)
+        created = updated = skipped = 0
+
+        for row in tqdm(rows, desc="Utilisateurs", unit="user", file=self.stdout._out):
+            email = (row.get("email") or "").strip().lower()
+            if not email:
+                continue
+
+            first_name = row.get("first name") or ""
+            last_name = row.get("last name") or ""
+
+            user, user_new = User.objects.get_or_create(
+                username=email,
+                defaults={
+                    "email": email,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                },
+            )
+            if user_new:
+                user.set_unusable_password()
+                user.save(update_fields=["password"])
+                created += 1
+            elif force:
+                user.first_name = first_name
+                user.last_name = last_name
+                user.save(update_fields=["first_name", "last_name"])
+                updated += 1
+            else:
+                skipped += 1
+
+            profile, _ = UserProfile.objects.get_or_create(user=user)
+            profile.sites.add(site)
+
+            org_name = _strip_org(_val(row.get("organisation")) or "")
+            if org_name:
+                org, _ = Organization.objects.get_or_create(name=org_name)
+                org.sites.add(site)
+                if profile.organization_id is None or force:
+                    profile.organization = org
+                    profile.save(update_fields=["organization"])
+
+            role = row.get("role") or ""
+            is_owner = role in ("store_manager", "hq_manager")
+
+            for site_name in user_sites.get(email, set()):
+                project_pk = project_map.get(site_name)
+                if project_pk is None:
+                    continue
+                if force:
+                    ProjectMember.objects.update_or_create(
+                        member=user,
+                        project_id=project_pk,
+                        defaults={"is_owner": is_owner},
+                    )
+                else:
+                    ProjectMember.objects.get_or_create(
+                        member=user,
+                        project_id=project_pk,
+                        defaults={"is_owner": is_owner},
+                    )
+
+        self.stdout.write(
+            f"  Users: {created} created, {updated} updated, {skipped} skipped"
+        )
+
+    # ------------------------------------------------------------------
+    # Phase 4 - Réalisations (declarations)
+    # ------------------------------------------------------------------
+
+    def _import_realisations(self, reports_path, project_map, resource_map):
+        rows = _load_csv(reports_path)
+        declarations = _group_by_declaration(rows)
+        created = skipped = warn = 0
+
+        for lakaa_id, group_rows in tqdm(
+            declarations.items(), desc="Réalisations", unit="décl", file=self.stdout._out
+        ):
+            base_row = group_rows[0]
+            site_name = _strip_org(base_row.get("Nom de l'établissement") or "")
+            action_name = _strip_org(base_row.get("Nom de l'action") or "")
+
+            project_pk = project_map.get(site_name)
+            resource_pk = resource_map.get(action_name)
+
+            if project_pk is None:
+                self.stderr.write(
+                    f"  [WARN] No project for store '{site_name}' (decl {lakaa_id})"
+                )
+                warn += 1
+                continue
+            if resource_pk is None:
+                self.stderr.write(
+                    f"  [WARN] No resource for action '{action_name}' (decl {lakaa_id})"
+                )
+                warn += 1
+                continue
+
+            sentinel = f"<!-- lakaa:{lakaa_id} -->"
+            if Realisation.objects.filter(
+                project_id=project_pk,
+                resource_id=resource_pk,
+                description__startswith=sentinel,
+            ).exists():
+                skipped += 1
+                continue
+
+            completion = (base_row.get("Completion") or "").strip()
+            status = (
+                Realisation.DRAFT
+                if completion == "Incomplet"
+                else Realisation.PUBLISHED
+            )
+
+            description_body, site_field, pdf_urls, key_figures = (
+                _consolidate_indicators(group_rows)
+            )
+            description = sentinel
+            if description_body:
+                description = f"{sentinel}\n\n{description_body}"
+
+            creator_email = (_val(base_row.get("Email du déclarant")) or "").lower()
+            creator = User.objects.filter(username=creator_email).first()
+
+            realisation = Realisation.objects.create(
+                project_id=project_pk,
+                resource_id=resource_pk,
+                created_by=creator,
+                partners=_val(base_row.get("Partenaires")) or "",
+                site=site_field,
+                date=_parse_date(base_row.get("Date de début")),
+                description=description,
+                key_figures=key_figures,
+                status=status,
+            )
+
+            declared_on = _parse_dt(base_row.get("Déclaré le"))
+            if declared_on:
+                Realisation.objects.filter(pk=realisation.pk).update(
+                    created_at=declared_on
+                )
+
+            images_raw = _val(base_row.get("Images")) or ""
+            for order, url in enumerate(
+                u.strip() for u in images_raw.split(",") if u.strip()
+            ):
+                try:
+                    with urllib.request.urlopen(url, timeout=10) as resp:
+                        data = resp.read()
+                    filename = url.rsplit("/", 1)[-1]
+                    photo = RealisationPhoto(realisation=realisation, order=order)
+                    photo.image.save(filename, ContentFile(data), save=True)
+                except Exception as exc:
+                    self.stderr.write(f"  [WARN] Could not download image {url}: {exc}")
+
+            for order, url in enumerate(pdf_urls):
+                try:
+                    with urllib.request.urlopen(url, timeout=10) as resp:
+                        data = resp.read()
+                    filename = url.rsplit("/", 1)[-1]
+                    doc = RealisationDocument(realisation=realisation, order=order)
+                    doc.file.save(filename, ContentFile(data), save=True)
+                except Exception as exc:
+                    self.stderr.write(
+                        f"  [WARN] Could not download document {url}: {exc}"
+                    )
+
+            created += 1
+
+        self.stdout.write(
+            f"  Réalisations: {created} created, {skipped} skipped, {warn} warnings"
+        )
