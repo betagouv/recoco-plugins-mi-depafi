@@ -44,9 +44,9 @@
                 </a>
             </h4>
             {% if realisation.description %}
-            <p class="fr-text--sm fr-mb-2w realisation-sidebar__description">
-                {{ realisation.description_rendered|truncatewords:30|safe }}
-            </p>
+            <div class="fr-text--sm fr-mb-0 realisation-sidebar__description">
+                {{ realisation.description_rendered|truncatewords_html:30|safe }}
+            </div>
             {% endif %}
             {% if realisation.project.commune %}
             <p class="fr-text--sm fr-mb-1w realisation-sidebar__meta">
