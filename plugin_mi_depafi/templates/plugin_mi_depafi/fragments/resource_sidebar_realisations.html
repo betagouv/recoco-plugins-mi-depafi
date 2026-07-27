@@ -36,7 +36,7 @@
             <h4 class="fr-h6 fr-mb-1w">
                 <a href="{{ realisation.get_absolute_url }}"
                    class="fr-link realisation-sidebar__title-link"
-                   hx-get="{{ realisation.get_absolute_url }}"
+                   hx-get="{% url 'plugin_mi_depafi:realisation-detail' pk=realisation.pk %}"
                    hx-target="#realisation-modal-content"
                    hx-swap="innerHTML"
                    hx-push-url="false">
