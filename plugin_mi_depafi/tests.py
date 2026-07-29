@@ -27,6 +27,7 @@ from .conftest import PLUGIN_NAME, make_project_on_site
 from . import verbs as plugin_verbs
 from .digests import send_new_realisations_digest
 from .models import Realisation, RealisationLike, RealisationNode, RealisationPhoto
+from .plugin import MiDepafiPlugin
 from .signals import notify_staff_on_project_validated, realisation_published
 
 
@@ -1337,6 +1338,18 @@ def test_notify_staff_on_project_validated(request):
         verb=recoco_verbs.Project.VALIDATED_BY,
         action_object_object_id=project.pk,
     ).exists()
+
+
+# ---------------------------------------------------------------------------
+# notification_project_verbs hook
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_notification_project_verbs_includes_realisation_published():
+    assert MiDepafiPlugin().notification_project_verbs() == [
+        plugin_verbs.Realisation.PUBLISHED
+    ]
 
 
 # ---------------------------------------------------------------------------
