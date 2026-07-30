@@ -10,11 +10,11 @@
 {% endblock og_title %}
 {% block js %}
     {{ block.super }}
-    {% vite_asset 'js/plugins/apps/realisationForm.js' %}
+    {% vite_asset 'plugin_mi_depafi/js/apps/realisationForm.js' app='plugin_mi_depafi' %}
 {% endblock js %}
 {% block css %}
     {{ block.super }}
-    {% vite_asset 'js/plugins/styles/realisation-form.css.js' %}
+    {% vite_asset 'plugin_mi_depafi/js/styles/realisation-form.css.js' app='plugin_mi_depafi' %}
 {% endblock css %}
 {% block project_detail %}
 <div x-data

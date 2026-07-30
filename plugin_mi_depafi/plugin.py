@@ -16,16 +16,6 @@ hookimpl = pluggy.HookimplMarker("recoco")
 class MiDepafiPlugin:
     urls_module = "plugin_mi_depafi.urls"
     rest_urls_module = "plugin_mi_depafi.rest_urls"
-    vite_entries = {
-        "realisationsMap": "js/components/realisationsMap.js",
-        "realisationDetailView": "js/components/RealisationDetailView.js",
-        "realisationListCrm": "js/apps/realisationListCrm.js",
-        "realisationForm": "js/apps/realisationForm.js",
-        "realisationInviteOnTaskDone": "js/utils/RealisationInviteOnTaskDone.js",
-        "realisationFormStyles": "js/styles/realisation-form.css.js",
-        "realisationListStyles": "js/styles/realisation-list.css.js",
-        "realisationModalStyles": "js/styles/fragments/realisation-modal.css.js",
-    }
 
     @hookimpl
     def project_tab_entries(self):

@@ -1,7 +1,7 @@
 {% load django_vite %}
 {% block css %}
-    {% vite_asset 'js/plugins/styles/fragments/realisation-modal.css.js' %}
-    {% vite_asset 'js/plugins/components/RealisationDetailView.js' %}
+    {% vite_asset 'plugin_mi_depafi/js/styles/fragments/realisation-modal.css.js' app='plugin_mi_depafi' %}
+    {% vite_asset 'plugin_mi_depafi/js/components/RealisationDetailView.js' app='plugin_mi_depafi' %}
 {% endblock css %}
 
 <dialog id="realisation-modal"
