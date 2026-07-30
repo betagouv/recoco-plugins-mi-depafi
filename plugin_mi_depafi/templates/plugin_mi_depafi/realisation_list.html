@@ -15,7 +15,7 @@
 {% endblock js %}
 {% block css %}
     {{ block.super }}
-    {% vite_asset 'js/plugins/styles/realisation-list.css.js' %}
+    {% vite_asset 'plugin_mi_depafi/js/styles/realisation-list.css.js' app='plugin_mi_depafi' %}
 {% endblock css %}
 {% block project_detail %}
     {% get_obj_perms request.user for request.site as "user_site_perms" %}
