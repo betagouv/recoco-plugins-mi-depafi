@@ -97,9 +97,14 @@ def test_send_new_realisations_digest_projects_context_includes_realisation_coun
     site = get_current_site(request)
     project = make_project_on_site(request)
     resource = make_resource(request)
-    realisation = baker.make(
+    realisation_a = baker.make(
         Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
     )
+    realisation_b = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
+    # A third, already-seen realisation on the same project: it must NOT be
+    # counted, since its notification isn't part of this digest run.
     baker.make(
         Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
     )
@@ -109,7 +114,10 @@ def test_send_new_realisations_digest_projects_context_includes_realisation_coun
     assign_site_staff(site, staff_member)
 
     realisation_published.send(
-        sender=Realisation, realisation=realisation, published_by=publisher
+        sender=Realisation, realisation=realisation_a, published_by=publisher
+    )
+    realisation_published.send(
+        sender=Realisation, realisation=realisation_b, published_by=publisher
     )
     notify_staff_on_project_validated(
         sender=None, site=site, moderator=moderator, project=project
