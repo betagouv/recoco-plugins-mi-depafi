@@ -41,11 +41,22 @@
             </section>
 
             <!-- Resource summary -->
-            <!-- Intégrer mais n'existe pas dans le code -->
             {% if realisation.resource.summary %}
             <section class="fr-mb-3w">
                 <h3 class="realisation-modal__content--title">Résumé</h3>
                 <p class="fr-mb-0">{{ realisation.resource.summary }}</p>
+            </section>
+            {% endif %}
+
+            <!-- Realisation partners -->
+            {% if realisation.partners_list %}
+            <section class="fr-mb-3w">
+                <h3 class="realisation-modal__content--title">Partenaire(s)</h3>
+                <ul class="fr-mb-0">
+                    {% for partner in realisation.partners_list %}
+                    <li>{{ partner }}</li>
+                    {% endfor %}
+                </ul>
             </section>
             {% endif %}
 
