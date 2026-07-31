@@ -96,6 +96,9 @@
             font-weight: 700;
             line-height: 32px; /* 133.333% */
             margin-bottom: 12px;
+            &-minus {
+                font-size: 22px;
+            }
         }
         &--last-btn {
             display: flex;
