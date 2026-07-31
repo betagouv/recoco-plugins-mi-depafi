@@ -33,7 +33,15 @@
 
         <div class="realisation-modal__content--column" x-show="isView('detail')">
 
+            <!-- Project name -->
+            <section class="d-flex fr-mb-3v">
+                <span class="realisation-modal__content--information-title">Réalisation de</span>
+                <span class="realisation-modal__content--information-title-ponctuation">:&nbsp;</span>
+                <a class="realisation-modal__content--information-title-link" href="{% url 'plugin_mi_depafi:realisation-list' project_id=realisation.project_id %}">{{ realisation.project.name }}</a>
+            </section>
+
             <!-- Resource summary -->
+            <!-- Intégrer mais n'existe pas dans le code -->
             {% if realisation.resource.summary %}
             <section class="fr-mb-3w">
                 <h2 class="realisation-modal__content--title">Résumé</h2>
