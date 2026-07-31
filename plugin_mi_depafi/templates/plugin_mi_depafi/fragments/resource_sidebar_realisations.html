@@ -1,9 +1,11 @@
 {% load humanize %}
+{% load django_vite %}
+{% vite_asset 'js/plugins/styles/resource-sidebar-realisations.css.js' %}
 
 {% if user_projects %}
-<div class="fr-callout fr-my-4w fr-pb-3w fr-pr-3w fr-pt-2w fr-pl-5v">
-    <h3 class="fr-callout__title fr-text--lg fr-py-2v">Vous vous en occupez ?</h3>
-    <p class="fr-callout__text fr-text--sm">
+<div class="info-banner">
+    <h3 class="info-banner__title fr-m-0">Vous vous en occupez ?</h3>
+    <p class="info-banner__text fr-m-0">
         Présentez le résultat ici pour inspirer les autres référents.
     </p>
     {% if user_projects|length == 1 %}
@@ -24,30 +26,35 @@
 
 {% if count %}
 <div class="fr-mt-3w">
-    <p class="fr-text--sm text-uppercase fw-bold fr-mb-2w" style="color: #666;">
+    <p class="fr-text--sm text-uppercase fw-bold fr-mb-2w realisation-sidebar__count">
         {{ count }} réalisation{{ count|pluralize }}
     </p>
 
     {% for realisation in realisations %}
-    <div class="fr-card fr-card--no-arrow fr-mb-3w" style="border: 1px solid #e5e5e5; border-radius: 4px;">
-        <div class="fr-card__body fr-p-3w">
+    <div class="fr-card fr-card--no-arrow fr-mb-3w realisation-sidebar__card">
+        <div class="fr-card__body fr-p-2w">
             <h4 class="fr-h6 fr-mb-1w">
                 <a href="{{ realisation.get_absolute_url }}"
-                   class="fr-link"
-                   hx-get="{{ realisation.get_absolute_url }}"
+                   class="fr-link realisation-sidebar__title-link"
+                   hx-get="{% url 'plugin_mi_depafi:realisation-detail' pk=realisation.pk %}"
                    hx-target="#realisation-modal-content"
                    hx-swap="innerHTML"
                    hx-push-url="false">
                     {{ realisation.project.name }}
                 </a>
             </h4>
+            {% if realisation.description %}
+            <div class="fr-text--sm fr-mb-0 realisation-sidebar__description">
+                {{ realisation.description_rendered|truncatewords_html:30|safe }}
+            </div>
+            {% endif %}
             {% if realisation.project.commune %}
-            <p class="fr-text--sm fr-mb-1w" style="color: #666;">
+            <p class="fr-text--sm fr-mb-1w realisation-sidebar__meta">
                 <span class="fr-icon-map-pin-2-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
                 {{ realisation.project.commune.name }}{% if realisation.project.commune.department %} ({{ realisation.project.commune.department.code }}){% endif %}
             </p>
             {% endif %}
-            <p class="fr-text--sm fr-mb-2w" style="color: #555;">
+            <p class="fr-text--sm fr-mb-2w realisation-sidebar__meta">
                 <span class="fr-icon-calendar-event-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
                 mis à jour le {{ realisation.updated_at|date:"d F Y" }}
             </p>
@@ -55,11 +62,8 @@
             {% if photos %}
             <div class="d-flex gap-2 flex-wrap">
                 {% for photo in photos|slice:":2" %}
-                <div class="flex-shrink-0"
-                     style="width: calc(50% - 4px); aspect-ratio: 4/3; overflow: hidden; border-radius: 4px;">
-                    <img src="{{ photo.image.url }}"
-                         alt=""
-                         style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                <div class="flex-shrink-0 realisation-sidebar__photo">
+                    <img src="{{ photo.image.url }}" alt="">
                 </div>
                 {% endfor %}
             </div>
@@ -70,7 +74,7 @@
     {% endfor %}
 
     <a href="{% url 'plugin_mi_depafi:realisations-by-resource' resource_id=resource.pk %}"
-       class="fr-btn fr-btn--secondary w-100 justify-content-center fr-mt-1w">
+       class="fr-btn w-100 justify-content-center fr-my-1w">
         Voir toutes les réalisations de ce type
     </a>
 </div>

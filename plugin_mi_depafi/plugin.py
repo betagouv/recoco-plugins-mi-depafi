@@ -25,6 +25,7 @@ class MiDepafiPlugin:
         "realisationFormStyles": "js/styles/realisation-form.css.js",
         "realisationListStyles": "js/styles/realisation-list.css.js",
         "realisationModalStyles": "js/styles/fragments/realisation-modal.css.js",
+        "resourceSidebarRealisationsStyles": "js/styles/resource-sidebar-realisations.css.js",
     }
 
     @hookimpl

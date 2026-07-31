@@ -10,7 +10,7 @@
             <h3 class="fr-h5 fr-mb-0">
                 <a href="{{ realisation.get_absolute_url }}"
                 class="fr-link realisation-card__title"
-                hx-get="{{ realisation.get_absolute_url }}"
+                hx-get="{% url 'plugin_mi_depafi:realisation-detail' pk=realisation.pk %}"
                 hx-target="#realisation-modal-content"
                 hx-swap="innerHTML"
                 hx-push-url="false">{{ realisation.resource.title }}</a>
@@ -20,7 +20,7 @@
         <!-- Description -->
         {% if realisation.description %}
             <div class="realisation-card__content">
-                {{ realisation.description_rendered|truncatewords:40|safe }}
+                {{ realisation.description_rendered|truncatewords_html:40|safe }}
             </div>
         {% endif %}
         <!-- Photo grid -->
@@ -66,7 +66,7 @@
                 {% switch "MI_futur" %}
                     <button type="button"
                         class="fr-btn fr-btn--sm"
-                        hx-get="{{ realisation.get_absolute_url }}"
+                        hx-get="{% url 'plugin_mi_depafi:realisation-detail' pk=realisation.pk %}"
                         hx-target="#realisation-modal-content"
                         hx-swap="innerHTML">Voir la réalisation</button>
                 {% endswitch %}
