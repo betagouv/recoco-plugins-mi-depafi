@@ -121,7 +121,10 @@
 
         <div class="realisation-modal__content--column realisation-modal__navigation">
             <h3 class="realisation-modal__navigation--title fr-mb-2w">Navigation</h3>
-            <button  class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-eye-line fr-mb-2w w-100 justify-content-center" :class="{ 'realisation-modal__navigation--button--is-selected': isSelected('detail') }" type="button" @click="showView('detail')">Description du projet</button>
+            <button class="realisation-modal__navigation--back fr-mb-2w" x-show="!isView('detail')" type="button" @click="showView('detail')">
+                <span class="fr-icon-article-line fr-icon--sm" aria-hidden="true"></span>
+                Retour à la description
+            </button>
             <!-- Photos -->
             {% with photos=realisation.photos.all %}
             {% if photos %}

@@ -148,8 +148,20 @@
             text-transform: uppercase;
         }
 
-        &--button--is-selected {
-            background-color: #2323FF;
+        &--back {
+            align-items: center;
+            background: none;
+            border: none;
+            border-bottom: 1px solid currentColor;
+            color: var(--light-decisions-text-text-action-high-blue-france, #000091);
+            cursor: pointer;
+            display: inline-flex;
+            font-size: 14px;
+            font-style: normal;
+            font-weight: 400;
+            gap: 8px;
+            line-height: 24px; /* 171.429% */
+            padding: 0;
         }
 
         &--photo-container {
