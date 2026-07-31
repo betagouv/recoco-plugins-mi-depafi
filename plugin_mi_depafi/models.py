@@ -91,13 +91,6 @@ class Realisation(models.Model):
         # FIXME Security: does it need a sanity postprocessing?
         return markdownify(self.description)
 
-    @property
-    def partners_list(self):
-        """Partners are stored as a single comma separated string"""
-        return [
-            partner.strip() for partner in self.partners.split(",") if partner.strip()
-        ]
-
     def __str__(self):
         return str(self.resource)
 
