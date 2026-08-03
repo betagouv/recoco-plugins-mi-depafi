@@ -82,7 +82,11 @@ def test_send_new_realisations_digest_dry_run_does_not_send_or_mark(request):
         result = send_new_realisations_digest(site, staff_member, dry_run=True)
 
     assert result == 1
-    mock_send.assert_not_called()
+    # dry_run now flows all the way to send_email (so params/template resolution
+    # are exercised for real) - only the actual Brevo HTTP call is skipped,
+    # further down inside send_email itself.
+    mock_send.assert_called_once()
+    assert mock_send.call_args[1]["dry_run"] is True
     assert Notification.objects.filter(
         recipient=staff_member,
         verb=plugin_verbs.Realisation.PUBLISHED,
@@ -134,3 +138,39 @@ def test_send_new_realisations_digest_projects_context_includes_realisation_coun
     assert len(captured.get("projects", [])) == 1
     assert captured["projects"][0]["name"] == project.name
     assert captured["projects"][0]["realisation_count"] == 2
+
+
+@pytest.mark.django_db
+def test_send_new_realisations_digest_projects_populated_without_validated_by_notification(
+    request,
+):
+    # notify_staff_on_project_validated is not wired to any signal in production
+    # (see signals.py: "XXX Disabled ATM"), so Project.VALIDATED_BY notifications
+    # are never created for real. The projects list must therefore be derived
+    # from the realisation notifications themselves, not from that verb.
+    site = get_current_site(request)
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
+    publisher = baker.make(User)
+    staff_member = baker.make(User)
+    assign_site_staff(site, staff_member)
+
+    realisation_published.send(
+        sender=Realisation, realisation=realisation, published_by=publisher
+    )
+
+    captured = {}
+
+    def fake_send_email(template_name, recipients, params, **kwargs):
+        captured.update(params)
+
+    with patch("plugin_mi_depafi.digests.send_email", side_effect=fake_send_email):
+        result = send_new_realisations_digest(site, staff_member, dry_run=False)
+
+    assert result == 1
+    assert len(captured.get("projects", [])) == 1
+    assert captured["projects"][0]["name"] == project.name
+    assert captured["projects"][0]["realisation_count"] == 1
