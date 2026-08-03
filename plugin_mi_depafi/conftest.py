@@ -7,12 +7,6 @@ from recoco.apps.home import models as home_models
 from recoco.apps.plugins.resolvers import set_enabled_plugins
 from recoco.apps.projects.models import Project
 from waffle.testutils import override_switch
-from django.contrib.sites.shortcuts import get_current_site
-from model_bakery import baker
-from waffle.testutils import override_switch
-
-from recoco.apps.home import models as home_models
-from recoco.apps.plugins.resolvers import set_enabled_plugins
 
 PLUGIN_NAME = "plugin_mi_depafi"
 
@@ -38,6 +32,7 @@ def enable_plugin():
 
 @pytest.fixture(autouse=True)
 def multisite_alias(db):
+    """Ensure the example.com site has a canonical multisite Alias."""
     site = Site.objects.filter(domain="example.com").first()
     if site:
         Alias.objects.get_or_create(site=site, domain="example.com", is_canonical=True)
