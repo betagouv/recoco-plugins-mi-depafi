@@ -1,14 +1,14 @@
 import logging
 
 from django.contrib.contenttypes.models import ContentType
+from django.urls import reverse
 
-from recoco import verbs as recoco_verbs
+from recoco import utils, verbs as recoco_verbs
 from recoco.apps.communication.api import send_email
 from recoco.apps.communication.helpers import normalize_user_name
 from recoco.apps.projects import models as project_models
 
 from . import verbs as plugin_verbs
-from .models import Realisation
 
 logger = logging.getLogger("main")
 
@@ -25,6 +25,15 @@ def send_new_realisations_digest(site, user, dry_run=False):
         return 0
 
     realisation_count = realisation_notifications.count()
+
+    unseen_realisation_counts_by_project = {}
+    for notif in realisation_notifications:
+        realisation = notif.action_object
+        if realisation is None:
+            continue
+        unseen_realisation_counts_by_project[realisation.project_id] = (
+            unseen_realisation_counts_by_project.get(realisation.project_id, 0) + 1
+        )
 
     project_ct = ContentType.objects.get_for_model(project_models.Project)
     project_notifications = (
@@ -43,12 +52,21 @@ def send_new_realisations_digest(site, user, dry_run=False):
         if project is None or project.id in seen_project_ids:
             continue
         seen_project_ids.add(project.id)
-        projects.append({
-            "name": project.name,
-            "realisation_count": Realisation.objects.filter(
-                project=project, status=Realisation.PUBLISHED
-            ).count(),
-        })
+
+        project_realisations_url = utils.build_absolute_url(
+            reverse("plugin_mi_depafi:realisation-list", args=[project.id]),
+            auto_login_user=user,
+        )
+
+        projects.append(
+            {
+                "name": project.name,
+                "url": project_realisations_url,
+                "realisation_count": unseen_realisation_counts_by_project.get(
+                    project.id, 0
+                ),
+            }
+        )
 
     context = {
         "realisation_count": realisation_count,
