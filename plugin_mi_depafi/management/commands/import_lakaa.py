@@ -630,7 +630,7 @@ class Command(TenantCommand):
                 resource_id=resource_pk,
                 created_by=creator,
                 partners=_val(base_row.get("Partenaires")) or "",
-                site=site_field,
+                site=site_field[:255],
                 date=_parse_date(base_row.get("Date de début")),
                 description=description,
                 key_figures=key_figures,
