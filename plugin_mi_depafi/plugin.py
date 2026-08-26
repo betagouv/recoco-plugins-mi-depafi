@@ -42,15 +42,12 @@ class MiDepafiPlugin:
 
     @hookimpl
     def crm_navigation_tabs(self, request):
-        if waffle.switch_is_active('MI_futur'):
-            return {
-                "label": "Réalisations",
-                "url_name": "plugin_mi_depafi:crm-realisation-list",
-                "tab_key": "plugin_mi_depafi",
-                "index": 15,
-            }
-            
-        return None
+        return {
+            "label": "Réalisations",
+            "url_name": "plugin_mi_depafi:crm-realisation-list",
+            "tab_key": "plugin_mi_depafi",
+            "index": 15,
+        }
 
     @hookimpl
     def crm_project_list_annotations(self, request):
@@ -70,19 +67,23 @@ class MiDepafiPlugin:
 
     @hookimpl
     def conversation_message_node_html(self, request, project):
-        return mark_safe(render_to_string(
-            "plugin_mi_depafi/fragments/node_realisationnode.html",
-            {},
-            request=request,
-        ))
+        return mark_safe(
+            render_to_string(
+                "plugin_mi_depafi/fragments/node_realisationnode.html",
+                {},
+                request=request,
+            )
+        )
 
     @hookimpl
     def conversation_extra_html(self, request, project):
-        return mark_safe(render_to_string(
-            "plugin_mi_depafi/fragments/realisation_invite_on_task_done.html",
-            {},
-            request=request,
-        ))
+        return mark_safe(
+            render_to_string(
+                "plugin_mi_depafi/fragments/realisation_invite_on_task_done.html",
+                {},
+                request=request,
+            )
+        )
 
     @hookimpl
     def send_digests_for_staff_users(self, site, user, dry_run):
@@ -111,13 +112,15 @@ class MiDepafiPlugin:
                 .select_related("commune")
                 .order_by("name")
             )
-        return mark_safe(render_to_string(
-            "plugin_mi_depafi/fragments/resource_sidebar_realisations.html",
-            {
-                "resource": resource,
-                "realisations": realisations,
-                "count": count,
-                "user_projects": user_projects,
-            },
-            request=request,
-        ))
+        return mark_safe(
+            render_to_string(
+                "plugin_mi_depafi/fragments/resource_sidebar_realisations.html",
+                {
+                    "resource": resource,
+                    "realisations": realisations,
+                    "count": count,
+                    "user_projects": user_projects,
+                },
+                request=request,
+            )
+        )
