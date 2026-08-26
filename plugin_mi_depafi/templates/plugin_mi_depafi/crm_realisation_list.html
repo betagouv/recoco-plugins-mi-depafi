@@ -50,6 +50,7 @@
                         <col class="col--medium">
                         <col class="col--medium">
                         <col class="col--small">
+                        <col class="col--small">
                         <col class="col--small col--fixed-160">
                     </colgroup>
                     <thead class="project-table__thead">
@@ -60,6 +61,7 @@
                             <th scope="col">Localisation</th>
                             <th scope="col">Date de la réalisation</th>
                             <th scope="col">Statut</th>
+                            <th scope="col">Likes</th>
                             <th scope="col">Actions</th>
                         </tr>
                     </thead>
@@ -85,6 +87,7 @@
                                           class="fr-badge fr-badge--no-icon"
                                           :class="statusColor(realisation.status)"></span>
                                 </td>
+                                <td x-text="realisation.like_count"></td>
                                 <td>
                                     <button type="button"
                                             class="fr-btn fr-btn--sm fr-icon-eye-line fr-btn--tertiary-no-outline position-relative"
@@ -102,7 +105,7 @@
                         </template>
                         <template x-if="dataLoaded && realisationsToDisplay.length === 0">
                             <tr>
-                                <td colspan="7">-- Aucun résultat --</td>
+                                <td colspan="8">-- Aucun résultat --</td>
                             </tr>
                         </template>
                     </tbody>

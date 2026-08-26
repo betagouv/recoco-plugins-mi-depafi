@@ -1,3 +1,4 @@
+from django.db.models import Count
 from django.urls import reverse
 
 from rest_framework import serializers
@@ -112,13 +113,24 @@ class CrmRealisationProjectSerializer(serializers.Serializer):
 class CrmRealisationSerializer(serializers.ModelSerializer):
     resource = CrmRealisationResourceSerializer(read_only=True)
     project = CrmRealisationProjectSerializer(read_only=True)
+    like_count = serializers.IntegerField(read_only=True)
     detail_url = serializers.SerializerMethodField()
     update_url = serializers.SerializerMethodField()
     delete_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Realisation
-        fields = ["id", "resource", "project", "status", "created_at", "detail_url", "update_url", "delete_url"]
+        fields = [
+            "id",
+            "resource",
+            "project",
+            "status",
+            "created_at",
+            "like_count",
+            "detail_url",
+            "update_url",
+            "delete_url",
+        ]
 
     def get_detail_url(self, obj):
         return obj.get_absolute_url()
@@ -145,6 +157,7 @@ class CrmRealisationListAPIView(ListAPIView):
         return (
             Realisation.objects.filter(project__project_sites__site=self.request.site)
             .select_related("resource__category", "project__commune")
+            .annotate(like_count=Count("likes", distinct=True))
             .order_by("-created_at")
             .distinct()
         )
