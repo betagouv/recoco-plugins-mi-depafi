@@ -133,7 +133,7 @@ class CrmRealisationSerializer(serializers.ModelSerializer):
         ]
 
     def get_detail_url(self, obj):
-        return obj.get_absolute_url()
+        return reverse("plugin_mi_depafi:realisation-detail", args=[obj.pk])
 
     def get_update_url(self, obj):
         return reverse("plugin_mi_depafi:realisation-update", args=[obj.project_id, obj.pk])
