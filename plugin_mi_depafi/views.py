@@ -310,6 +310,9 @@ class CrmRealisationListView(LoginRequiredMixin, View):
             .distinct()
         )
 
+        if q := request.GET.get("q", "").strip():
+            realisations = realisations.filter(resource__title__icontains=q)
+
         return render(request, self.template_name, {"realisations": realisations})
 
 
