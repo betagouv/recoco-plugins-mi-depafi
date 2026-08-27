@@ -313,6 +313,9 @@ class CrmRealisationListView(LoginRequiredMixin, View):
         if q := request.GET.get("q", "").strip():
             realisations = realisations.filter(resource__title__icontains=q)
 
+        if statuses := [s for s in request.GET.getlist("status") if s]:
+            realisations = realisations.filter(status__in=statuses)
+
         return render(request, self.template_name, {"realisations": realisations})
 
 
