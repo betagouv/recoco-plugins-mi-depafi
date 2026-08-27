@@ -305,6 +305,7 @@ class CrmRealisationListView(LoginRequiredMixin, View):
         realisations = (
             Realisation.objects.filter(project__project_sites__site=request.site)
             .select_related("resource__category", "project__commune")
+            .annotate(like_count=Count("likes", distinct=True))
             .order_by("-created_at")
             .distinct()
         )
