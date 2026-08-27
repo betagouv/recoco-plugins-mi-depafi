@@ -37,6 +37,7 @@
                    download="realisations.csv">Télécharger en CSV</a>
             </div>
             <div class="fr-mb-2w table-responsive fr-px-5v fr-pb-5v">
+                {% comment %}
                 <table class="project-table w-100">
                     <caption x-show="dataLoaded"
                              x-transition.opacity.duration.500ms
@@ -110,6 +111,7 @@
                         </template>
                     </tbody>
                 </table>
+                {% endcomment %}
                 {# Migration JS → Django : array copy to test django good results #}
                 <table class="project-table w-100">
                     <caption class="fr-ml-2v">
@@ -197,6 +199,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                {% comment %}
                 <template x-if="pagination.total > 1">
                     <nav role="navigation" class="fr-pagination fr-mt-2w" aria-label="Pagination">
                         <ul class="fr-pagination__list justify-content-center">
@@ -228,6 +231,7 @@
                         </ul>
                     </nav>
                 </template>
+                {% endcomment %}
             </div>
         </div>
     </div>
