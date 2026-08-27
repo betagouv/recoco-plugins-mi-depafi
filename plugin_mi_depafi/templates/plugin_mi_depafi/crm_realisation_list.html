@@ -110,6 +110,93 @@
                         </template>
                     </tbody>
                 </table>
+                {# Migration JS → Django : array copy to test django good results #}
+                <table class="project-table w-100">
+                    <caption class="fr-ml-2v">
+                        {{ realisations|length }} réalisation{{ realisations|length|pluralize }}
+                    </caption>
+                    <colgroup>
+                        <col class="col--large">
+                        <col class="col--medium">
+                        <col class="col--large">
+                        <col class="col--medium">
+                        <col class="col--medium">
+                        <col class="col--small">
+                        <col class="col--small">
+                        <col class="col--small col--fixed-160">
+                    </colgroup>
+                    <thead class="project-table__thead">
+                        <tr>
+                            <th scope="col">Intitulé de l'action</th>
+                            <th scope="col">Catégorie</th>
+                            <th scope="col">Nom du site</th>
+                            <th scope="col">Localisation</th>
+                            <th scope="col">Date de la réalisation</th>
+                            <th scope="col">Statut</th>
+                            <th scope="col">Likes</th>
+                            <th scope="col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for realisation in realisations %}
+                            <tr>
+                                <td class="text-ellipsis" title="{{ realisation.resource.title }}">
+                                    <button type="button"
+                                            class="fr-link project-table__project-name"
+                                            hx-get="{% url 'plugin_mi_depafi:realisation-detail' realisation.pk %}"
+                                            hx-target="#realisation-modal-content"
+                                            hx-swap="innerHTML"
+                                            hx-push-url="false">{{ realisation.resource.title }}</button>
+                                </td>
+                                <td class="text-ellipsis"
+                                    title="{{ realisation.resource.category.name|default:'Aucune catégorie' }}">
+                                    {{ realisation.resource.category.name|default:"—" }}
+                                </td>
+                                <td class="text-ellipsis" title="{{ realisation.project.name }}">
+                                    <a class="fr-link"
+                                       href="{% url 'crm-project-details' realisation.project.pk %}">{{ realisation.project.name }}</a>
+                                </td>
+                                <td>
+                                    {% if realisation.project.commune %}
+                                        {{ realisation.project.commune.name }} ({{ realisation.project.commune.postal }})
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                                <td>{{ realisation.created_at|date:"d/m/Y" }}</td>
+                                <td class="project-table__status">
+                                    <span class="fr-badge fr-badge--no-icon {% if realisation.status == 'published' %}fr-badge--success{% else %}fr-badge--warning{% endif %}">
+                                        {{ realisation.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>{{ realisation.like_count }}</td>
+                                <td>
+                                    <button type="button"
+                                            class="fr-btn fr-btn--sm fr-icon-eye-line fr-btn--tertiary-no-outline position-relative"
+                                            hx-get="{% url 'plugin_mi_depafi:realisation-detail' realisation.pk %}"
+                                            hx-target="#realisation-modal-content"
+                                            hx-swap="innerHTML"
+                                            hx-push-url="false"
+                                            title="Voir la réalisation">Voir</button>
+                                    <a class="fr-btn fr-btn--sm fr-icon-pencil-line fr-btn--tertiary-no-outline position-relative"
+                                       href="{% url 'plugin_mi_depafi:realisation-update' realisation.project_id realisation.pk %}"
+                                       title="Modifier la réalisation">Modifier</a>
+                                    <button type="button"
+                                            class="fr-btn fr-btn--sm fr-icon-delete-line fr-btn--tertiary-no-outline position-relative"
+                                            hx-get="{% url 'plugin_mi_depafi:realisation-delete' realisation.project_id realisation.pk %}"
+                                            hx-target="#realisation-modal-content"
+                                            hx-swap="innerHTML"
+                                            hx-push-url="false"
+                                            title="Supprimer la réalisation">Supprimer</button>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="8">-- Aucun résultat --</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
                 <template x-if="pagination.total > 1">
                     <nav role="navigation" class="fr-pagination fr-mt-2w" aria-label="Pagination">
                         <ul class="fr-pagination__list justify-content-center">
