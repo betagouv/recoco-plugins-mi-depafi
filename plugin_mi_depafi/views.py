@@ -301,7 +301,15 @@ class CrmRealisationListView(LoginRequiredMixin, View):
 
     def get(self, request):
         has_perm_or_403(request.user, "use_crm", request.site)
-        return render(request, self.template_name)
+
+        realisations = (
+            Realisation.objects.filter(project__project_sites__site=request.site)
+            .select_related("resource__category", "project__commune")
+            .order_by("-created_at")
+            .distinct()
+        )
+
+        return render(request, self.template_name, {"realisations": realisations})
 
 
 class CrmRealisationCsvView(LoginRequiredMixin, View):
