@@ -29,7 +29,15 @@
                     <div style="flex: 1; min-width: 200px; position: relative;">
                         {% include "projects/project/fragments/search_bar.html" with name="q" value=request.GET.q placeholder="Rechercher" show_search_button=True %}
                     </div>
-                    {% include "projects/project/fragments/departments_selector.html" with label="Projets de mon territoire" label_filter="Localisation :" filter_by_regions=True select_all=True %}
+                    <div x-data="DepartmentsFilterWrapper({{ selected_departments|default:'[]' }})"
+                         @is-select-all-departments="onSelectAll($event.detail)"
+                         @selected-departments="onSelected($event.detail)"
+                         @user-close-selector="$nextTick(() => $el.closest('form').submit())">
+                        <template x-for="code in (allSelected ? [] : selectedCodes)" :key="code">
+                            <input type="hidden" name="departments" :value="code">
+                        </template>
+                        {% include "projects/project/fragments/departments_selector.html" with label_filter="Localisation :" filter_by_regions=True select_all=False selected_departments=selected_departments extra_classes="inline-chevron" %}
+                    </div>
                     <div class="d-flex align-items-center gap-2">
                         <label class="fr-label fr-mb-0 text-nowrap" for="status-filter">Statut :</label>
                         <select class="fr-select fr-select--sm fr-mt-0 w-auto rounded-pill bg-white shadow-none specific-border-solid1pxE5E5E5"

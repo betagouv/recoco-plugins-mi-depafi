@@ -316,6 +316,11 @@ class CrmRealisationListView(LoginRequiredMixin, View):
         if statuses := [s for s in request.GET.getlist("status") if s]:
             realisations = realisations.filter(status__in=statuses)
 
+        if departments := request.GET.getlist("departments"):
+            realisations = realisations.filter(
+                project__commune__department__code__in=departments
+            )
+
         return render(request, self.template_name, {"realisations": realisations})
 
 
