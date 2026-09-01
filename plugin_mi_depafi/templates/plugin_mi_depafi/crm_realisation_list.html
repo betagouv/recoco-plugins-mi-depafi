@@ -52,7 +52,7 @@
                     </div>
                     <a class="fr-btn fr-btn--sm fr-icon-download-line fr-btn--icon-left"
                        style="white-space: nowrap;"
-                       :href="csvUrl()"
+                       href="{% url 'plugin_mi_depafi:crm-realisation-csv' %}{% querystring page=None %}"
                        download="realisations.csv">Télécharger en CSV</a>
                 </div>
             </form>

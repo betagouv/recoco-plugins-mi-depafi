@@ -352,7 +352,7 @@ class CrmRealisationCsvView(LoginRequiredMixin, View):
         if q := request.GET.get("q", "").strip():
             qs = qs.filter(resource__title__icontains=q)
 
-        if statuses := request.GET.getlist("status"):
+        if statuses := [s for s in request.GET.getlist("status") if s]:
             qs = qs.filter(status__in=statuses)
 
         if departments := request.GET.getlist("departments"):
