@@ -2,6 +2,7 @@ import csv
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.db.models import Count, Exists, OuterRef
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -301,7 +302,40 @@ class CrmRealisationListView(LoginRequiredMixin, View):
 
     def get(self, request):
         has_perm_or_403(request.user, "use_crm", request.site)
-        return render(request, self.template_name)
+
+        realisations = (
+            Realisation.objects.filter(project__project_sites__site=request.site)
+            .select_related("resource__category", "project__commune")
+            .annotate(like_count=Count("likes", distinct=True))
+            .order_by("-created_at")
+            .distinct()
+        )
+
+        if q := request.GET.get("q", "").strip():
+            realisations = realisations.filter(resource__title__icontains=q)
+
+        if statuses := [s for s in request.GET.getlist("status") if s]:
+            realisations = realisations.filter(status__in=statuses)
+
+        if departments := request.GET.getlist("departments"):
+            realisations = realisations.filter(
+                project__commune__department__code__in=departments
+            )
+
+        paginator = Paginator(realisations, 25)
+        page_number = request.GET.get("page") or 1
+        page_obj = paginator.get_page(page_number)
+
+        return render(
+            request,
+            self.template_name,
+            {
+                "realisations": realisations,
+                "paginator": paginator,
+                "page_obj": page_obj,
+                "selected_departments": request.GET.getlist("departments"),
+            },
+        )
 
 
 class CrmRealisationCsvView(LoginRequiredMixin, View):
@@ -318,7 +352,7 @@ class CrmRealisationCsvView(LoginRequiredMixin, View):
         if q := request.GET.get("q", "").strip():
             qs = qs.filter(resource__title__icontains=q)
 
-        if statuses := request.GET.getlist("status"):
+        if statuses := [s for s in request.GET.getlist("status") if s]:
             qs = qs.filter(status__in=statuses)
 
         if departments := request.GET.getlist("departments"):

@@ -12,36 +12,51 @@
     <div x-data="{ breadcrumbs: { links: [{url: '{% url 'crm-site-dashboard' %}', title: 'Admin'}], current: 'Réalisations' } }"
          class="fr-p-0">{% include "tools/breadcrumb.html" %}</div>
     <div x-data="Crm" class="d-flex fr-px-0 crm">
-        <div x-data="RealisationListCrm"
-             @selected-departments="saveSelectedDepartment($event)"
-             @multi-select-change="saveSelectedStatus($event)"
-             class="w-100 d-flex flex-column justify-content-start project-list-crm">
-            <div class="project-list-crm__filters fr-px-5v fr-pb-5v">
-                <div class="d-flex align-items-center" x-transition.opacity.duration.500ms>
-                    <span class="project-list-crm__projects-count-label"
-                          x-show="dataLoaded"
-                          x-text="realisationsCountLabel()"></span>
-                    <span class="project-list-crm__projects-count-label" x-show="!dataLoaded">Chargement</span>
+        <div class="w-100 d-flex flex-column justify-content-start project-list-crm">
+            <form method="get"
+                  action="{% url 'plugin_mi_depafi:crm-realisation-list' %}"
+                  class="w-100">
+                <div class="project-list-crm__filters fr-px-5v fr-pb-5v">
+                    <div class="d-flex align-items-center">
+                        <span class="project-list-crm__projects-count-label">
+                            {% if paginator.count %}{{ paginator.count }} réalisation{{ paginator.count|pluralize }}{% else %}Aucun résultat{% endif %}
+                        </span>
+                    </div>
+                    <div style="flex: 1; min-width: 200px; position: relative;">
+                        {% include "projects/project/fragments/search_bar.html" with name="q" value=request.GET.q placeholder="Rechercher" show_search_button=True %}
+                    </div>
+                    <div x-data="DepartmentsFilterWrapper({{ selected_departments|default:'[]' }})"
+                         @is-select-all-departments="onSelectAll($event.detail)"
+                         @selected-departments="onSelected($event.detail)"
+                         @user-close-selector="$nextTick(() => $el.closest('form').submit())">
+                        <template x-for="code in (allSelected ? [] : selectedCodes)" :key="code">
+                            <input type="hidden" name="departments" :value="code">
+                        </template>
+                        {% include "projects/project/fragments/departments_selector.html" with label_filter="Localisation :" filter_by_regions=True select_all=False selected_departments=selected_departments extra_classes="inline-chevron" %}
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="fr-label fr-mb-0 text-nowrap" for="status-filter">Statut :</label>
+                        <select class="fr-select fr-select--sm fr-mt-0 w-auto rounded-pill bg-white shadow-none specific-border-solid1pxE5E5E5"
+                                id="status-filter"
+                                name="status"
+                                onchange="this.form.submit()">
+                            <option value="">Tous</option>
+                            <option value="draft"
+                                    {% if request.GET.status == "draft" %}selected{% endif %}>Brouillon</option>
+                            <option value="published"
+                                    {% if request.GET.status == "published" %}selected{% endif %}>Publié</option>
+                        </select>
+                    </div>
+                    <a class="fr-btn fr-btn--sm fr-icon-download-line fr-btn--icon-left"
+                       style="white-space: nowrap;"
+                       href="{% url 'plugin_mi_depafi:crm-realisation-csv' %}{% querystring page=None %}"
+                       download="realisations.csv">Télécharger en CSV</a>
                 </div>
-                <div style="flex: 1; min-width: 200px; position: relative;">
-                    {% include "projects/project/fragments/search_bar.html" with action_search="onSearch" x_model="backendSearch.searchText" placeholder="Rechercher" %}
-                </div>
-                {% include "projects/project/fragments/departments_selector.html" with label="Projets de mon territoire" label_filter="Localisation :" filter_by_regions=True select_all=True %}
-                <div class="d-flex align-items-center" style="flex: 0 0 220px;" x-data="{ selected: [] }">
-                    <label class="filter__label">Statut:</label>
-                    {% include "tools/multi_select.html" %}
-                </div>
-                <a class="fr-btn fr-btn--sm fr-icon-download-line fr-btn--icon-left"
-                   style="white-space: nowrap;"
-                   :href="csvUrl()"
-                   download="realisations.csv">Télécharger en CSV</a>
-            </div>
+            </form>
             <div class="fr-mb-2w table-responsive fr-px-5v fr-pb-5v">
                 <table class="project-table w-100">
-                    <caption x-show="dataLoaded"
-                             x-transition.opacity.duration.500ms
-                             class="fr-ml-2v">
-                        <span x-text="realisationsCountLabel()" data-test-id="realisations-count-label"></span>
+                    <caption class="fr-ml-2v">
+                        <span data-test-id="realisations-count-label">{% if paginator.count %}{{ paginator.count }} réalisation{{ paginator.count|pluralize }}{% else %}Aucun résultat{% endif %}</span>
                     </caption>
                     <colgroup>
                         <col class="col--large">
@@ -66,81 +81,66 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <template x-for="realisation in realisationsToDisplay" :key="realisation.id">
+                        {% for realisation in page_obj %}
                             <tr>
-                                <td class="text-ellipsis" :title="realisation.resource.title">
+                                <td class="text-ellipsis" title="{{ realisation.resource.title }}">
                                     <button type="button"
                                             class="fr-link project-table__project-name"
-                                            @click="htmx.ajax('GET', realisation.detail_url, {target: '#realisation-modal-content', swap: 'innerHTML'})"
-                                            x-text="realisation.resource.title"></button>
+                                            hx-get="{% url 'plugin_mi_depafi:realisation-detail' realisation.pk %}"
+                                            hx-target="#realisation-modal-content"
+                                            hx-swap="innerHTML"
+                                            hx-push-url="false">{{ realisation.resource.title }}</button>
                                 </td>
-                                <td class="text-ellipsis" :title="realisation.resource.category?.name ?? 'Aucune catégorie'" x-text="realisation.resource.category?.name ?? '—'"></td>
-                                <td class="text-ellipsis" :title="realisation.project.name">
+                                <td class="text-ellipsis"
+                                    title="{{ realisation.resource.category.name|default:'Aucune catégorie' }}">
+                                    {{ realisation.resource.category.name|default:"—" }}
+                                </td>
+                                <td class="text-ellipsis" title="{{ realisation.project.name }}">
                                     <a class="fr-link"
-                                       :href="'{% url 'crm-project-details' 0 %}'.replace('0', realisation.project.id)"
-                                       x-text="realisation.project.name"></a>
+                                       href="{% url 'crm-project-details' realisation.project.pk %}">{{ realisation.project.name }}</a>
                                 </td>
-                                <td x-text="realisation.project.commune ? `${realisation.project.commune.name} (${realisation.project.commune.postal})` : '—'"></td>
-                                <td x-text="new Date(realisation.created_at).toLocaleDateString('fr-FR')"></td>
+                                <td>
+                                    {% if realisation.project.commune %}
+                                        {{ realisation.project.commune.name }} ({{ realisation.project.commune.postal }})
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                                <td>{{ realisation.created_at|date:"d/m/Y" }}</td>
                                 <td class="project-table__status">
-                                    <span x-text="statusLabel(realisation.status)"
-                                          class="fr-badge fr-badge--no-icon"
-                                          :class="statusColor(realisation.status)"></span>
+                                    <span class="fr-badge fr-badge--no-icon {% if realisation.status == 'published' %}fr-badge--success{% else %}fr-badge--warning{% endif %}">
+                                        {{ realisation.get_status_display }}
+                                    </span>
                                 </td>
-                                <td x-text="realisation.like_count"></td>
+                                <td>{{ realisation.like_count }}</td>
                                 <td>
                                     <button type="button"
                                             class="fr-btn fr-btn--sm fr-icon-eye-line fr-btn--tertiary-no-outline position-relative"
-                                            @click="htmx.ajax('GET', realisation.detail_url, {target: '#realisation-modal-content', swap: 'innerHTML'})"
+                                            hx-get="{% url 'plugin_mi_depafi:realisation-detail' realisation.pk %}"
+                                            hx-target="#realisation-modal-content"
+                                            hx-swap="innerHTML"
+                                            hx-push-url="false"
                                             title="Voir la réalisation">Voir</button>
                                     <a class="fr-btn fr-btn--sm fr-icon-pencil-line fr-btn--tertiary-no-outline position-relative"
-                                       :href="realisation.update_url"
+                                       href="{% url 'plugin_mi_depafi:realisation-update' realisation.project_id realisation.pk %}"
                                        title="Modifier la réalisation">Modifier</a>
                                     <button type="button"
                                             class="fr-btn fr-btn--sm fr-icon-delete-line fr-btn--tertiary-no-outline position-relative"
-                                            @click="htmx.ajax('GET', realisation.delete_url, {target: '#realisation-modal-content', swap: 'innerHTML'})"
+                                            hx-get="{% url 'plugin_mi_depafi:realisation-delete' realisation.project_id realisation.pk %}"
+                                            hx-target="#realisation-modal-content"
+                                            hx-swap="innerHTML"
+                                            hx-push-url="false"
                                             title="Supprimer la réalisation">Supprimer</button>
                                 </td>
                             </tr>
-                        </template>
-                        <template x-if="dataLoaded && realisationsToDisplay.length === 0">
+                        {% empty %}
                             <tr>
                                 <td colspan="8">-- Aucun résultat --</td>
                             </tr>
-                        </template>
+                        {% endfor %}
                     </tbody>
                 </table>
-                <template x-if="pagination.total > 1">
-                    <nav role="navigation" class="fr-pagination fr-mt-2w" aria-label="Pagination">
-                        <ul class="fr-pagination__list justify-content-center">
-                            <li>
-                                <a class="fr-pagination__link fr-pagination__link--prev fr-pagination__link--lg-label"
-                                   :class="pagination.currentPage > 1 ? 'cursor-pointer' : ''"
-                                   :aria-disabled="pagination.currentPage === 1"
-                                   @click.prevent="pagination.currentPage > 1 && onChangePage(pagination.currentPage - 1)">
-                                    Page précédente
-                                </a>
-                            </li>
-                            <template x-for="num in pagination.total" :key="num">
-                                <li>
-                                    <a class="fr-pagination__link cursor-pointer"
-                                       :class="num === pagination.currentPage ? 'fr-pagination__link--current' : ''"
-                                       :aria-current="num === pagination.currentPage ? 'page' : null"
-                                       @click.prevent="onChangePage(num)"
-                                       x-text="num"></a>
-                                </li>
-                            </template>
-                            <li>
-                                <a class="fr-pagination__link fr-pagination__link--next fr-pagination__link--lg-label"
-                                   :class="pagination.currentPage < pagination.total ? 'cursor-pointer' : ''"
-                                   :aria-disabled="pagination.currentPage >= pagination.total"
-                                   @click.prevent="pagination.currentPage < pagination.total && onChangePage(pagination.currentPage + 1)">
-                                    Page suivante
-                                </a>
-                            </li>
-                        </ul>
-                    </nav>
-                </template>
+                {% include "tools/paginator.html" with page_obj=page_obj %}
             </div>
         </div>
     </div>
