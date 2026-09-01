@@ -9,17 +9,6 @@ import _ from 'lodash';
 import mapUtils from '@core/js/utils/map';
 import '@core/css/map.css';
 
-const markerSettings = {
-  iconSize: [18, 22],
-  iconAnchor: [9, 22],
-  popupAnchor: [0, -22],
-};
-
-const ICONS = {
-  default: mapUtils.createMarkerIcon('realisation-marker', null, markerSettings),
-  focused: mapUtils.createMarkerIcon('realisation-marker is-focused', null, markerSettings),
-};
-
 function RealisationsMap(regionsData) {
   return {
     htmx,
@@ -61,7 +50,7 @@ function RealisationsMap(regionsData) {
       this.map.addLayer(this.clusterGroup);
 
       this.map.on('click', () => {
-        this.setFocus(null);
+        this.setMarkerFocus(null);
       });
     },
 
@@ -95,32 +84,24 @@ function RealisationsMap(regionsData) {
         const lng = project.longitude ?? project.commune?.longitude;
         if (!lat || !lng) return;
 
-        const marker = L.marker([lat, lng], { icon: ICONS.default });
+        const marker = L.marker([lat, lng], { icon: mapUtils.ICONS.default });
         marker.bindPopup(
           `<strong>${project.name}</strong><br>${project.commune?.name ?? ''}<br>${count} réalisation(s)`
         );
         marker.on('click', () => {
-          this.setFocus(project.id);
+          this.setMarkerFocus(project.id);
         });
         this.markersByProject[project.id] = marker;
         this.clusterGroup.addLayer(marker);
       });
     },
 
-    setFocus(projectId) {
+    setMarkerFocus(projectId) {
       const previousMarker = this.markersByProject[this.selectedProjectId];
-      if (previousMarker) {
-        previousMarker.setIcon(ICONS.default);
-        previousMarker.setZIndexOffset(0);
-      }
+      const clickedMarker = this.markersByProject[projectId];
+      mapUtils.setMarkerFocus(previousMarker, clickedMarker);
 
       this.selectedProjectId = projectId;
-
-      const clickedMarker = this.markersByProject[projectId];
-      if (clickedMarker) {
-        clickedMarker.setIcon(ICONS.focused);
-        clickedMarker.setZIndexOffset(1000);
-      }
     },
 
     onSearch: _.debounce(async function () {
