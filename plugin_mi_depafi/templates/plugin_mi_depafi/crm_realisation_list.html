@@ -12,10 +12,7 @@
     <div x-data="{ breadcrumbs: { links: [{url: '{% url 'crm-site-dashboard' %}', title: 'Admin'}], current: 'Réalisations' } }"
          class="fr-p-0">{% include "tools/breadcrumb.html" %}</div>
     <div x-data="Crm" class="d-flex fr-px-0 crm">
-        <div x-data="RealisationListCrm"
-             @selected-departments="saveSelectedDepartment($event)"
-             @multi-select-change="saveSelectedStatus($event)"
-             class="w-100 d-flex flex-column justify-content-start project-list-crm">
+        <div class="w-100 d-flex flex-column justify-content-start project-list-crm">
             <form method="get"
                   action="{% url 'plugin_mi_depafi:crm-realisation-list' %}"
                   class="w-100">
@@ -57,82 +54,6 @@
                 </div>
             </form>
             <div class="fr-mb-2w table-responsive fr-px-5v fr-pb-5v">
-                {% comment %}
-                <table class="project-table w-100">
-                    <caption x-show="dataLoaded"
-                             x-transition.opacity.duration.500ms
-                             class="fr-ml-2v">
-                        <span x-text="realisationsCountLabel()" data-test-id="realisations-count-label"></span>
-                    </caption>
-                    <colgroup>
-                        <col class="col--large">
-                        <col class="col--medium">
-                        <col class="col--large">
-                        <col class="col--medium">
-                        <col class="col--medium">
-                        <col class="col--small">
-                        <col class="col--small">
-                        <col class="col--small col--fixed-160">
-                    </colgroup>
-                    <thead class="project-table__thead">
-                        <tr>
-                            <th scope="col">Intitulé de l'action</th>
-                            <th scope="col">Catégorie</th>
-                            <th scope="col">Nom du site</th>
-                            <th scope="col">Localisation</th>
-                            <th scope="col">Date de la réalisation</th>
-                            <th scope="col">Statut</th>
-                            <th scope="col">Likes</th>
-                            <th scope="col">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template x-for="realisation in realisationsToDisplay" :key="realisation.id">
-                            <tr>
-                                <td class="text-ellipsis" :title="realisation.resource.title">
-                                    <button type="button"
-                                            class="fr-link project-table__project-name"
-                                            @click="htmx.ajax('GET', realisation.detail_url, {target: '#realisation-modal-content', swap: 'innerHTML'})"
-                                            x-text="realisation.resource.title"></button>
-                                </td>
-                                <td class="text-ellipsis" :title="realisation.resource.category?.name ?? 'Aucune catégorie'" x-text="realisation.resource.category?.name ?? '—'"></td>
-                                <td class="text-ellipsis" :title="realisation.project.name">
-                                    <a class="fr-link"
-                                       :href="'{% url 'crm-project-details' 0 %}'.replace('0', realisation.project.id)"
-                                       x-text="realisation.project.name"></a>
-                                </td>
-                                <td x-text="realisation.project.commune ? `${realisation.project.commune.name} (${realisation.project.commune.postal})` : '—'"></td>
-                                <td x-text="new Date(realisation.created_at).toLocaleDateString('fr-FR')"></td>
-                                <td class="project-table__status">
-                                    <span x-text="statusLabel(realisation.status)"
-                                          class="fr-badge fr-badge--no-icon"
-                                          :class="statusColor(realisation.status)"></span>
-                                </td>
-                                <td x-text="realisation.like_count"></td>
-                                <td>
-                                    <button type="button"
-                                            class="fr-btn fr-btn--sm fr-icon-eye-line fr-btn--tertiary-no-outline position-relative"
-                                            @click="htmx.ajax('GET', realisation.detail_url, {target: '#realisation-modal-content', swap: 'innerHTML'})"
-                                            title="Voir la réalisation">Voir</button>
-                                    <a class="fr-btn fr-btn--sm fr-icon-pencil-line fr-btn--tertiary-no-outline position-relative"
-                                       :href="realisation.update_url"
-                                       title="Modifier la réalisation">Modifier</a>
-                                    <button type="button"
-                                            class="fr-btn fr-btn--sm fr-icon-delete-line fr-btn--tertiary-no-outline position-relative"
-                                            @click="htmx.ajax('GET', realisation.delete_url, {target: '#realisation-modal-content', swap: 'innerHTML'})"
-                                            title="Supprimer la réalisation">Supprimer</button>
-                                </td>
-                            </tr>
-                        </template>
-                        <template x-if="dataLoaded && realisationsToDisplay.length === 0">
-                            <tr>
-                                <td colspan="8">-- Aucun résultat --</td>
-                            </tr>
-                        </template>
-                    </tbody>
-                </table>
-                {% endcomment %}
-                {# Migration JS → Django : array copy to test django good results #}
                 <table class="project-table w-100">
                     <caption class="fr-ml-2v">
                         <span data-test-id="realisations-count-label">{% if paginator.count %}{{ paginator.count }} réalisation{{ paginator.count|pluralize }}{% else %}Aucun résultat{% endif %}</span>
