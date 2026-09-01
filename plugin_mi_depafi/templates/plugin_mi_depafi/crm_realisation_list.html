@@ -161,7 +161,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for realisation in realisations %}
+                        {% for realisation in page_obj %}
                             <tr>
                                 <td class="text-ellipsis" title="{{ realisation.resource.title }}">
                                     <button type="button"
@@ -220,39 +220,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
-                {% comment %}
-                <template x-if="pagination.total > 1">
-                    <nav role="navigation" class="fr-pagination fr-mt-2w" aria-label="Pagination">
-                        <ul class="fr-pagination__list justify-content-center">
-                            <li>
-                                <a class="fr-pagination__link fr-pagination__link--prev fr-pagination__link--lg-label"
-                                   :class="pagination.currentPage > 1 ? 'cursor-pointer' : ''"
-                                   :aria-disabled="pagination.currentPage === 1"
-                                   @click.prevent="pagination.currentPage > 1 && onChangePage(pagination.currentPage - 1)">
-                                    Page précédente
-                                </a>
-                            </li>
-                            <template x-for="num in pagination.total" :key="num">
-                                <li>
-                                    <a class="fr-pagination__link cursor-pointer"
-                                       :class="num === pagination.currentPage ? 'fr-pagination__link--current' : ''"
-                                       :aria-current="num === pagination.currentPage ? 'page' : null"
-                                       @click.prevent="onChangePage(num)"
-                                       x-text="num"></a>
-                                </li>
-                            </template>
-                            <li>
-                                <a class="fr-pagination__link fr-pagination__link--next fr-pagination__link--lg-label"
-                                   :class="pagination.currentPage < pagination.total ? 'cursor-pointer' : ''"
-                                   :aria-disabled="pagination.currentPage >= pagination.total"
-                                   @click.prevent="pagination.currentPage < pagination.total && onChangePage(pagination.currentPage + 1)">
-                                    Page suivante
-                                </a>
-                            </li>
-                        </ul>
-                    </nav>
-                </template>
-                {% endcomment %}
+                {% include "tools/paginator.html" with page_obj=page_obj %}
             </div>
         </div>
     </div>

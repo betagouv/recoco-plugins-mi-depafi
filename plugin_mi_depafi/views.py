@@ -2,6 +2,7 @@ import csv
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.db.models import Count, Exists, OuterRef
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -321,11 +322,17 @@ class CrmRealisationListView(LoginRequiredMixin, View):
                 project__commune__department__code__in=departments
             )
 
+        paginator = Paginator(realisations, 25)
+        page_number = request.GET.get("page") or 1
+        page_obj = paginator.get_page(page_number)
+
         return render(
             request,
             self.template_name,
             {
                 "realisations": realisations,
+                "paginator": paginator,
+                "page_obj": page_obj,
                 "selected_departments": request.GET.getlist("departments"),
             },
         )
