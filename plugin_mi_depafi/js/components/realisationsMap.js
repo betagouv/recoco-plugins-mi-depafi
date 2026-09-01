@@ -46,7 +46,7 @@ function RealisationsMap(regionsData) {
       this.map.addLayer(this.clusterGroup);
 
       this.map.on('click', () => {
-        this.setFocus(null);
+        this.setMarkerFocus(null);
       });
     },
 
@@ -73,12 +73,12 @@ function RealisationsMap(regionsData) {
         const lng = project.longitude ?? project.commune?.longitude;
         if (!lat || !lng) return;
 
-        const marker = L.marker([lat, lng], { icon: ICONS.default });
+        const marker = L.marker([lat, lng], { icon: mapUtils.ICONS.default });
         marker.bindPopup(
           `<strong>${project.name}</strong><br>${project.commune?.name ?? ''}<br>${count} réalisation(s)`
         );
         marker.on('click', () => {
-          this.setFocus(project.id);
+          this.setMarkerFocus(project.id);
         });
         this.markersByProject[project.id] = marker;
         this.clusterGroup.addLayer(marker);
