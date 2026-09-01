@@ -321,7 +321,14 @@ class CrmRealisationListView(LoginRequiredMixin, View):
                 project__commune__department__code__in=departments
             )
 
-        return render(request, self.template_name, {"realisations": realisations})
+        return render(
+            request,
+            self.template_name,
+            {
+                "realisations": realisations,
+                "selected_departments": request.GET.getlist("departments"),
+            },
+        )
 
 
 class CrmRealisationCsvView(LoginRequiredMixin, View):
