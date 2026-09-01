@@ -6,6 +6,19 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import _ from 'lodash';
+import mapUtils from '@core/js/utils/map';
+import '@core/css/map.css';
+
+const markerSettings = {
+  iconSize: [18, 22],
+  iconAnchor: [9, 22],
+  popupAnchor: [0, -22],
+};
+
+const ICONS = {
+  default: mapUtils.createMarkerIcon('realisation-marker', null, markerSettings),
+  focused: mapUtils.createMarkerIcon('realisation-marker is-focused', null, markerSettings),
+};
 
 function RealisationsMap(regionsData) {
   return {
@@ -18,6 +31,7 @@ function RealisationsMap(regionsData) {
     loading: false,
     map: null,
     clusterGroup: null,
+    markersByProject: {},
 
     get sidebarRealisations() {
       if (!this.selectedProjectId) return this.realisations;
@@ -45,6 +59,10 @@ function RealisationsMap(regionsData) {
       }).addTo(this.map);
       this.clusterGroup = L.markerClusterGroup();
       this.map.addLayer(this.clusterGroup);
+
+      this.map.on('click', () => {
+        this.setFocus(null);
+      });
     },
 
     async fetchData() {
@@ -61,6 +79,7 @@ function RealisationsMap(regionsData) {
     updateMarkers() {
       if (!this.map) return;
       this.clusterGroup.clearLayers();
+      this.markersByProject = {};
       this.selectedProjectId = null;
 
       const byProject = {};
@@ -71,22 +90,37 @@ function RealisationsMap(regionsData) {
         byProject[r.project.id].count++;
       });
 
-      const icon = L.divIcon({ className: 'realisation-map-marker', iconSize: [12, 12] });
-
       Object.values(byProject).forEach(({ project, count }) => {
         const lat = project.latitude ?? project.commune?.latitude;
         const lng = project.longitude ?? project.commune?.longitude;
         if (!lat || !lng) return;
 
-        const marker = L.marker([lat, lng], { icon });
+        const marker = L.marker([lat, lng], { icon: ICONS.default });
         marker.bindPopup(
           `<strong>${project.name}</strong><br>${project.commune?.name ?? ''}<br>${count} réalisation(s)`
         );
         marker.on('click', () => {
-          this.selectedProjectId = project.id;
+          this.setFocus(project.id);
         });
+        this.markersByProject[project.id] = marker;
         this.clusterGroup.addLayer(marker);
       });
+    },
+
+    setFocus(projectId) {
+      const previousMarker = this.markersByProject[this.selectedProjectId];
+      if (previousMarker) {
+        previousMarker.setIcon(ICONS.default);
+        previousMarker.setZIndexOffset(0);
+      }
+
+      this.selectedProjectId = projectId;
+
+      const clickedMarker = this.markersByProject[projectId];
+      if (clickedMarker) {
+        clickedMarker.setIcon(ICONS.focused);
+        clickedMarker.setZIndexOffset(1000);
+      }
     },
 
     onSearch: _.debounce(async function () {
@@ -99,7 +133,7 @@ function RealisationsMap(regionsData) {
     },
 
     clearProjectFilter() {
-      this.selectedProjectId = null;
+      this.setFocus(null);
     },
   };
 }
