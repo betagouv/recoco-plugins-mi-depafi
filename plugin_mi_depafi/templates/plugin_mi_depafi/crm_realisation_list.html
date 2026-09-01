@@ -20,11 +20,10 @@
                   action="{% url 'plugin_mi_depafi:crm-realisation-list' %}"
                   class="w-100">
                 <div class="project-list-crm__filters fr-px-5v fr-pb-5v">
-                    <div class="d-flex align-items-center" x-transition.opacity.duration.500ms>
-                        <span class="project-list-crm__projects-count-label"
-                              x-show="dataLoaded"
-                              x-text="realisationsCountLabel()"></span>
-                        <span class="project-list-crm__projects-count-label" x-show="!dataLoaded">Chargement</span>
+                    <div class="d-flex align-items-center">
+                        <span class="project-list-crm__projects-count-label">
+                            {% if paginator.count %}{{ paginator.count }} réalisation{{ paginator.count|pluralize }}{% else %}Aucun résultat{% endif %}
+                        </span>
                     </div>
                     <div style="flex: 1; min-width: 200px; position: relative;">
                         {% include "projects/project/fragments/search_bar.html" with name="q" value=request.GET.q placeholder="Rechercher" show_search_button=True %}
@@ -136,7 +135,7 @@
                 {# Migration JS → Django : array copy to test django good results #}
                 <table class="project-table w-100">
                     <caption class="fr-ml-2v">
-                        {{ realisations|length }} réalisation{{ realisations|length|pluralize }}
+                        <span data-test-id="realisations-count-label">{% if paginator.count %}{{ paginator.count }} réalisation{{ paginator.count|pluralize }}{% else %}Aucun résultat{% endif %}</span>
                     </caption>
                     <colgroup>
                         <col class="col--large">
