@@ -16,6 +16,7 @@ function RealisationsMap(regionsData) {
     selectedProjectId: null,
     map: null,
     clusterGroup: null,
+    markersByProject: {},
 
     get sidebarRealisations() {
       if (!this.selectedProjectId) return this.realisations;
@@ -43,6 +44,10 @@ function RealisationsMap(regionsData) {
       }).addTo(this.map);
       this.clusterGroup = L.markerClusterGroup();
       this.map.addLayer(this.clusterGroup);
+
+      this.map.on('click', () => {
+        this.setFocus(null);
+      });
     },
 
     afterFetch() {
@@ -52,6 +57,7 @@ function RealisationsMap(regionsData) {
     updateMarkers() {
       if (!this.map) return;
       this.clusterGroup.clearLayers();
+      this.markersByProject = {};
       this.selectedProjectId = null;
 
       const byProject = {};
@@ -62,26 +68,25 @@ function RealisationsMap(regionsData) {
         byProject[r.project.id].count++;
       });
 
-      const icon = L.divIcon({ className: 'realisation-map-marker', iconSize: [12, 12] });
-
       Object.values(byProject).forEach(({ project, count }) => {
         const lat = project.latitude ?? project.commune?.latitude;
         const lng = project.longitude ?? project.commune?.longitude;
         if (!lat || !lng) return;
 
-        const marker = L.marker([lat, lng], { icon });
+        const marker = L.marker([lat, lng], { icon: ICONS.default });
         marker.bindPopup(
           `<strong>${project.name}</strong><br>${project.commune?.name ?? ''}<br>${count} réalisation(s)`
         );
         marker.on('click', () => {
-          this.selectedProjectId = project.id;
+          this.setFocus(project.id);
         });
+        this.markersByProject[project.id] = marker;
         this.clusterGroup.addLayer(marker);
       });
     },
 
     clearProjectFilter() {
-      this.selectedProjectId = null;
+      this.setFocus(null);
     },
   };
 }
