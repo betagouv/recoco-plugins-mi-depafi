@@ -15,6 +15,7 @@ function RealisationsMap(regionsData) {
     regions: JSON.parse(regionsData.textContent),
     realisations: [],
     selectedProjectId: null,
+    selectedProject: null,
     searchQuery: '',
     selectedDepartments: [],
     loading: false,
@@ -25,13 +26,6 @@ function RealisationsMap(regionsData) {
     get sidebarRealisations() {
       if (!this.selectedProjectId) return this.realisations;
       return this.realisations.filter((r) => r.project.id === this.selectedProjectId);
-    },
-
-    get sidebarTitle() {
-      if (!this.selectedProjectId) return `${this.realisations.length} Réalisation(s)`;
-      const count = this.sidebarRealisations.length;
-      const project = this.realisations.find((r) => r.project.id === this.selectedProjectId)?.project;
-      return `${count} Réalisation(s) — ${project?.name ?? ''}`;
     },
 
     async init() {
@@ -85,10 +79,8 @@ function RealisationsMap(regionsData) {
         if (!lat || !lng) return;
 
         const marker = L.marker([lat, lng], { icon: mapUtils.ICONS.default });
-        marker.bindPopup(
-          `<strong>${project.name}</strong><br>${project.commune?.name ?? ''}<br>${count} réalisation(s)`
-        );
         marker.on('click', () => {
+          this.selectedProject = {...project, realisationsCount: count};
           this.setMarkerFocus(project.id);
         });
         this.markersByProject[project.id] = marker;
@@ -114,7 +106,8 @@ function RealisationsMap(regionsData) {
     },
 
     clearProjectFilter() {
-      this.setFocus(null);
+      this.setMarkerFocus(null);
+      this.selectedProject = null;
     },
   };
 }
