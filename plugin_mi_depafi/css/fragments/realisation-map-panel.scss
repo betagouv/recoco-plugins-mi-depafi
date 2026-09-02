@@ -1,13 +1,12 @@
-
 #realisations-map {
-  height: calc(100vh - 180px);
+  height: calc(100vh - 264px);
   min-height: 400px;
 }
 .map-panel {
   padding: 1.5rem;
   padding-top: 0.5rem;
   box-shadow: 0 0 12px 0 rgba(0, 0, 18, 0.16);
-  height: calc(100vh - 180px);
+  height: calc(100vh - 264px);
   overflow-y: scroll;
 
   &__close-btn {
