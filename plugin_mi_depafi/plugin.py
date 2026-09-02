@@ -19,6 +19,7 @@ class MiDepafiPlugin:
     vite_entries = {
         "realisationsMap": "js/components/realisationsMap.js",
         "realisationTable": "js/components/RealisationTable.js",
+        "realisationMapPanelStyles": "js/styles/fragments/realisation-map-panel.css.js",
         "realisationDetailView": "js/components/RealisationDetailView.js",
         "realisationListCrm": "js/apps/realisationListCrm.js",
         "realisationForm": "js/apps/realisationForm.js",
