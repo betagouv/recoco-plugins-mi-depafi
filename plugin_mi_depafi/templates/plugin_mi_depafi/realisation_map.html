@@ -42,8 +42,9 @@
     </div>
 
     <div class="row">
-        <div :class="{'col-8 col-xl-9': selectedProjectId, 'col-12': !selectedProjectId }" class="fr-pr-0">
+        <div :class="{'col-8 col-xl-9': selectedProjectId, 'col-12': !selectedProjectId }" class="fr-pr-0 position-relative">
             <div id="realisations-map"></div>
+            {% include "projects/project/fragments/map/grey_scale_toggle.html" with is_checked=False %}
         </div>
         
         <!--Side pannel-->
