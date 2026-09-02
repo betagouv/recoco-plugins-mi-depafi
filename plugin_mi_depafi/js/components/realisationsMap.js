@@ -109,6 +109,10 @@ function RealisationsMap(regionsData) {
       this.setMarkerFocus(null);
       this.selectedProject = null;
     },
+    
+    onClickToggleGrey() {
+      mapUtils.toggleGreyFilter(this.map);
+    },
   };
 }
 
