@@ -42,81 +42,87 @@
     </div>
 
     <div class="row">
-        <div :class="{'col-8 col-xl-9': selectedProjectId, 'col-12': !selectedProjectId }" class="fr-pr-0 position-relative">
+        <div :class="{'col-8 col-xl-9': panelConfig.isOpen, 'col-12': !panelConfig.isOpen }" class="fr-pr-0 position-relative">
             <div id="realisations-map"></div>
             {% include "projects/project/fragments/map/grey_scale_toggle.html" with is_checked=False %}
         </div>
         
         <!--Side pannel-->
-        <template x-if="selectedProjectId">
+        <template x-if="panelConfig.isOpen">
             <div class="col-4 col-xl-3 map-panel fr-pl-2w">
                 <!--Btn close-->
-                <button x-show="selectedProjectId"
-                        @click="clearProjectFilter()"
+                <button @click="closePanel()"
                         class="fr-btn--close fr-btn map-panel__close-btn">
                     Fermer
                 </button>
-                <!--Project Name-->
-                <p class="map-panel__title fr-mb-0">
-                    <span x-text="selectedProject.name"></span>
-                </p>
+
                 
-                <!--Location-->
-                <p class="map-panel__info fr-mt-3v fr-mb-0">
-                    <span class="fr-icon-map-pin-2-line" aria-hidden="true"></span>
-                    <span x-text="selectedProject.commune?.name"></span>
-                    (<span x-text="selectedProject.commune?.department?.code"></span>)
-                </p>
-                <!--Realisations number-->
-                <p class="map-panel__info fr-mt-3v fr-mb-0">
-                    <span class="fr-icon-hammer-line" aria-hidden="true"></span>
-                    Réalisations : <span x-text="selectedProject.realisationsCount"></span>
-                </p>
-                
-                <!--Realisations list-->
-                <h2 class="map-panel__subtitle">Réalisations</h2>
+                <!--Project details display Mode-->
+                <template x-if="panelConfig.mode == 'projectDetails'">
+                    <div>
+                        <!--Project Name-->
+                        <p class="map-panel__title fr-mb-0">
+                            <span x-text="selectedProject.name"></span>
+                        </p>
+                        
+                        <!--Location-->
+                        <p class="map-panel__info fr-mt-3v fr-mb-0">
+                            <span class="fr-icon-map-pin-2-line" aria-hidden="true"></span>
+                            <span x-text="selectedProject.commune?.name"></span>
+                            (<span x-text="selectedProject.commune?.department?.code"></span>)
+                        </p>
+                        <!--Realisations number-->
+                        <p class="map-panel__info fr-mt-3v fr-mb-0">
+                            <span class="fr-icon-hammer-line" aria-hidden="true"></span>
+                            Réalisations : <span x-text="selectedProject.realisationsCount"></span>
+                        </p>
+                        
+                        <!--Realisations list-->
+                        <h2 class="map-panel__subtitle">Réalisations</h2>
 
-                <div x-show="loading" class="text-center fr-py-4w text-muted">
-                    Chargement…
-                </div>
+                        <div x-show="loading" class="text-center fr-py-4w text-muted">
+                            Chargement…
+                        </div>
 
-                <template x-if="!loading && sidebarRealisations.length === 0">
-                    <div class="fr-callout fr-mt-2w">
-                        <p class="fr-callout__text">Aucune réalisation trouvée.</p>
-                    </div>
-                </template>
+                        <template x-if="!loading && sidebarRealisations.length === 0">
+                            <div class="fr-callout fr-mt-2w">
+                                <p class="fr-callout__text">Aucune réalisation trouvée.</p>
+                            </div>
+                        </template>
 
-                <template x-for="realisation in sidebarRealisations" :key="realisation.id">
-                    <div class="realisation-card fr-card fr-card--no-arrow fr-mb-2w">
-                        <div class="fr-card__body fr-p-2w">
-                            <h2 class="fr-h6 fr-mb-1w">
-                                <a :href="`/realisations/${realisation.id}/`"
-                                class="fr-link realisation-card__title"
-                                @click.prevent="htmx.ajax('GET', `/realisations/${realisation.id}/`, {target: '#realisation-modal-content', swap: 'innerHTML'})"
-                                x-text="realisation.resource.title"></a>
-                            </h2>
-                            <p class="fr-mb-0 realisation-card__date">
-                                Date de réalisation : <span x-text="new Date(realisation.updated_at).toLocaleDateString('fr-FR')"></span>
-                            </p>
-                            <template x-if="realisation.photos.length > 0">
-                                <div class="d-flex gap-1 flex-wrap fr-mt-1w">
-                                    <template x-for="(photo, idx) in realisation.photos.slice(0, 4)" :key="idx">
-                                        <div style="width: calc(25% - 4px); aspect-ratio: 1; overflow: hidden; border-radius: 4px; flex-shrink: 0;">
-                                            <img :src="photo"
-                                                alt=""
-                                                style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                        <template x-for="realisation in sidebarRealisations" :key="realisation.id">
+                            <div class="realisation-card fr-card fr-card--no-arrow fr-mb-2w">
+                                <div class="fr-card__body fr-p-2w">
+                                    <h2 class="fr-h6 fr-mb-1w">
+                                        <a :href="`/realisations/${realisation.id}/`"
+                                        class="fr-link realisation-card__title"
+                                        @click.prevent="htmx.ajax('GET', `/realisations/${realisation.id}/`, {target: '#realisation-modal-content', swap: 'innerHTML'})"
+                                        x-text="realisation.resource.title"></a>
+                                    </h2>
+                                    <p class="fr-mb-0 realisation-card__date">
+                                        Date de réalisation : <span x-text="new Date(realisation.updated_at).toLocaleDateString('fr-FR')"></span>
+                                    </p>
+                                    <template x-if="realisation.photos.length > 0">
+                                        <div class="d-flex gap-1 flex-wrap fr-mt-1w">
+                                            <template x-for="(photo, idx) in realisation.photos.slice(0, 4)" :key="idx">
+                                                <div style="width: calc(25% - 4px); aspect-ratio: 1; overflow: hidden; border-radius: 4px; flex-shrink: 0;">
+                                                    <img :src="photo"
+                                                        alt=""
+                                                        style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                                                </div>
+                                            </template>
                                         </div>
                                     </template>
                                 </div>
-                            </template>
+                            </div>
+                        </template>
+                        <div class="map-panel__link-container">
+                            <a class="fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', selectedProject.id)">Voir le dossier 
+                                <span class="fr-icon-arrow-right-line fr-icon--sm" aria-hidden="true"></span>
+                            </a>
                         </div>
                     </div>
                 </template>
-                <div class="map-panel__link-container">
-                    <a class="fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', selectedProject.id)">Voir le dossier 
-                        <span class="fr-icon-arrow-right-line fr-icon--sm" aria-hidden="true"></span>
-                    </a>
-                </div>
             </div>
         </template>
         

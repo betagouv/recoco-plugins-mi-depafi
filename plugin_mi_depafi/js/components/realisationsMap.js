@@ -17,6 +17,11 @@ function RealisationsMap(regionsData) {
     map: null,
     clusterGroup: null,
     markersByProject: {},
+    //panel management
+    panelConfig: {
+      isOpen : false,
+      mode : undefined, // undefined || 'projectDetails' || 'projectList' 
+    },
 
     get sidebarRealisations() {
       if (!this.selectedProjectId) return this.realisations;
@@ -70,6 +75,10 @@ function RealisationsMap(regionsData) {
         marker.on('click', () => {
           this.selectedProject = {...project, realisationsCount: count};
           this.setMarkerFocus(project.id);
+          this.panelConfig = {
+            isOpen : true,
+            mode: 'projectDetails'
+          }
         });
         this.markersByProject[project.id] = marker;
         this.clusterGroup.addLayer(marker);
