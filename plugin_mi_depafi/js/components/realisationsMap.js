@@ -7,6 +7,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import _ from 'lodash';
 import mapUtils from '@core/js/utils/map';
+import { isPlural } from '@core/js/utils/isPlural';
 import '@core/css/map.css';
 
 function RealisationsMap(regionsData) {
@@ -14,8 +15,10 @@ function RealisationsMap(regionsData) {
     htmx,
     regions: JSON.parse(regionsData.textContent),
     realisations: [],
+    realisationsByProject: [],
     selectedProjectId: null,
     selectedProject: null,
+    projectLength: 0,
     searchQuery: '',
     selectedDepartments: [],
     loading: false,
@@ -31,6 +34,16 @@ function RealisationsMap(regionsData) {
     get sidebarRealisations() {
       if (!this.selectedProjectId) return this.realisations;
       return this.realisations.filter((r) => r.project.id === this.selectedProjectId);
+    },
+
+    get panelProjectListTitle() {
+      const realisationLength = this.realisations.length;
+
+      return `${this.projectLength} site${isPlural('', 's',this.projectLength)} et ${realisationLength} réalisation${isPlural('', 's',realisationLength)} trouvé${isPlural('', 's',this.projectLength+realisationLength)}`
+    },
+
+    sidebarRealisationsForProject(projectId) {
+      return this.realisations.filter((r) => r.project.id === projectId);
     },
 
     async init() {
@@ -56,10 +69,22 @@ function RealisationsMap(regionsData) {
     async fetchData() {
       this.loading = true;
       const params = new URLSearchParams();
-      if (this.searchQuery) params.set('search', this.searchQuery);
+      if (this.searchQuery) {
+        params.set('search', this.searchQuery);
+        this.openPanel({mode: 'projectList'});
+      }
       this.selectedDepartments.forEach((d) => params.append('departments', d));
       const res = await fetch(`/api/realisations/map/?${params}`);
       this.realisations = await res.json();
+      this.realisationsByProject = {};
+      this.projectLength = 0; 
+      this.realisations.forEach((r) => {
+        if (!this.realisationsByProject[r.project.id]) {
+          this.realisationsByProject[r.project.id] = { ...r.project, count: 0 };
+          this.projectLength++;
+        }
+        this.realisationsByProject[r.project.id].count++;
+      });
       this.updateMarkers();
       this.loading = false;
     },
@@ -70,15 +95,7 @@ function RealisationsMap(regionsData) {
       this.markersByProject = {};
       this.selectedProjectId = null;
 
-      const byProject = {};
-      this.realisations.forEach((r) => {
-        if (!byProject[r.project.id]) {
-          byProject[r.project.id] = { project: r.project, count: 0 };
-        }
-        byProject[r.project.id].count++;
-      });
-
-      Object.values(byProject).forEach(({ project, count }) => {
+      Object.values(this.realisationsByProject).forEach(({ project, count }) => {
         const lat = project.latitude ?? project.commune?.latitude;
         const lng = project.longitude ?? project.commune?.longitude;
         if (!lat || !lng) return;
@@ -87,14 +104,12 @@ function RealisationsMap(regionsData) {
         marker.on('click', () => {
           this.selectedProject = {...project, realisationsCount: count};
           this.setMarkerFocus(project.id);
-          this.panelConfig = {
-            isOpen : true,
-            mode: 'projectDetails'
-          }
+          this.openPanel({mode: 'projectDetails'});
         });
         this.markersByProject[project.id] = marker;
         this.clusterGroup.addLayer(marker);
       });
+      console.log(this.realisationsByProject)
     },
 
     setMarkerFocus(projectId) {
@@ -113,7 +128,14 @@ function RealisationsMap(regionsData) {
       this.selectedDepartments = event.detail || [];
       await this.fetchData();
     },
-    
+
+    openPanel(mode = {}) {
+        this.panelConfig = {
+          isOpen : true,
+          ...mode
+        };
+    },
+
     closePanel() {
       if(this.panelConfig.mode == 'projectDetails') {
         this.panelConfig = {
