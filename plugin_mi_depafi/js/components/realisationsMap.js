@@ -28,6 +28,16 @@ function RealisationsMap(regionsData) {
       return this.realisations.filter((r) => r.project.id === this.selectedProjectId);
     },
 
+    get panelProjectListTitle() {
+      const realisationLength = this.realisations.length;
+
+      return `${this.projectLength} site${isPlural('', 's',this.projectLength)} et ${realisationLength} réalisation${isPlural('', 's',realisationLength)} trouvé${isPlural('', 's',this.projectLength+realisationLength)}`
+    },
+
+    sidebarRealisationsForProject(projectId) {
+      return this.realisations.filter((r) => r.project.id === projectId);
+    },
+
     async init() {
       this.initMap();
       await this.fetchData();
@@ -58,15 +68,7 @@ function RealisationsMap(regionsData) {
       this.markersByProject = {};
       this.selectedProjectId = null;
 
-      const byProject = {};
-      this.realisations.forEach((r) => {
-        if (!byProject[r.project.id]) {
-          byProject[r.project.id] = { project: r.project, count: 0 };
-        }
-        byProject[r.project.id].count++;
-      });
-
-      Object.values(byProject).forEach(({ project, count }) => {
+      Object.values(this.realisationsByProject).forEach(({ project, count }) => {
         const lat = project.latitude ?? project.commune?.latitude;
         const lng = project.longitude ?? project.commune?.longitude;
         if (!lat || !lng) return;
@@ -75,14 +77,12 @@ function RealisationsMap(regionsData) {
         marker.on('click', () => {
           this.selectedProject = {...project, realisationsCount: count};
           this.setMarkerFocus(project.id);
-          this.panelConfig = {
-            isOpen : true,
-            mode: 'projectDetails'
-          }
+          this.openPanel({mode: 'projectDetails'});
         });
         this.markersByProject[project.id] = marker;
         this.clusterGroup.addLayer(marker);
       });
+      console.log(this.realisationsByProject)
     },
 
     clearProjectFilter() {
