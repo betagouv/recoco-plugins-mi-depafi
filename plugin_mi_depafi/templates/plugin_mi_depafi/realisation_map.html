@@ -39,8 +39,10 @@
         </div>
         <div class="col-auto">
             {% include "projects/project/fragments/departments_selector/departments_selector_dsfr.html" with filter_by_regions=True zone_objects="regions" select_all=True label_filter="Territoire :" extra_classes="inline-chevron" %}
-        
         </div>
+        <button class="fr-btn fr-btn--tertiary-no-outline" @click="onClickResetQuery">
+            <span class="fr-icon-close-line fr-icon--sm fr-mr-1w" aria-hidden="true"></span> Réinitialiser les filtres
+        </button>
     </div>
 
     <div class="row">
