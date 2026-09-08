@@ -21,6 +21,7 @@ function RealisationsMap(regionsData) {
     projectLength: 0,
     searchQuery: '',
     selectedDepartments: [],
+    labelSelectedDepartment: '',
     loading: false,
     map: null,
     clusterGroup: null,
@@ -95,7 +96,7 @@ function RealisationsMap(regionsData) {
       this.markersByProject = {};
       this.selectedProjectId = null;
 
-      Object.values(this.realisationsByProject).forEach(({ project, count }) => {
+      Object.values(this.realisationsByProject).forEach((project, count ) => {
         const lat = project.latitude ?? project.commune?.latitude;
         const lng = project.longitude ?? project.commune?.longitude;
         if (!lat || !lng) return;
@@ -127,6 +128,10 @@ function RealisationsMap(regionsData) {
     async onDepartmentsSelected(event) {
       this.selectedDepartments = event.detail || [];
       await this.fetchData();
+    },
+    
+    onDisplayedLabel(event) {
+      this.labelSelectedDepartment = event.detail;
     },
 
     openPanel(mode = {}) {
