@@ -52,16 +52,14 @@
         <!--Side pannel-->
         <template x-if="panelConfig.isOpen">
             <div class="col-4 col-xl-3 map-panel fr-pl-2w">
-                <!--Btn close-->
-                <button @click="closePanel()"
-                        class="fr-btn--close fr-btn map-panel__close-btn">
-                    Fermer
-                </button>
-
-                
                 <!--Project details display Mode-->
                 <template x-if="panelConfig.mode == 'projectDetails'">
                     <div>
+                        <!--Btn close-->
+                        <button @click="closePanel()"
+                                class="fr-btn--close fr-btn map-panel__close-btn">
+                            Fermer
+                        </button>
                         <!--Project Name-->
                         <p class="map-panel__title fr-mb-0">
                             <span x-text="selectedProject.name"></span>
@@ -119,12 +117,12 @@
                         <!--Site list-->
                         <template x-for="project in realisationsByProject">
                             <div>
-                                <hr>
+                                <hr class="map-panel__separator fr-pb-1w">
                                 <!--Site name-->
-                                <p><span x-text="project.name"></span></p>
+                                <p class="map-panel__subtitle fr-mt-0 fr-mb-3v"><span x-text="project.name"></span></p>
                                 
                                 <!--Location-->
-                                <p class="map-panel__info fr-mt-3v fr-mb-0">
+                                <p class="map-panel__info fr-mb-3v">
                                     <span class="fr-icon-map-pin-2-line" aria-hidden="true"></span>
                                     <span x-text="project.commune?.name"></span>
                                     (<span x-text="project.commune?.department?.code"></span>)
@@ -135,7 +133,7 @@
                                 </template>
                                 
                                 <!--Button see project-->
-                                <div class="map-panel__link-container">
+                                <div class="map-panel__link-container fr-mb-3w">
                                     <a class="fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', project.id)">Voir le dossier 
                                         <span class="fr-icon-arrow-right-line fr-icon--sm" aria-hidden="true"></span>
                                     </a>
