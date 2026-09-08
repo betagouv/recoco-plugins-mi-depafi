@@ -70,7 +70,7 @@ function RealisationsMap(regionsData) {
     async fetchData() {
       this.loading = true;
       const params = new URLSearchParams();
-      if (this.searchQuery) {
+      if (this.searchQuery || this.selectedDepartments.length > 0) {
         params.set('search', this.searchQuery);
         this.openPanel({mode: 'projectList'});
       }
