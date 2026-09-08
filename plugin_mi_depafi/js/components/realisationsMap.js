@@ -125,6 +125,11 @@ function RealisationsMap(regionsData) {
       await this.fetchData();
     }, 400),
 
+    onClickResetQuery() {
+      this.searchQuery = '';
+      this.$dispatch('reset-departments-selector');
+    },
+
     async onDepartmentsSelected(event) {
       this.selectedDepartments = event.detail || [];
       await this.fetchData();
