@@ -143,10 +143,17 @@ function RealisationsMap(regionsData) {
 
     closePanel() {
       if(this.panelConfig.mode == 'projectDetails') {
-        this.panelConfig = {
-          isOpen : false,
-          mode: undefined
-        };
+        if(this.searchQuery != '' || this.selectedDepartments.length > 0){
+          this.panelConfig = {
+            isOpen : true,
+            mode: 'projectList'
+          };
+        } else {
+          this.panelConfig = {
+            isOpen : false,
+            mode: undefined
+          };
+        }
         this.setMarkerFocus(null);
         this.selectedProject = null;
       }
