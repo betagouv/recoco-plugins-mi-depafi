@@ -1,6 +1,7 @@
 #realisations-map {
   height: calc(100vh - 264px);
   min-height: 400px;
+  z-index: 1;
 }
 .map-panel {
   padding: 1.5rem;
