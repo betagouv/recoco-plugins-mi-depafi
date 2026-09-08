@@ -26,7 +26,7 @@
                 <div style="flex: 1; min-width: 200px; position: relative;">
                     {% include "projects/project/fragments/search_bar.html" with action_search="onSearch" x_model="backendSearch.searchText" placeholder="Rechercher" %}
                 </div>
-                {% include "projects/project/fragments/departments_selector.html" with label="Projets de mon territoire" label_filter="Localisation :" filter_by_regions=True select_all=True %}
+                {% include "projects/project/fragments/departments_selector/departments_selector.html" with label="Projets de mon territoire" label_filter="Localisation :" filter_by_regions=True select_all=True %}
                 <div class="d-flex align-items-center" style="flex: 0 0 220px;" x-data="{ selected: [] }">
                     <label class="filter__label">Statut:</label>
                     {% include "tools/multi_select.html" %}

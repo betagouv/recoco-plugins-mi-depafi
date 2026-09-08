@@ -68,7 +68,7 @@ function RealisationsMap(regionsData) {
       this.markersByProject = {};
       this.selectedProjectId = null;
 
-      Object.values(this.realisationsByProject).forEach(({ project, count }) => {
+      Object.values(this.realisationsByProject).forEach((project, count ) => {
         const lat = project.latitude ?? project.commune?.latitude;
         const lng = project.longitude ?? project.commune?.longitude;
         if (!lat || !lng) return;
