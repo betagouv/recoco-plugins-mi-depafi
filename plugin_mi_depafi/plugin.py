@@ -50,6 +50,13 @@ class MiDepafiPlugin:
         }
 
     @hookimpl
+    def header_menu_entries(self, request):
+        return {
+            "label": "Toutes les réalisations",
+            "url_name": "plugin_mi_depafi:realisation-map",
+        }
+
+    @hookimpl
     def crm_project_list_annotations(self, request):
         return {"realisations_count": Count("realisations", distinct=True)}
 
