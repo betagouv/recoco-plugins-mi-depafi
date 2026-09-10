@@ -13,6 +13,9 @@
     <div x-data="{ breadcrumbs: { links: [{url: '/', title: 'Accueil'}], current: 'Réalisations' } }"
          class="fr-p-0">{% include "tools/breadcrumb.html" %}</div>
     <h1 class="fr-h3 fr-px-5v fr-mb-2w">Découvrir les sites et leurs réalisations</h1>
+    <div class="fr-my-2w">
+        {% include "plugin_mi_depafi/fragments/toggle_map_table.html" %}
+    </div>
     <div class="d-flex fr-px-0 crm">
         <div x-data="RealisationTable"
              @selected-departments="onDepartmentsSelected($event)"
