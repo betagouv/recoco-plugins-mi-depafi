@@ -64,7 +64,15 @@ class RealisationMapSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Realisation
-        fields = ["id", "description", "updated_at", "project", "resource", "photos"]
+        fields = [
+            "id",
+            "description",
+            "date",
+            "updated_at",
+            "project",
+            "resource",
+            "photos",
+        ]
 
     def get_photos(self, obj):
         request = self.context.get("request")

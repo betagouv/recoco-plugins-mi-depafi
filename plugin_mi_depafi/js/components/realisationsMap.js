@@ -5,17 +5,15 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import _ from 'lodash';
+
+import realisationsFeed from '../utils/realisationsFeed';
 
 function RealisationsMap(regionsData) {
   return {
+    ...realisationsFeed(),
     htmx,
     regions: JSON.parse(regionsData.textContent),
-    realisations: [],
     selectedProjectId: null,
-    searchQuery: '',
-    selectedDepartments: [],
-    loading: false,
     map: null,
     clusterGroup: null,
 
@@ -47,15 +45,8 @@ function RealisationsMap(regionsData) {
       this.map.addLayer(this.clusterGroup);
     },
 
-    async fetchData() {
-      this.loading = true;
-      const params = new URLSearchParams();
-      if (this.searchQuery) params.set('search', this.searchQuery);
-      this.selectedDepartments.forEach((d) => params.append('departments', d));
-      const res = await fetch(`/api/realisations/map/?${params}`);
-      this.realisations = await res.json();
+    afterFetch() {
       this.updateMarkers();
-      this.loading = false;
     },
 
     updateMarkers() {
@@ -87,15 +78,6 @@ function RealisationsMap(regionsData) {
         });
         this.clusterGroup.addLayer(marker);
       });
-    },
-
-    onSearch: _.debounce(async function () {
-      await this.fetchData();
-    }, 400),
-
-    async onDepartmentsSelected(event) {
-      this.selectedDepartments = event.detail || [];
-      await this.fetchData();
     },
 
     clearProjectFilter() {
