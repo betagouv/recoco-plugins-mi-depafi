@@ -294,6 +294,12 @@ class RealisationMapView(TemplateView):
         return ctx
 
 
+class RealisationTableView(TemplateView):
+    """Public discovery page listing published realisations as a table."""
+
+    template_name = "plugin_mi_depafi/realisation_table.html"
+
+
 class CrmRealisationListView(LoginRequiredMixin, View):
     """CRM-side list of all Realisations across the site."""
 
