@@ -10,6 +10,7 @@ from .views import (
     RealisationListView,
     RealisationMapView,
     RealisationPickProjectView,
+    RealisationTableView,
     RealisationUpdateView,
     RealisationsByResourceView,
 )
@@ -28,9 +29,14 @@ urlpatterns = [
         name="crm-realisation-csv",
     ),
     path(
-        "realisations/",
+        "realisations/map/",
         RealisationMapView.as_view(),
         name="realisation-map",
+    ),
+    path(
+        "realisations/",
+        RealisationTableView.as_view(),
+        name="realisation-table",
     ),
     path(
         "project/<int:project_id>/realisations/",

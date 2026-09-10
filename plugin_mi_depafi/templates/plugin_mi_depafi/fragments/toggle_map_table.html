@@ -1,0 +1,29 @@
+{% with request.resolver_match.url_name as url_name %}
+    <fieldset class="fr-segmented fr-segmented--sm fr-pl-5v">
+        <legend class="fr-segmented__legend inline text-nowrap fr-mb-0 fr-pr-1w">Vue :</legend>
+        <div class="fr-segmented__elements">
+            <div class="fr-segmented__element">
+                <input value="table"
+                       {% if url_name == 'realisation-table' %}checked{% endif %}
+                       type="radio"
+                       id="table-display"
+                       name="display-select-radio"
+                       @click="window.location.href='{% url "plugin_mi_depafi:realisation-table" %}'">
+                <label class="fr-label" for="table-display">
+                    <a href="{% url "plugin_mi_depafi:realisation-table" %}">Tableau</a>
+                </label>
+            </div>
+            <div class="fr-segmented__element">
+                <input value="map"
+                       {% if url_name == 'realisation-map' %}checked{% endif %}
+                       type="radio"
+                       id="map-display"
+                       name="display-select-radio"
+                       @click="window.location.href='{% url "plugin_mi_depafi:realisation-map" %}'">
+                <label class="fr-label" for="map-display">
+                    <a href="{% url "plugin_mi_depafi:realisation-map" %}">Carte</a>
+                </label>
+            </div>
+        </div>
+    </fieldset>
+{% endwith %}

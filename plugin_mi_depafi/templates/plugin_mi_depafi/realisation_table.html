@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load django_vite %}
+{% load static %}
+
+{% block title %}Découvrir des réalisations{% endblock title %}
+{% block og_title %}Découvrir des réalisations{% endblock og_title %}
+
+{% block js %}
+    {% vite_asset 'js/plugins/components/RealisationTable.js' %}
+{% endblock js %}
+
+{% block content %}
+    <div x-data="{ breadcrumbs: { links: [{url: '/', title: 'Accueil'}], current: 'Réalisations' } }"
+         class="fr-p-0">{% include "tools/breadcrumb.html" %}</div>
+    <h1 class="fr-h3 fr-px-5v fr-mb-2w">Découvrir les sites et leurs réalisations</h1>
+    <div class="fr-my-2w">
+        {% include "plugin_mi_depafi/fragments/toggle_map_table.html" %}
+    </div>
+    <div class="d-flex fr-px-0 crm">
+        <div x-data="RealisationTable"
+             @selected-departments="onDepartmentsSelected($event)"
+             class="w-100 d-flex flex-column justify-content-start project-list-crm">
+            <div class="project-list-crm__filters fr-px-5v fr-pb-5v">
+                <div class="input-group">
+                    <span class="input-group-text bg-white">
+                        <svg class="bi" width="16" height="16" fill="currentColor">
+                            <use xlink:href="{% static 'svg/bootstrap-icons.svg' %}#search" />
+                        </svg>
+                    </span>
+                    <input type="text"
+                        class="form-control"
+                        placeholder="Rechercher une réalisation ou un site…"
+                        x-model="searchQuery"
+                        @input="onSearch()">
+                </div>
+                {% include "projects/project/fragments/departments_selector/departments_selector_dsfr.html" with label="Projets de mon territoire" label_filter="Localisation :" filter_by_regions=True select_all=True %}
+            </div>
+            <div class="fr-mb-2w table-responsive fr-px-5v fr-pb-5v">
+                <table class="project-table w-100">
+                    <caption x-show="!loading"
+                             x-transition.opacity.duration.500ms
+                             class="fr-ml-2v">
+                        <span x-text="countLabel()" data-test-id="realisations-count-label"></span>
+                    </caption>
+                    <colgroup>
+                        <col class="col--large">
+                        <col class="col--medium">
+                        <col class="col--small">
+                        <col class="col--small">
+                    </colgroup>
+                    <thead class="project-table__thead">
+                        <tr>
+                            <th scope="col">Nom du site</th>
+                            <th scope="col">Périmètre</th>
+                            <th scope="col">Localisation</th>
+                            <th scope="col">Réalisations</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="realisation in realisations" :key="realisation.id">
+                            <tr>
+                                <td class="text-ellipsis" :title="realisation.project.name">
+                                    <a class="fr-link"
+                                       :href="`/realisations/${realisation.id}/`"
+                                       @click.prevent="htmx.ajax('GET', `/realisations/${realisation.id}/`, {target: '#realisation-modal-content', swap: 'innerHTML'})"
+                                       x-text="realisation.project.name"></a>
+                                </td>
+                                <td x-text="locationLabel(realisation)"></td>
+                                <td x-text="dateLabel(realisation)"></td>
+                                <td x-text="realisation.count"></td>
+                            </tr>
+                        </template>
+                        <template x-if="!loading && realisations.length === 0">
+                            <tr>
+                                <td colspan="4">-- Aucun résultat --</td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% include "plugin_mi_depafi/fragments/realisation_modal.html" %}
+{% endblock content %}
