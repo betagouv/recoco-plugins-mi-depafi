@@ -29,5 +29,9 @@ export default function realisationsFeed() {
       this.selectedDepartments = event.detail || [];
       await this.fetchData();
     },
+
+    onDisplayedLabel(event) {
+      this.labelSelectedDepartment = event.detail;
+    },
   };
 }
