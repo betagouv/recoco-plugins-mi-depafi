@@ -1,5 +1,6 @@
 import Alpine from 'alpinejs';
 import htmx from 'htmx.org';
+import _ from 'lodash';
 
 import '@core/css/crm/table.scss';
 import '@core/css/crm/projectList.scss';
@@ -9,9 +10,14 @@ import realisationsFeed from '../utils/realisationsFeed';
 Alpine.data('RealisationTable', () => ({
   ...realisationsFeed(),
   htmx,
+  realisationsGroupedBySite : {},
 
   async init() {
     await this.fetchData();
+  },
+
+  afterFetch() {
+    this.realisationsGroupedBySite = _.groupBy(this.realisations, 'project.id');
   },
 
   countLabel() {
@@ -20,8 +26,8 @@ Alpine.data('RealisationTable', () => ({
     return `${count} réalisation${count > 1 ? 's' : ''}`;
   },
 
-  locationLabel(realisation) {
-    const commune = realisation.project?.commune;
+  locationLabel(project) {
+    const commune = project?.commune;
     if (!commune) return '—';
     const code = commune.department?.code;
     return code ? `${commune.name} (${code})` : commune.name;

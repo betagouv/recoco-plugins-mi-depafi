@@ -44,30 +44,26 @@
                     </caption>
                     <colgroup>
                         <col class="col--large">
-                        <col class="col--medium">
                         <col class="col--small">
                         <col class="col--small">
                     </colgroup>
                     <thead class="project-table__thead">
                         <tr>
                             <th scope="col">Nom du site</th>
-                            <th scope="col">Périmètre</th>
                             <th scope="col">Localisation</th>
                             <th scope="col">Réalisations</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <template x-for="realisation in realisations" :key="realisation.id">
+                        <template x-for="site in Object.values(realisationsGroupedBySite)" :key="site[0].id">
                             <tr>
-                                <td class="text-ellipsis" :title="realisation.project.name">
+                                <td class="text-ellipsis" :title="site[0].project.name">
                                     <a class="fr-link"
-                                       :href="`/realisations/${realisation.id}/`"
-                                       @click.prevent="htmx.ajax('GET', `/realisations/${realisation.id}/`, {target: '#realisation-modal-content', swap: 'innerHTML'})"
-                                       x-text="realisation.project.name"></a>
+                                       :href="'{% url 'projects-project-detail' 0 %}'.replace('0', site.id)" 
+                                       x-text="site[0].project.name"></a>
                                 </td>
-                                <td x-text="locationLabel(realisation)"></td>
-                                <td x-text="dateLabel(realisation)"></td>
-                                <td x-text="realisation.count"></td>
+                                <td x-text="locationLabel(site[0].project)"></td>
+                                <td x-text="site.length"></td>
                             </tr>
                         </template>
                         <template x-if="!loading && realisations.length === 0">
