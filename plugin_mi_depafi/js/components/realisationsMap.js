@@ -112,11 +112,6 @@ function RealisationsMap(regionsData) {
       mapUtils.toggleGreyFilter(this.map);
     },
 
-    onClickResetQuery() {
-      this.searchQuery = '';
-      this.$dispatch('reset-departments-selector');
-    },
-
     openPanel(mode = {}) {
         this.panelConfig = {
           isOpen : true,
