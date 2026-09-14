@@ -1,6 +1,9 @@
 import Alpine from 'alpinejs';
 import htmx from 'htmx.org';
 import * as L from 'leaflet';
+import mapUtils from '@core/js/utils/map';
+import { isPlural } from '@core/js/utils/isPlural';
+import '@core/css/map.css';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
@@ -59,7 +62,22 @@ function RealisationsMap(regionsData) {
     },
 
     afterFetch() {
+      this.realisationsByProject = {};
+      this.projectLength = 0; 
+      this.realisations.forEach((r) => {
+        if (!this.realisationsByProject[r.project.id]) {
+          this.realisationsByProject[r.project.id] = { ...r.project, count: 0 };
+          this.projectLength++;
+        }
+        this.realisationsByProject[r.project.id].count++;
+      });
       this.updateMarkers();
+      const params = new URLSearchParams();
+      if (this.searchQuery || this.selectedDepartments.length > 0) {
+        params.set('search', this.searchQuery);
+        this.openPanel({mode: 'projectList'});
+      }
+      this.loading = false;
     },
 
     updateMarkers() {
@@ -95,6 +113,40 @@ function RealisationsMap(regionsData) {
 
     clearProjectFilter() {
       this.selectedProjectId = null;
+    },
+
+    onClickResetQuery() {
+      this.searchQuery = '';
+      this.$dispatch('reset-departments-selector');
+    },
+
+    openPanel(mode = {}) {
+        this.panelConfig = {
+          isOpen : true,
+          ...mode
+        };
+    },
+
+    closePanel() {
+      if(this.panelConfig.mode == 'projectDetails') {
+        if(this.searchQuery != '' || this.selectedDepartments.length > 0){
+          this.panelConfig = {
+            isOpen : true,
+            mode: 'projectList'
+          };
+        } else {
+          this.panelConfig = {
+            isOpen : false,
+            mode: undefined
+          };
+        }
+        this.setMarkerFocus(null);
+        this.selectedProject = null;
+      }
+    },
+    
+    onClickToggleGrey() {
+      mapUtils.toggleGreyFilter(this.map);
     },
   };
 }
