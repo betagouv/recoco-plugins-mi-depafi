@@ -33,5 +33,10 @@ export default function realisationsFeed() {
     onDisplayedLabel(event) {
       this.labelSelectedDepartment = event.detail;
     },
+
+    onClickResetQuery() {
+      this.searchQuery = '';
+      this.$dispatch('reset-departments-selector');
+    },
   };
 }

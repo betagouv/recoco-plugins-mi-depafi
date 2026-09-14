@@ -115,11 +115,6 @@ function RealisationsMap(regionsData) {
       this.selectedProjectId = null;
     },
 
-    onClickResetQuery() {
-      this.searchQuery = '';
-      this.$dispatch('reset-departments-selector');
-    },
-
     openPanel(mode = {}) {
         this.panelConfig = {
           isOpen : true,
