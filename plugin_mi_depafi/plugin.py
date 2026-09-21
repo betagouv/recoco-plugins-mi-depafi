@@ -52,7 +52,7 @@ class MiDepafiPlugin:
     @hookimpl
     def header_menu_entries(self, request):
         return {
-            "label": "Toutes les réalisations",
+            "label": "Sites et réalisations",
             "url_name": "plugin_mi_depafi:realisation-map",
         }
 
