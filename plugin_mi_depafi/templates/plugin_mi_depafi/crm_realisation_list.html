@@ -49,6 +49,7 @@
                         <col class="col--large">
                         <col class="col--medium">
                         <col class="col--medium">
+                        <col class="col--medium">
                         <col class="col--small">
                         <col class="col--small">
                         <col class="col--small col--fixed-160">
@@ -59,7 +60,8 @@
                             <th scope="col">Catégorie</th>
                             <th scope="col">Nom du site</th>
                             <th scope="col">Localisation</th>
-                            <th scope="col">Date de la réalisation</th>
+                            <th x-tooltip="`Date à laquelle l'action a été réalisée`" scope="col">Date de la réalisation</th>
+                            <th x-tooltip="`Date de déclaration de la réalisation`" scope="col">Date de création</th>
                             <th scope="col">Statut</th>
                             <th scope="col">Likes</th>
                             <th scope="col">Actions</th>
@@ -81,6 +83,12 @@
                                        x-text="realisation.project.name"></a>
                                 </td>
                                 <td x-text="realisation.project.commune ? `${realisation.project.commune.name} (${realisation.project.commune.postal})` : '—'"></td>
+                                <template x-if="realisation.date">
+                                    <td x-text="new Date(realisation.date).toLocaleDateString('fr-FR')"></td>
+                                </template>
+                                <template x-if="!realisation.date">
+                                    <td>Non renseignée</td>
+                                </template>
                                 <td x-text="new Date(realisation.created_at).toLocaleDateString('fr-FR')"></td>
                                 <td class="project-table__status">
                                     <span x-text="statusLabel(realisation.status)"
