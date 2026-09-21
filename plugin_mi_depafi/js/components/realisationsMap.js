@@ -60,6 +60,14 @@ function RealisationsMap(regionsData) {
         this.setMarkerFocus(null);
       });
     },
+    
+    setMarkerFocus(projectId) {
+      const previousMarker = this.markersByProject[this.selectedProjectId];
+      const clickedMarker = this.markersByProject[projectId];
+      mapUtils.setMarkerFocus(previousMarker, clickedMarker);
+
+      this.selectedProjectId = projectId;
+    },
 
     afterFetch() {
       this.realisationsByProject = {};
@@ -86,14 +94,14 @@ function RealisationsMap(regionsData) {
       this.markersByProject = {};
       this.selectedProjectId = null;
 
-      Object.values(this.realisationsByProject).forEach((project, count ) => {
+      Object.values(this.realisationsByProject).forEach((project ) => {
         const lat = project.latitude ?? project.commune?.latitude;
         const lng = project.longitude ?? project.commune?.longitude;
         if (!lat || !lng) return;
 
         const marker = L.marker([lat, lng], { icon: mapUtils.ICONS.default });
         marker.on('click', () => {
-          this.selectedProject = {...project, realisationsCount: count};
+          this.selectedProject = {...project, realisationsCount: project.count};
           this.setMarkerFocus(project.id);
           this.openPanel({mode: 'projectDetails'});
         });
