@@ -130,11 +130,12 @@ def _aware(dt):
 
 
 def _parse_dt(s):
-    """Parse Lakaa CSV datetime strings: '2024-05-16 07:13:20 UTC' or '2022-11-15'."""
+    """Parse Lakaa CSV datetime strings: '2024-05-16 07:13:20 UTC', '2022-11-15'
+    or '6/2/2024' (d/m/Y, used by the declarations export)."""
     if not _val(s):
         return None
     s = s.strip().removesuffix(" UTC")
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%d/%m/%Y"):
         try:
             return _aware(datetime.strptime(s, fmt))
         except ValueError:

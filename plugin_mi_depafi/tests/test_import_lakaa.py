@@ -12,6 +12,7 @@ from datetime import date
 import pytest
 from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
+from django.utils import timezone
 from model_bakery import baker
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.geomatics.models import Commune, Department
@@ -85,6 +86,12 @@ def test_parse_dt_utc_string():
     dt = _parse_dt("2024-05-16 07:13:20 UTC")
     assert dt is not None
     assert dt.year == 2024 and dt.month == 5 and dt.day == 16
+
+
+def test_parse_dt_day_month_year():
+    dt = _parse_dt("6/2/2024")
+    assert dt is not None
+    assert dt.date() == date(2024, 2, 6)
 
 
 def test_val_sentinels_return_none():
@@ -949,6 +956,21 @@ def test_import_realisations_maps_date(tmp_path, request):
     )
 
     assert Realisation.objects.get(project=project).date == date(2022, 11, 15)
+
+
+@pytest.mark.django_db
+def test_import_realisations_applies_declaration_date(tmp_path, request):
+    project, resource, _ = _setup_realisation_prereqs(request)
+
+    path = _write_csv(tmp_path, "decl.csv", [_decl_row(), _decl_row()])
+
+    cmd = _make_command()
+    cmd._import_realisations(
+        path, {project.name: project.pk}, {resource.title: resource.pk}
+    )
+
+    created_at = Realisation.objects.get(project=project).created_at
+    assert timezone.localtime(created_at).date() == date(2024, 2, 6)
 
 
 @pytest.mark.django_db
