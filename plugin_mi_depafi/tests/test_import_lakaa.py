@@ -424,8 +424,8 @@ def test_import_projects_sets_coordinates(tmp_path, request):
     project_map = cmd._import_projects(path, site)
 
     project = Project.objects.get(pk=project_map["Site GPS"])
-    assert project.location_x == pytest.approx(48.6921)
-    assert project.location_y == pytest.approx(6.1844)
+    assert project.location_y == pytest.approx(48.6921)
+    assert project.location_x == pytest.approx(6.1844)
 
 
 @pytest.mark.django_db
@@ -535,8 +535,8 @@ def test_import_projects_force_updates_location(tmp_path, request):
 
     existing.refresh_from_db()
     assert existing.location == "Nouvelle adresse"
-    assert existing.location_x == pytest.approx(48.6921)
-    assert existing.location_y == pytest.approx(6.1844)
+    assert existing.location_y == pytest.approx(48.6921)
+    assert existing.location_x == pytest.approx(6.1844)
 
 
 @pytest.mark.django_db
@@ -675,8 +675,8 @@ def test_import_projects_reads_coordinates_forest_column(tmp_path, request):
     project_map = cmd._import_projects(path, site)
 
     project = Project.objects.get(pk=project_map["Site GPS forest"])
-    assert project.location_x == pytest.approx(48.6921)
-    assert project.location_y == pytest.approx(6.1844)
+    assert project.location_y == pytest.approx(48.6921)
+    assert project.location_x == pytest.approx(6.1844)
 
 
 @pytest.mark.django_db
