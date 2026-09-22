@@ -421,8 +421,10 @@ class Command(TenantCommand):
                 parts = coords_raw.split(",", 1)
                 if len(parts) == 2:
                     try:
-                        location_x = float(parts[0].strip())
-                        location_y = float(parts[1].strip())
+                        # Lakaa exports "lat,lng"; the core stores lng in
+                        # location_x and lat in location_y.
+                        location_y = float(parts[0].strip())
+                        location_x = float(parts[1].strip())
                     except ValueError:
                         pass
 
