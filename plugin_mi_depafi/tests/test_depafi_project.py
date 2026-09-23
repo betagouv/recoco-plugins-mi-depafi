@@ -1,4 +1,5 @@
 import pytest
+from guardian.shortcuts import assign_perm
 from model_bakery import baker
 
 from recoco.apps.plugins.resolvers import set_enabled_plugins
@@ -47,13 +48,20 @@ def test_no_depafi_project_when_plugin_disabled():
 # ---------------------------------------------------------------------------
 
 
+def _grant_change_project(user, project):
+    """Grant the object-level permission guarding the perimeter edit view."""
+    assign_perm("projects.change_project", user, project)
+
+
 @pytest.mark.django_db
-def test_perimeter_update_form_accessible_to_project_member(request, client):
-    """A project member can open the perimeter edit form."""
+def test_perimeter_update_form_accessible_with_change_project_permission(
+    request, client
+):
+    """A user with `projects.change_project` on the project can open the form."""
     project = make_project_on_site(request)
 
     with login(client) as user:
-        project_utils.assign_collaborator(user, project, is_owner=True)
+        _grant_change_project(user, project)
         response = client.get(perimeter_update_url(project))
 
     assert response.status_code == 200
@@ -62,11 +70,11 @@ def test_perimeter_update_form_accessible_to_project_member(request, client):
 
 @pytest.mark.django_db
 def test_perimeter_update_saves_perimeter(request, client):
-    """A project member can set the perimeter; it is persisted on the profile."""
+    """A user with `projects.change_project` can set the perimeter; it persists."""
     project = make_project_on_site(request)
 
     with login(client) as user:
-        project_utils.assign_collaborator(user, project, is_owner=True)
+        _grant_change_project(user, project)
         response = client.post(
             perimeter_update_url(project),
             {"perimeter": DepafiProject.Perimeter.SGAMI},
@@ -84,7 +92,7 @@ def test_perimeter_update_creates_missing_profile(request, client):
     DepafiProject.objects.filter(pk=project.pk).delete()
 
     with login(client) as user:
-        project_utils.assign_collaborator(user, project, is_owner=True)
+        _grant_change_project(user, project)
         response = client.post(
             perimeter_update_url(project),
             {"perimeter": DepafiProject.Perimeter.OPERATEUR},
@@ -93,6 +101,23 @@ def test_perimeter_update_creates_missing_profile(request, client):
     assert response.status_code == 302
     profile = DepafiProject.objects.get(pk=project.pk)
     assert profile.perimeter == DepafiProject.Perimeter.OPERATEUR
+
+
+@pytest.mark.django_db
+def test_perimeter_update_forbidden_for_plain_collaborator(request, client):
+    """A plain collaborator (no `change_project`) gets a 403 — it's advisor-level."""
+    project = make_project_on_site(request)
+
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        response = client.post(
+            perimeter_update_url(project),
+            {"perimeter": DepafiProject.Perimeter.SGAMI},
+        )
+
+    assert response.status_code == 403
+    profile = DepafiProject.objects.get(pk=project.pk)
+    assert profile.perimeter == ""
 
 
 @pytest.mark.django_db
