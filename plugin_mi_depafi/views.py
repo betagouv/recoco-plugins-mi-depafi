@@ -2,7 +2,7 @@ import csv
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Exists, OuterRef
+from django.db.models import Count, Exists, OuterRef, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -15,14 +15,54 @@ from recoco.apps.projects.views.detail import ProjectDetailBaseView
 from recoco.apps.resources.models import Resource
 from recoco.utils import has_perm_or_403, is_staff_for_site
 
-from .forms import RealisationForm
+from .forms import DepafiProjectPerimeterForm, RealisationForm
 from .models import (
+    DepafiProject,
     Realisation,
     RealisationDocument,
     RealisationLike,
     RealisationPhoto,
 )
 from .signals import realisation_deleted, realisation_published
+
+
+class DepafiProjectPerimeterUpdateView(ProjectDetailBaseView):
+    """Edit the plugin-specific perimeter of a project (DepafiProject profile)."""
+
+    template_name = "plugin_mi_depafi/depafi_project_perimeter_update.html"
+    http_method_names = ["get", "head", "options", "post"]
+
+    def _get_profile(self):
+        # The profile row is normally auto-created with the project (see
+        # signals.create_depafi_project_on_project_created); get_or_create
+        # covers projects predating the plugin activation.
+        profile, _ = DepafiProject.objects.get_or_create(project=self.object)
+        return profile
+
+    def check_permissions(self):
+        # Site staff automatically get project permissions, so no special case.
+        has_perm_or_403(self.request.user, "projects.change_project", self.object)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.setdefault(
+            "form", DepafiProjectPerimeterForm(instance=self._get_profile())
+        )
+        context["page_title"] = "Modifier le périmètre"
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        self.check_permissions()
+        profile = self._get_profile()
+        form = DepafiProjectPerimeterForm(request.POST, instance=profile)
+
+        if form.is_valid():
+            form.save()
+            return redirect(reverse("projects-project-detail", args=[self.object.pk]))
+
+        context = self.get_context_data(form=form)
+        return self.render_to_response(context)
 
 
 class RealisationListView(ProjectDetailBaseView):
@@ -147,7 +187,9 @@ class RealisationUpdateView(ProjectDetailBaseView):
                 ).delete()
 
             existing_count = realisation.photos.count()
-            for order, image in enumerate(request.FILES.getlist("photos"), start=existing_count):
+            for order, image in enumerate(
+                request.FILES.getlist("photos"), start=existing_count
+            ):
                 RealisationPhoto.objects.create(
                     realisation=realisation, image=image, order=order
                 )
@@ -166,7 +208,10 @@ class RealisationUpdateView(ProjectDetailBaseView):
                     realisation=realisation, file=document, order=order
                 )
 
-            if old_status != Realisation.PUBLISHED and new_status == Realisation.PUBLISHED:
+            if (
+                old_status != Realisation.PUBLISHED
+                and new_status == Realisation.PUBLISHED
+            ):
                 realisation_published.send(
                     sender=Realisation,
                     realisation=realisation,
@@ -226,7 +271,12 @@ class RealisationDeleteView(ProjectDetailBaseView):
 
 class RealisationLikeToggleView(LoginRequiredMixin, View):
     def post(self, request, pk):
-        realisation = get_object_or_404(Realisation, pk=pk, status=Realisation.PUBLISHED)
+        realisation = get_object_or_404(
+            Realisation,
+            pk=pk,
+            status=Realisation.PUBLISHED,
+            project__project_sites__site=request.site,
+        )
         like, created = RealisationLike.objects.get_or_create(
             realisation=realisation, user=request.user
         )
@@ -247,18 +297,27 @@ class RealisationLikeToggleView(LoginRequiredMixin, View):
 
 
 class RealisationDetailView(LoginRequiredMixin, DetailView):
-    # FIXME needs permissions handling
     model = Realisation
     template_name = "plugin_mi_depafi/realisation_detail.html"
     context_object_name = "realisation"
 
     def get_queryset(self):
-        return (
+        # Published realisations are visible to any logged-in user, but drafts
+        # are private work-in-progress: only their creator (or site staff) can
+        # read them, consistently with the update/delete views.
+        queryset = (
             super()
             .get_queryset()
             .select_related("resource", "project")
             .prefetch_related("photos", "documents")
+            .filter(project__project_sites__site=self.request.site)
+            .distinct()
         )
+        if not is_staff_for_site(self.request.user, self.request.site):
+            queryset = queryset.filter(
+                Q(status=Realisation.PUBLISHED) | Q(created_by=self.request.user)
+            )
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -329,23 +388,26 @@ class CrmRealisationCsvView(LoginRequiredMixin, View):
         response.write("﻿")  # BOM for Excel
 
         writer = csv.writer(response)
-        writer.writerow(["Intitulé", "Catégorie", "Nom du site", "Localisation", "Date", "Statut"])
+        writer.writerow(
+            ["Intitulé", "Catégorie", "Nom du site", "Localisation", "Date", "Statut"]
+        )
 
         status_labels = dict(Realisation.STATUS_CHOICES)
         for r in qs:
             commune = r.project.commune
             localisation = f"{commune.name} ({commune.postal})" if commune else ""
-            writer.writerow([
-                r.resource.title,
-                r.resource.category.name if r.resource.category else "",
-                r.project.name,
-                localisation,
-                r.created_at.strftime("%d/%m/%Y"),
-                status_labels.get(r.status, r.status),
-            ])
+            writer.writerow(
+                [
+                    r.resource.title,
+                    r.resource.category.name if r.resource.category else "",
+                    r.project.name,
+                    localisation,
+                    r.created_at.strftime("%d/%m/%Y"),
+                    status_labels.get(r.status, r.status),
+                ]
+            )
 
         return response
-
 
 
 class RealisationsByResourceView(LoginRequiredMixin, ListView):
@@ -356,7 +418,9 @@ class RealisationsByResourceView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         self.resource = get_object_or_404(Resource, pk=self.kwargs["resource_id"])
         return (
-            Realisation.objects.filter(resource=self.resource, status=Realisation.PUBLISHED)
+            Realisation.objects.filter(
+                resource=self.resource, status=Realisation.PUBLISHED
+            )
             .select_related("project__commune__department")
             .prefetch_related("photos")
             .annotate(like_count=Count("likes"))

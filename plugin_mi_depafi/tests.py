@@ -701,7 +701,9 @@ def test_realisation_detail_redirects_unauthenticated(request, client):
 def test_realisation_detail_accessible_for_any_logged_in_user(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
-    realisation = baker.make(Realisation, project=project, resource=resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
     with login(client):
         response = client.get(detail_url(realisation))
     assert response.status_code == 200
@@ -711,7 +713,9 @@ def test_realisation_detail_accessible_for_any_logged_in_user(request, client):
 def test_realisation_detail_shows_resource_title(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request, title="Mon action vélo")
-    realisation = baker.make(Realisation, project=project, resource=resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
     with login(client):
         response = client.get(detail_url(realisation))
     assert b"Mon action v\xc3\xa9lo" in response.content
@@ -726,6 +730,7 @@ def test_realisation_detail_shows_partners(request, client):
         project=project,
         resource=resource,
         partners="Fondation Jean-Moulin",
+        status=Realisation.PUBLISHED,
     )
     with login(client):
         response = client.get(detail_url(realisation))
@@ -738,7 +743,9 @@ def test_realisation_detail_shows_project_name(request, client):
     project.name = "ATE Doubs"
     project.save()
     resource = make_resource(request)
-    realisation = baker.make(Realisation, project=project, resource=resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
     with login(client):
         response = client.get(detail_url(realisation))
     assert b"ATE Doubs" in response.content
@@ -748,7 +755,9 @@ def test_realisation_detail_shows_project_name(request, client):
 def test_realisation_detail_context_has_realisation(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
-    realisation = baker.make(Realisation, project=project, resource=resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
     with login(client):
         response = client.get(detail_url(realisation))
     assert response.context["realisation"] == realisation

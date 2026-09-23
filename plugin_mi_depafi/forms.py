@@ -4,7 +4,22 @@ from django import forms
 from markdownx.fields import MarkdownxFormField
 from recoco.apps.resources.models import Resource
 
-from .models import Realisation
+from .models import DepafiProject, Realisation
+
+
+class DepafiProjectPerimeterForm(forms.ModelForm):
+    class Meta:
+        model = DepafiProject
+        fields = ["perimeter"]
+        widgets = {
+            "perimeter": forms.Select(attrs={"class": "fr-select"}),
+        }
+        labels = {
+            "perimeter": "Périmètre",
+        }
+        help_texts = {
+            "perimeter": "Périmètre auquel se rapporte le dossier",
+        }
 
 
 class RealisationForm(forms.ModelForm):
