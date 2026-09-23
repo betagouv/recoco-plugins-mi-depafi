@@ -34,12 +34,34 @@ function RealisationsMap(regionsData) {
       return `${this.projectLength} site${isPlural('', 's',this.projectLength)} et ${realisationLength} réalisation${isPlural('', 's',realisationLength)} trouvé${isPlural('', 's',this.projectLength+realisationLength)}`
     },
 
+    get realisationsByProject() {
+      const realisationsByProject = {}
+      this.realisations.forEach((r) => {
+        if (!realisationsByProject[r.project.id]) {
+          realisationsByProject[r.project.id] = { ...r.project, count: 0 };
+        }
+        realisationsByProject[r.project.id].count++;
+      });
+
+      return realisationsByProject;
+    },
+
+    get projectLength() {
+      return Object.keys(this.realisationsByProject).length;
+    },
+
+    get hasActiveFilters() {
+      return this.searchQuery !== '' || this.selectedDepartments.length > 0;
+    },
+
     sidebarRealisationsForProject(projectId) {
       return this.realisations.filter((r) => r.project.id === projectId);
     },
 
     init() {
       this.initMap();
+      this.$watch('realisations', () => this.onRealisationsChanged());
+      this.onRealisationsChanged();
     },
 
     initMap() {
@@ -56,6 +78,12 @@ function RealisationsMap(regionsData) {
         this.setMarkerFocus(null);
       });
     },
+
+    onRealisationsChanged() {
+      this.updateMarkers();
+      this.syncPanelWithFilters();
+      this.clearProjectFilter()
+    },
     
     setMarkerFocus(projectId) {
       const previousMarker = this.markersByProject[this.selectedProjectId];
@@ -63,25 +91,6 @@ function RealisationsMap(regionsData) {
       mapUtils.setMarkerFocus(previousMarker, clickedMarker);
 
       this.selectedProjectId = projectId;
-    },
-
-    afterFetch() {
-      this.realisationsByProject = {};
-      this.projectLength = 0; 
-      this.realisations.forEach((r) => {
-        if (!this.realisationsByProject[r.project.id]) {
-          this.realisationsByProject[r.project.id] = { ...r.project, count: 0 };
-          this.projectLength++;
-        }
-        this.realisationsByProject[r.project.id].count++;
-      });
-      this.updateMarkers();
-      const params = new URLSearchParams();
-      if (this.searchQuery || this.selectedDepartments.length > 0) {
-        params.set('search', this.searchQuery);
-        this.openPanel({mode: 'projectList'});
-      }
-      this.loading = false;
     },
 
     updateMarkers() {
@@ -104,7 +113,14 @@ function RealisationsMap(regionsData) {
         this.markersByProject[project.id] = marker;
         this.clusterGroup.addLayer(marker);
       });
-      console.log(this.realisationsByProject)
+    },
+
+    syncPanelWithFilters() {
+      if (this.hasActiveFilters) {
+        this.openPanel({ mode: 'projectList' })
+      } else {
+        this.panelConfig = { isOpen: false, mode: undefined };
+      }
     },
 
     clearProjectFilter() {
@@ -124,26 +140,9 @@ function RealisationsMap(regionsData) {
     },
 
     closePanel() {
-      if(this.panelConfig.mode == 'projectDetails') {
-        if(this.searchQuery != '' || this.selectedDepartments.length > 0){
-          this.panelConfig = {
-            isOpen : true,
-            mode: 'projectList'
-          };
-        } else {
-          this.panelConfig = {
-            isOpen : false,
-            mode: undefined
-          };
-        }
-        this.setMarkerFocus(null);
-        this.selectedProject = null;
-      }
-    },
-    
-    onClickToggleGrey() {
-      mapUtils.toggleGreyFilter(this.map);
-    },
+      this.syncPanelWithFilters();
+      this.clearProjectFilter();
+    }
   };
 }
 
