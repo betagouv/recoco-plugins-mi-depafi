@@ -130,6 +130,7 @@ class CrmRealisationSerializer(serializers.ModelSerializer):
             "detail_url",
             "update_url",
             "delete_url",
+            "date",
         ]
 
     def get_detail_url(self, obj):
