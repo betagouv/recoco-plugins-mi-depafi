@@ -1,16 +1,19 @@
-import waffle
 from actstream import action
 from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
+from django.db.models.signals import post_save
 from django.dispatch import Signal, receiver
 from notifications.signals import notify
 
 from recoco import verbs as recoco_verbs
 from recoco.apps.conversations.models import Message
+from recoco.apps.plugins.resolvers import get_enabled_plugins
+from recoco.apps.projects.models import Project
 from recoco.utils import get_group_for_site
 
 from . import verbs
-from .models import RealisationNode
+from .apps import PLUGIN_NAME
+from .models import DepafiProject, RealisationNode
 
 # Sent when a Realisation transitions to PUBLISHED.
 # Provides: realisation (Realisation instance), published_by (User instance)
@@ -70,6 +73,15 @@ def notify_staff_on_realisation_published(sender, realisation, published_by, **k
             action_object=realisation,
             target=realisation.project,
         )
+
+
+@receiver(post_save, sender=Project)
+def create_depafi_project_on_project_created(sender, instance, created, **kwargs):
+    """Create the plugin's DepafiProject relation when a Project is created."""
+    if not created or PLUGIN_NAME not in get_enabled_plugins():
+        return
+
+    DepafiProject.objects.get_or_create(project=instance)
 
 
 # XXX Disabled ATM
