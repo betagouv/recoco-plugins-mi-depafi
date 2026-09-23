@@ -1,39 +1,8 @@
 <div class="d-flex fr-px-0 crm">
-    <div x-data="RealisationTable"
-            @selected-departments="onDepartmentsSelected($event)"
-            @displayed-label="onDisplayedLabel($event)"
-            class="w-100 d-flex flex-column justify-content-start project-list-crm">
-        <div class="project-list-crm__filters fr-px-5v fr-pb-5v">
-            {% comment %} <div class="input-group">
-                <span class="input-group-text bg-white">
-                    <svg class="bi" width="16" height="16" fill="currentColor">
-                        <use xlink:href="{% static 'svg/bootstrap-icons.svg' %}#search" />
-                    </svg>
-                </span>
-                <input type="text"
-                    class="form-control"
-                    placeholder="Rechercher une réalisation ou un site…"
-                    x-model="searchQuery"
-                    @input="onSearch()">
-            </div>
-            {% include "projects/project/fragments/departments_selector/departments_selector_dsfr.html" with label="Projets de mon territoire" label_filter="Localisation :" filter_by_regions=True select_all=True %} {% endcomment %}
-            <div class="col-auto flex-grow-1">
-                <div class="fr-input-group search-bar">
-                    <label class="fr-label fr-sr-only" for="search-map-input">
-                        Rechercher par nom, localisation ou mot-clef...
-                    </label>
-                    <span class="fr-icon-search-line fr-icon--sm" aria-hidden="true"></span>
-                    <input class="fr-input" x-model="searchQuery" @input="onSearch()" placeholder="Nom, localisation ou mot-clef..." id="search-map-input" type="text">
-                </div>
-            </div>
-            <div class="col-auto">
-    {% comment %} {% include "projects/project/fragments/departments_selector/departments_selector_dsfr.html" with filter_by_regions=True zone_objects="regions" select_all=True label_filter="Territoire :" extra_classes="inline-chevron" %} {% endcomment %}
-                {% include "projects/project/fragments/departments_selector/departments_selector_dsfr.html" with label="Projets de mon territoire" label_filter="Localisation :" filter_by_regions=True select_all=True %}
-            </div>
-            <button class="fr-btn fr-btn--tertiary-no-outline" @click="onClickResetQuery">
-                <span class="fr-icon-close-line fr-icon--sm fr-mr-1w" aria-hidden="true"></span> Réinitialiser les filtres
-            </button>
-        </div>
+    <div x-data="RealisationTable(regionsArray, realisations)" class="w-100 d-flex flex-column justify-content-start project-list-crm">
+        
+        {% include "plugin_mi_depafi/fragments/filter_map_table.html" %}
+        
         <template x-if="searchQuery">
             <h2 class="fr-px-5v fr-mt-4v fr-mb-3w ">Résultat de la recherche : <span x-text="queryLabel"></span></h2>
         </template>
@@ -73,7 +42,7 @@
                             </template>
                         </tr>
                     </template>
-                    <template x-if="!loading && realisations.length === 0">
+                    <template x-if="!loading && realisationsDataTable.length === 0">
                         <tr>
                             <td colspan="4">-- Aucun résultat --</td>
                         </tr>

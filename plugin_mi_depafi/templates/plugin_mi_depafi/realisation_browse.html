@@ -22,8 +22,7 @@
 {% block content %}
 {{ regions|json_script:"regionsArray" }}
 <div class="container-fluid fr-py-3w"
-     x-data="RealisationBrowse"
-     @selected-departments.window="onDepartmentsSelected($event)">
+     x-data="RealisationBrowse">
 
     <div x-data="{ breadcrumbs: { links: [{url: '{% url 'home' %}', title: 'Accueil'}], current: 'Réalisations' } }"
          class="fr-p-0">{% include "tools/breadcrumb.html" %}</div>
