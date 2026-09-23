@@ -10,15 +10,27 @@ const REALISATION_VIEWS_NAME = {
 Alpine.data('RealisationBrowse', () => ({
   displayedViewName: REALISATION_VIEWS_NAME.MAP,
   viewsName : REALISATION_VIEWS_NAME,
-  
-  async init() {
-    await this.fetchData();
-  },
-
   realisations: [],
   searchQuery: '',
   selectedDepartments: [],
   loading: true,
+
+  async init() {
+    this.urlParamInit();
+    await this.fetchData();
+  },
+
+  urlParamInit() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const view = urlParams.get('view');
+    if(Object.values(this.viewsName).includes(view)) {
+      this.displayedViewName = view;
+    }
+    this.$watch('displayedViewName', () => {
+      urlParams.set("view", this.displayedViewName)
+      history.replaceState(null, '', `${window.location.pathname}?${urlParams}`);
+    })
+  },
 
   async fetchData() {
     this.loading = true;
