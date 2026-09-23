@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import Realisation, RealisationPhoto
+from .models import DepafiProject, Realisation, RealisationPhoto
+
+
+@admin.register(DepafiProject)
+class DepafiProjectAdmin(admin.ModelAdmin):
+    list_display = ["project", "perimeter", "lakaa_import_id"]
+    search_fields = ["project__name", "lakaa_import_id"]
+    list_filter = ["perimeter"]
 
 
 class RealisationPhotoInline(admin.TabularInline):
