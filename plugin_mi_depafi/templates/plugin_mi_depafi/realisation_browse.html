@@ -22,7 +22,7 @@
 {% block content %}
 {{ regions|json_script:"regionsArray" }}
 <div class="container-fluid fr-py-3w"
-     x-data="RealisationBrowse">
+     x-data="RealisationBrowse(regionsArray)">
 
     <div x-data="{ breadcrumbs: { links: [{url: '{% url 'home' %}', title: 'Accueil'}], current: 'Réalisations' } }"
          class="fr-p-0">{% include "tools/breadcrumb.html" %}</div>
@@ -31,6 +31,8 @@
     <div class="fr-my-2w">
         {% include "plugin_mi_depafi/fragments/toggle_map_table.html" %}
     </div>
+
+    {% include "plugin_mi_depafi/fragments/filter_map_table.html" %}
 
     <template x-if="realisations && displayedViewName == viewsName.MAP">
         {% include "plugin_mi_depafi/fragments/realisation_map.html" %}
