@@ -17,7 +17,10 @@ class MiDepafiPlugin:
     urls_module = "plugin_mi_depafi.urls"
     rest_urls_module = "plugin_mi_depafi.rest_urls"
     vite_entries = {
+        "realisationBrowse": "js/components/RealisationBrowse.js",
         "realisationsMap": "js/components/realisationsMap.js",
+        "realisationTable": "js/components/RealisationTable.js",
+        "realisationMapPanelStyles": "js/styles/fragments/realisation-map-panel.css.js",
         "realisationDetailView": "js/components/RealisationDetailView.js",
         "realisationListCrm": "js/apps/realisationListCrm.js",
         "realisationForm": "js/apps/realisationForm.js",
@@ -53,7 +56,7 @@ class MiDepafiPlugin:
     def header_menu_entries(self, request):
         return {
             "label": "Sites et réalisations",
-            "url_name": "plugin_mi_depafi:realisation-map",
+            "url_name": "plugin_mi_depafi:realisation-browse",
         }
 
     @hookimpl
