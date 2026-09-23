@@ -283,21 +283,16 @@ class RealisationPickProjectView(LoginRequiredMixin, View):
             {"resource": resource, "projects": projects},
         )
 
+class RealisationBrowseView(LoginRequiredMixin, TemplateView):
+    """Browse realisations as a table or a map."""
 
-class RealisationMapView(TemplateView):
-    template_name = "plugin_mi_depafi/realisation_map.html"
+    template_name = "plugin_mi_depafi/realisation_browse.html"
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         regions = Region.objects.prefetch_related("departments").order_by("name")
         ctx["regions"] = list(RegionSerializer(regions, many=True).data)
         return ctx
-
-
-class RealisationTableView(TemplateView):
-    """Public discovery page listing published realisations as a table."""
-
-    template_name = "plugin_mi_depafi/realisation_table.html"
 
 
 class CrmRealisationListView(LoginRequiredMixin, View):

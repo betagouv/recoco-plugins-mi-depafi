@@ -1,27 +1,32 @@
+{% comment %} TODO change url switch by template switch {% endcomment %}
 {% with request.resolver_match.url_name as url_name %}
     <fieldset class="fr-segmented fr-segmented--sm fr-pl-5v">
         <legend class="fr-segmented__legend inline text-nowrap fr-mb-0 fr-pr-1w">Vue :</legend>
         <div class="fr-segmented__elements">
             <div class="fr-segmented__element">
                 <input value="table"
-                       {% if url_name == 'realisation-table' %}checked{% endif %}
+                       {% comment %} {% if url_name == 'realisation-table' %}checked{% endif %} {% endcomment %}
                        type="radio"
                        id="table-display"
                        name="display-select-radio"
-                       @click="window.location.href='{% url "plugin_mi_depafi:realisation-table" %}'">
+                       {% comment %} @click="window.location.href='{% url "plugin_mi_depafi:realisation-table" %}'" {% endcomment %}
+                       >
                 <label class="fr-label" for="table-display">
-                    <a href="{% url "plugin_mi_depafi:realisation-table" %}">Tableau</a>
+                    {% comment %} <a href="{% url "plugin_mi_depafi:realisation-table" %}">Tableau</a> {% endcomment %}
+                    Tableau
                 </label>
             </div>
             <div class="fr-segmented__element">
                 <input value="map"
-                       {% if url_name == 'realisation-map' %}checked{% endif %}
+                       {% comment %} {% if url_name == 'realisation-map' %}checked{% endif %} {% endcomment %}
                        type="radio"
                        id="map-display"
                        name="display-select-radio"
-                       @click="window.location.href='{% url "plugin_mi_depafi:realisation-map" %}'">
+                       {% comment %} @click="window.location.href='{% url "plugin_mi_depafi:realisation-map" %}'" {% endcomment %}
+                       >
                 <label class="fr-label" for="map-display">
-                    <a href="{% url "plugin_mi_depafi:realisation-map" %}">Carte</a>
+                    {% comment %} <a href="{% url "plugin_mi_depafi:realisation-map" %}">Carte</a> {% endcomment %}
+                    Carte
                 </label>
             </div>
         </div>
