@@ -3,14 +3,13 @@ from django.urls import path
 from .views import (
     CrmRealisationCsvView,
     CrmRealisationListView,
+    RealisationBrowseView,
     RealisationCreateView,
     RealisationDeleteView,
     RealisationDetailView,
     RealisationLikeToggleView,
     RealisationListView,
-    RealisationMapView,
     RealisationPickProjectView,
-    RealisationTableView,
     RealisationUpdateView,
     RealisationsByResourceView,
 )
@@ -29,14 +28,9 @@ urlpatterns = [
         name="crm-realisation-csv",
     ),
     path(
-        "realisations/map/",
-        RealisationMapView.as_view(),
-        name="realisation-map",
-    ),
-    path(
         "realisations/",
-        RealisationTableView.as_view(),
-        name="realisation-table",
+        RealisationBrowseView.as_view(),
+        name="realisation-browse",
     ),
     path(
         "project/<int:project_id>/realisations/",

@@ -55,7 +55,7 @@ class MiDepafiPlugin:
     def main_navigation_tabs(self, request):
         return {
             "label": "Sites et réalisations",
-            "url_name": "plugin_mi_depafi:realisation-map",
+            "url_name": "plugin_mi_depafi:realisation-browse",
             "index": 45,
         }
 
