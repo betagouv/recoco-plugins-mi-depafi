@@ -1,9 +1,10 @@
 import pytest
+from django.contrib.sites.shortcuts import get_current_site
 from django.core.files.uploadedfile import SimpleUploadedFile
 from model_bakery import baker
 
 from recoco.apps.projects import utils as project_utils
-from recoco.utils import login
+from recoco.utils import assign_site_staff, login
 
 from ..conftest import make_project_on_site
 from ..models import Realisation, RealisationLike, RealisationPhoto
@@ -645,7 +646,9 @@ def test_realisation_detail_redirects_unauthenticated(request, client):
 def test_realisation_detail_accessible_for_any_logged_in_user(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
-    realisation = baker.make(Realisation, project=project, resource=resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
     with login(client):
         response = client.get(detail_url(realisation))
     assert response.status_code == 200
@@ -655,7 +658,9 @@ def test_realisation_detail_accessible_for_any_logged_in_user(request, client):
 def test_realisation_detail_shows_resource_title(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request, title="Mon action vélo")
-    realisation = baker.make(Realisation, project=project, resource=resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
     with login(client):
         response = client.get(detail_url(realisation))
     assert b"Mon action v\xc3\xa9lo" in response.content
@@ -670,6 +675,7 @@ def test_realisation_detail_shows_partners(request, client):
         project=project,
         resource=resource,
         partners="Fondation Jean-Moulin",
+        status=Realisation.PUBLISHED,
     )
     with login(client):
         response = client.get(detail_url(realisation))
@@ -682,7 +688,9 @@ def test_realisation_detail_shows_project_name(request, client):
     project.name = "ATE Doubs"
     project.save()
     resource = make_resource(request)
-    realisation = baker.make(Realisation, project=project, resource=resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
     with login(client):
         response = client.get(detail_url(realisation))
     assert b"ATE Doubs" in response.content
@@ -692,7 +700,59 @@ def test_realisation_detail_shows_project_name(request, client):
 def test_realisation_detail_context_has_realisation(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
-    realisation = baker.make(Realisation, project=project, resource=resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
     with login(client):
         response = client.get(detail_url(realisation))
     assert response.context["realisation"] == realisation
+
+
+@pytest.mark.django_db
+def test_realisation_detail_draft_hidden_from_other_users(request, client):
+    """Another user's draft is not readable by pk enumeration (IDOR)."""
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    realisation = baker.make(
+        Realisation,
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
+        created_by=baker.make("auth.User"),
+    )
+    with login(client):
+        response = client.get(detail_url(realisation))
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_realisation_detail_draft_accessible_to_creator(request, client):
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    with login(client) as user:
+        realisation = baker.make(
+            Realisation,
+            project=project,
+            resource=resource,
+            status=Realisation.DRAFT,
+            created_by=user,
+        )
+        response = client.get(detail_url(realisation))
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_realisation_detail_draft_accessible_to_staff(request, client):
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    realisation = baker.make(
+        Realisation,
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
+        created_by=baker.make("auth.User"),
+    )
+    with login(client) as user:
+        assign_site_staff(get_current_site(request), user)
+        response = client.get(detail_url(realisation))
+    assert response.status_code == 200

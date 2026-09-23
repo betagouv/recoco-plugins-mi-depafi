@@ -25,6 +25,13 @@ def list_url(project):
     return reverse(f"{PLUGIN_NAME}:realisation-list", kwargs={"project_id": project.pk})
 
 
+def perimeter_update_url(project):
+    return reverse(
+        f"{PLUGIN_NAME}:depafi-project-perimeter-update",
+        kwargs={"project_id": project.pk},
+    )
+
+
 def create_url(project):
     return reverse(
         f"{PLUGIN_NAME}:realisation-create", kwargs={"project_id": project.pk}

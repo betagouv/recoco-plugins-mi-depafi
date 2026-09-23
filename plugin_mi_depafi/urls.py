@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     CrmRealisationCsvView,
     CrmRealisationListView,
+    DepafiProjectPerimeterUpdateView,
     RealisationBrowseView,
     RealisationCreateView,
     RealisationDeleteView,
@@ -31,6 +32,11 @@ urlpatterns = [
         "realisations/",
         RealisationBrowseView.as_view(),
         name="realisation-browse",
+    ),
+    path(
+        "project/<int:project_id>/perimetre/modifier/",
+        DepafiProjectPerimeterUpdateView.as_view(),
+        name="depafi-project-perimeter-update",
     ),
     path(
         "project/<int:project_id>/realisations/",
