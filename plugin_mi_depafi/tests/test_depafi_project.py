@@ -1,7 +1,9 @@
 import pytest
+from django.urls import reverse
 from guardian.shortcuts import assign_perm
 from model_bakery import baker
 
+from recoco.apps.home.models import SiteConfiguration
 from recoco.apps.plugins.resolvers import set_enabled_plugins
 from recoco.apps.projects import utils as project_utils
 from recoco.apps.projects.models import Project
@@ -134,3 +136,86 @@ def test_perimeter_update_forbidden_without_permission(request, client):
     assert response.status_code == 403
     profile = DepafiProject.objects.get(pk=project.pk)
     assert profile.perimeter == ""
+
+
+# ---------------------------------------------------------------------------
+# Perimeter block on the project overview page
+# ---------------------------------------------------------------------------
+
+
+def overview_url(project):
+    return reverse(
+        "projects-project-detail-overview", kwargs={"project_id": project.pk}
+    )
+
+
+@pytest.mark.django_db
+def test_perimeter_block_visible_on_project_overview(request, client):
+    """The overview page shows the perimeter block with the current value."""
+    project = make_project_on_site(request)
+    DepafiProject.objects.filter(pk=project.pk).update(
+        perimeter=DepafiProject.Perimeter.SGAMI
+    )
+
+    with login(client) as user:
+        assign_perm("projects.view_project", user, project)
+        response = client.get(overview_url(project))
+
+    assert response.status_code == 200
+    html = response.content.decode()
+    assert 'data-cy="project-perimeter-block"' in html
+    assert "SGAMI" in html
+
+
+@pytest.mark.django_db
+def test_perimeter_block_shows_placeholder_when_unset(request, client):
+    """The block is always visible; an empty perimeter shows a placeholder."""
+    project = make_project_on_site(request)
+
+    with login(client) as user:
+        assign_perm("projects.view_project", user, project)
+        response = client.get(overview_url(project))
+
+    assert response.status_code == 200
+    assert "Non renseigné" in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_perimeter_block_edit_button_with_permission(request, client):
+    """Users allowed to change the project see the edit button."""
+    project = make_project_on_site(request)
+
+    with login(client) as user:
+        assign_perm("projects.view_project", user, project)
+        assign_perm("projects.change_project", user, project)
+        response = client.get(overview_url(project))
+
+    assert response.status_code == 200
+    assert perimeter_update_url(project) in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_perimeter_block_no_edit_button_without_permission(request, client):
+    """Users not allowed to change the project don't see the edit button."""
+    project = make_project_on_site(request)
+
+    with login(client) as user:
+        assign_perm("projects.view_project", user, project)
+        response = client.get(overview_url(project))
+
+    assert response.status_code == 200
+    assert perimeter_update_url(project) not in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_perimeter_block_absent_when_plugin_disabled(request, client):
+    """No perimeter block is rendered when the plugin is disabled for the site."""
+    project = make_project_on_site(request)
+    SiteConfiguration.objects.update(enabled_plugins=[])
+
+    with login(client) as user:
+        assign_perm("projects.view_project", user, project)
+        response = client.get(overview_url(project))
+
+    assert response.status_code == 200
+    assert "project-perimeter-block" not in response.content.decode()
