@@ -196,6 +196,9 @@ def test_realisation_create_assigns_project(request, client):
 def test_realisation_create_redirects_to_list_on_success(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
+    # Resolve the expected URL before the request: the tenant middleware
+    # clears the enabled-plugins registry when the request exits.
+    expected_url = list_url(project)
 
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
@@ -210,7 +213,7 @@ def test_realisation_create_redirects_to_list_on_success(request, client):
         )
 
     assert response.status_code == 302
-    assert response["Location"] == list_url(project)
+    assert response["Location"] == expected_url
 
 
 @pytest.mark.django_db
@@ -407,6 +410,7 @@ def test_realisation_update_redirects_to_list_on_success(request, client):
             status=Realisation.DRAFT,
             created_by=user,
         )
+        expected_url = list_url(project)
         response = client.post(
             update_url(project, realisation),
             {
@@ -417,7 +421,7 @@ def test_realisation_update_redirects_to_list_on_success(request, client):
             },
         )
     assert response.status_code == 302
-    assert response["Location"] == list_url(project)
+    assert response["Location"] == expected_url
 
 
 # ---------------------------------------------------------------------------
@@ -548,8 +552,9 @@ def test_realisation_delete_post_redirects_to_list(request, client):
             status=Realisation.DRAFT,
             created_by=user,
         )
+        expected_url = list_url(project)
         response = client.post(delete_url(project, realisation))
-    assert response["Location"] == list_url(project)
+    assert response["Location"] == expected_url
 
 
 # ---------------------------------------------------------------------------

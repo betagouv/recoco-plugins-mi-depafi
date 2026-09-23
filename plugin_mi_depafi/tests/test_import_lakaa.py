@@ -15,7 +15,6 @@ from django.contrib.sites.models import Site
 from model_bakery import baker
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.geomatics.models import Commune, Department
-from recoco.apps.home.models import UserProfile
 from recoco.apps.projects.models import Project
 from recoco.apps.resources.models import Category, Resource
 
@@ -67,39 +66,47 @@ def _get_site(request):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.django_db
 def test_parse_date_slash_format():
     assert _parse_date("15/11/2022") == date(2022, 11, 15)
 
 
+@pytest.mark.django_db
 def test_parse_date_iso_format():
     assert _parse_date("2023-04-01") == date(2023, 4, 1)
 
 
+@pytest.mark.django_db
 def test_parse_date_empty_returns_none():
     assert _parse_date("") is None
     assert _parse_date(None) is None
     assert _parse_date("n.a.") is None
 
 
+@pytest.mark.django_db
 def test_parse_dt_utc_string():
     dt = _parse_dt("2024-05-16 07:13:20 UTC")
     assert dt is not None
     assert dt.year == 2024 and dt.month == 5 and dt.day == 16
 
 
+@pytest.mark.django_db
 def test_val_sentinels_return_none():
     for sentinel in ("n.a", "-", "n.a.", "", None):
         assert _val(sentinel) is None
 
 
+@pytest.mark.django_db
 def test_val_strips_whitespace():
     assert _val("  bonjour  ") == "bonjour"
 
 
+@pytest.mark.django_db
 def test_strip_org_removes_suffix():
     assert _strip_org(f"GGD Meurthe{_ORG_SUFFIX}") == "GGD Meurthe"
 
 
+@pytest.mark.django_db
 def test_strip_org_no_suffix_unchanged():
     assert _strip_org("GGD Meurthe") == "GGD Meurthe"
 
@@ -324,7 +331,9 @@ def test_import_resources_category_scoped_per_site(tmp_path, request):
     site_a = _get_site(request)
     site_b = baker.make(Site, domain="other-site.example.com")
 
-    existing_cat = baker.make(Category, name="4. Ressources", color="blue", icon="bi-star")
+    existing_cat = baker.make(
+        Category, name="4. Ressources", color="blue", icon="bi-star"
+    )
     existing_cat.sites.add(site_b)
 
     path = _write_csv(
@@ -366,8 +375,14 @@ def test_import_resources_category_scoped_per_site(tmp_path, request):
 
 
 _SITES_HEADER = {
-    "id": "X", "name": "X", "external id": "X", "organisation": "X",
-    "address": "X", "coordinates": "X", "created at": "X", "group": "X",
+    "id": "X",
+    "name": "X",
+    "external id": "X",
+    "organisation": "X",
+    "address": "X",
+    "coordinates": "X",
+    "created at": "X",
+    "group": "X",
 }
 
 
@@ -412,10 +427,14 @@ def test_import_projects_sets_coordinates(tmp_path, request):
         [
             _SITES_HEADER,
             {
-                "id": "1", "name": "Site GPS", "external id": "EXT-1",
-                "organisation": "", "address": "",
+                "id": "1",
+                "name": "Site GPS",
+                "external id": "EXT-1",
+                "organisation": "",
+                "address": "",
                 "coordinates": "48.6921, 6.1844",
-                "created at": "", "group": "",
+                "created at": "",
+                "group": "",
             },
         ],
     )
@@ -437,9 +456,13 @@ def test_import_projects_creates_org_in_group(tmp_path, request):
         [
             _SITES_HEADER,
             {
-                "id": "1", "name": "Mon site", "external id": "EXT-1",
+                "id": "1",
+                "name": "Mon site",
+                "external id": "EXT-1",
                 "organisation": f"GGD Meurthe{_ORG_SUFFIX}",
-                "address": "", "coordinates": "", "created at": "",
+                "address": "",
+                "coordinates": "",
+                "created at": "",
                 "group": f"Zone Est{_ORG_SUFFIX}",
             },
         ],
@@ -466,9 +489,13 @@ def test_import_projects_force_updates_org_group(tmp_path, request):
         [
             _SITES_HEADER,
             {
-                "id": "1", "name": "Mon site", "external id": "EXT-1",
+                "id": "1",
+                "name": "Mon site",
+                "external id": "EXT-1",
                 "organisation": "GGD Meurthe",
-                "address": "", "coordinates": "", "created at": "",
+                "address": "",
+                "coordinates": "",
+                "created at": "",
                 "group": "Nouveau groupe",
             },
         ],
@@ -494,9 +521,13 @@ def test_import_projects_does_not_overwrite_org_group_without_force(tmp_path, re
         [
             _SITES_HEADER,
             {
-                "id": "1", "name": "Mon site", "external id": "EXT-1",
+                "id": "1",
+                "name": "Mon site",
+                "external id": "EXT-1",
                 "organisation": "GGD Meurthe",
-                "address": "", "coordinates": "", "created at": "",
+                "address": "",
+                "coordinates": "",
+                "created at": "",
                 "group": "Nouveau groupe",
             },
         ],
@@ -523,9 +554,14 @@ def test_import_projects_force_updates_location(tmp_path, request):
         [
             _SITES_HEADER,
             {
-                "id": "1", "name": "Mon site", "external id": "EXT-1",
-                "organisation": "", "address": "Nouvelle adresse",
-                "coordinates": "48.6921, 6.1844", "created at": "", "group": "",
+                "id": "1",
+                "name": "Mon site",
+                "external id": "EXT-1",
+                "organisation": "",
+                "address": "Nouvelle adresse",
+                "coordinates": "48.6921, 6.1844",
+                "created at": "",
+                "group": "",
             },
         ],
     )
@@ -553,9 +589,14 @@ def test_import_projects_does_not_update_location_without_force(tmp_path, reques
         [
             _SITES_HEADER,
             {
-                "id": "1", "name": "Mon site", "external id": "EXT-1",
-                "organisation": "", "address": "Nouvelle adresse",
-                "coordinates": "", "created at": "", "group": "",
+                "id": "1",
+                "name": "Mon site",
+                "external id": "EXT-1",
+                "organisation": "",
+                "address": "Nouvelle adresse",
+                "coordinates": "",
+                "created at": "",
+                "group": "",
             },
         ],
     )
@@ -581,9 +622,14 @@ def test_import_projects_matches_commune_by_city_name(tmp_path, request):
         [
             _SITES_HEADER,
             {
-                "id": "1", "name": "ATE Seine-et-Marne", "external id": "EXT-1",
-                "organisation": "", "address": "Melun", "coordinates": "",
-                "created at": "", "group": "",
+                "id": "1",
+                "name": "ATE Seine-et-Marne",
+                "external id": "EXT-1",
+                "organisation": "",
+                "address": "Melun",
+                "coordinates": "",
+                "created at": "",
+                "group": "",
             },
         ],
     )
@@ -613,8 +659,13 @@ def test_import_projects_matches_commune_by_postal_code_and_city(tmp_path, reque
         [
             _SITES_HEADER,
             {
-                "id": "1", "name": "Site Ardennes", "external id": "EXT-1",
-                "organisation": "", "coordinates": "", "created at": "", "group": "",
+                "id": "1",
+                "name": "Site Ardennes",
+                "external id": "EXT-1",
+                "organisation": "",
+                "coordinates": "",
+                "created at": "",
+                "group": "",
                 "address": "9 rue Bayard 08000 Charleville-Mézières",
             },
         ],
@@ -636,9 +687,14 @@ def test_import_projects_no_commune_match_leaves_commune_none(tmp_path, request)
         [
             _SITES_HEADER,
             {
-                "id": "1", "name": "Site inconnu", "external id": "EXT-1",
-                "organisation": "", "address": "Ville introuvable",
-                "coordinates": "", "created at": "", "group": "",
+                "id": "1",
+                "name": "Site inconnu",
+                "external id": "EXT-1",
+                "organisation": "",
+                "address": "Ville introuvable",
+                "coordinates": "",
+                "created at": "",
+                "group": "",
             },
         ],
     )
@@ -658,15 +714,24 @@ def test_import_projects_reads_coordinates_forest_column(tmp_path, request):
         "sites.csv",
         [
             {
-                "id": "X", "name": "X", "external id": "X", "organisation": "X",
-                "address": "X", "coordinates forest": "X", "created at": "X",
+                "id": "X",
+                "name": "X",
+                "external id": "X",
+                "organisation": "X",
+                "address": "X",
+                "coordinates forest": "X",
+                "created at": "X",
                 "group": "X",
             },
             {
-                "id": "1", "name": "Site GPS forest", "external id": "EXT-1",
-                "organisation": "", "address": "",
+                "id": "1",
+                "name": "Site GPS forest",
+                "external id": "EXT-1",
+                "organisation": "",
+                "address": "",
                 "coordinates forest": "48.6921, 6.1844",
-                "created at": "", "group": "",
+                "created at": "",
+                "group": "",
             },
         ],
     )
@@ -692,9 +757,14 @@ def test_import_projects_idempotent(tmp_path, request):
         [
             _SITES_HEADER,
             {
-                "id": "1", "name": "Mon site", "external id": "EXT-1",
-                "organisation": "", "address": "", "coordinates": "",
-                "created at": "", "group": "",
+                "id": "1",
+                "name": "Mon site",
+                "external id": "EXT-1",
+                "organisation": "",
+                "address": "",
+                "coordinates": "",
+                "created at": "",
+                "group": "",
             },
         ],
     )
@@ -709,13 +779,21 @@ def test_import_projects_idempotent(tmp_path, request):
 # _import_users
 # ---------------------------------------------------------------------------
 
+
 def _user_row(**kwargs):
     base = {
-        "id": "1", "organisation": f"Ministère de l'Intérieur{_ORG_SUFFIX}",
-        "first name": "Alice", "last name": "Dupont",
-        "email": "alice@interieur.gouv.fr", "role": "store_manager",
-        "sign in count": "1", "current sign in at": "", "created at": "",
-        "first sign in at": "", "lang": "fr", "updated at": "",
+        "id": "1",
+        "organisation": f"Ministère de l'Intérieur{_ORG_SUFFIX}",
+        "first name": "Alice",
+        "last name": "Dupont",
+        "email": "alice@interieur.gouv.fr",
+        "role": "store_manager",
+        "sign in count": "1",
+        "current sign in at": "",
+        "created at": "",
+        "first sign in at": "",
+        "lang": "fr",
+        "updated at": "",
     }
     base.update(kwargs)
     return base
@@ -727,9 +805,13 @@ def _decl_for_user_row(**kwargs):
         "Nom de l'établissement": f"GGD Meurthe{_ORG_SUFFIX}",
         "Nom de l'action": "Tri",
         "Email du déclarant": "alice@interieur.gouv.fr",
-        "Déclaré le": "", "Completion": "Complet",
-        "Partenaires": "", "Sites concernés": "",
-        "Date de début": "", "Indicateurs": "", "Valeurs": "",
+        "Déclaré le": "",
+        "Completion": "Complet",
+        "Partenaires": "",
+        "Sites concernés": "",
+        "Date de début": "",
+        "Indicateurs": "",
+        "Valeurs": "",
     }
     base.update(kwargs)
     return base
@@ -781,7 +863,9 @@ def test_import_users_links_organisation_to_site(tmp_path, current_site):
 @pytest.mark.django_db
 def test_import_users_force_updates_organisation(tmp_path, current_site):
     old_org = baker.make(Organization)
-    user = baker.make(User, username="alice@interieur.gouv.fr", email="alice@interieur.gouv.fr")
+    user = baker.make(
+        User, username="alice@interieur.gouv.fr", email="alice@interieur.gouv.fr"
+    )
     # baker.make(User) auto-creates a UserProfile via post_save signal
     user.profile.organization = old_org
     user.profile.save(update_fields=["organization"])
@@ -791,7 +875,9 @@ def test_import_users_force_updates_organisation(tmp_path, current_site):
         tmp_path, [_user_row()], [_decl_for_user_row()]
     )
 
-    _make_command()._import_users(users_path, {}, reports_path, current_site, force=True)
+    _make_command()._import_users(
+        users_path, {}, reports_path, current_site, force=True
+    )
 
     user.profile.refresh_from_db()
     assert user.profile.organization.name == "Ministère de l'Intérieur"
@@ -800,7 +886,9 @@ def test_import_users_force_updates_organisation(tmp_path, current_site):
 @pytest.mark.django_db
 def test_import_users_skips_organisation_update_without_force(tmp_path, current_site):
     old_org = baker.make(Organization, name="Organisation originale")
-    user = baker.make(User, username="alice@interieur.gouv.fr", email="alice@interieur.gouv.fr")
+    user = baker.make(
+        User, username="alice@interieur.gouv.fr", email="alice@interieur.gouv.fr"
+    )
     # baker.make(User) auto-creates a UserProfile via post_save signal
     user.profile.organization = old_org
     user.profile.save(update_fields=["organization"])
@@ -976,7 +1064,9 @@ def test_import_realisations_maps_key_figures(tmp_path, request):
 
 
 @pytest.mark.django_db
-def test_import_realisations_maps_description_indicator_to_description(tmp_path, request):
+def test_import_realisations_maps_description_indicator_to_description(
+    tmp_path, request
+):
     project, resource, _ = _setup_realisation_prereqs(request)
 
     path = _write_csv(
@@ -984,7 +1074,9 @@ def test_import_realisations_maps_description_indicator_to_description(tmp_path,
         "decl.csv",
         [
             _decl_row(),
-            _decl_row("Description de votre action", "Tri sélectif installé sur 3 sites"),
+            _decl_row(
+                "Description de votre action", "Tri sélectif installé sur 3 sites"
+            ),
         ],
     )
 
@@ -1008,7 +1100,9 @@ def test_import_realisations_consolidates_multi_row_declaration(tmp_path, reques
         "decl.csv",
         [
             _decl_row(),
-            _decl_row("Description de votre action", "Tri sélectif installé sur 3 sites"),
+            _decl_row(
+                "Description de votre action", "Tri sélectif installé sur 3 sites"
+            ),
             _decl_row("Sites concernés", "Caserne Roux, Lexy"),
             _decl_row("Fichier (Word, PDF)", "http://invalid.test/justificatif.pdf"),
             _decl_row("Nombre d'agents bénéficiaires", "120"),
