@@ -5,9 +5,8 @@ import _ from 'lodash';
 import '@core/css/crm/table.scss';
 import '@core/css/crm/projectList.scss';
 
-Alpine.data('RealisationTable', (regionsData) => ({
+Alpine.data('RealisationTable', () => ({
   htmx,
-  regions: JSON.parse(regionsData.textContent),
   realisationsGroupedBySite : {},
 
   get realisationsDataTable () {

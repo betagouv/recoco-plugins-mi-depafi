@@ -7,9 +7,10 @@ const REALISATION_VIEWS_NAME = {
   TABLE : "realisation-table"
 };
 
-Alpine.data('RealisationBrowse', () => ({
+Alpine.data('RealisationBrowse', (regionsData) => ({
   displayedViewName: REALISATION_VIEWS_NAME.MAP,
   viewsName : REALISATION_VIEWS_NAME,
+  regions: JSON.parse(regionsData.textContent),
   realisations: [],
   searchQuery: '',
   selectedDepartments: [],

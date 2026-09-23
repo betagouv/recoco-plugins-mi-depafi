@@ -9,10 +9,9 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
-function RealisationsMap(regionsData) {
+function RealisationsMap() {
   return {
     htmx,
-    regions: JSON.parse(regionsData.textContent),
     selectedProjectId: null,
     map: null,
     clusterGroup: null,
