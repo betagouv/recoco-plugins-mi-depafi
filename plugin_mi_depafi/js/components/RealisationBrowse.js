@@ -16,6 +16,10 @@ Alpine.data('RealisationBrowse', (regionsData) => ({
   selectedDepartments: [],
   loading: true,
 
+  get hasActiveFilters() {
+    return this.searchQuery !== '' || this.selectedDepartments.length > 0;
+  },
+
   async init() {
     this.urlParamInit();
     await this.fetchData();
