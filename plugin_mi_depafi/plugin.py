@@ -90,6 +90,26 @@ class MiDepafiPlugin:
         return send_new_realisations_digest(site, user, dry_run)
 
     @hookimpl
+    def project_overview_sidebar_blocks(self, request, project):
+        # Legacy projects (created before the plugin was enabled) may lack their
+        # profile row; getattr swallows the related DoesNotExist gracefully.
+        profile = getattr(project, "depafi", None)
+        can_update = request.user.has_perm("projects.change_project", project)
+        return mark_safe(
+            render_to_string(
+                "plugin_mi_depafi/fragments/project_perimeter_block.html",
+                {
+                    "project": project,
+                    "perimeter_label": (
+                        profile.get_perimeter_display() if profile else ""
+                    ),
+                    "can_update": can_update,
+                },
+                request=request,
+            )
+        )
+
+    @hookimpl
     def notification_project_verbs(self):
         return [RealisationVerbs.PUBLISHED]
 

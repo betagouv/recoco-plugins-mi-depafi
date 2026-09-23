@@ -1,0 +1,21 @@
+<div class="fr-mb-2w" data-cy="project-perimeter-block">
+    <div class="d-flex flex-column">
+        <h6 class="text-uppercase fw-bold d-block fr-mb-1v lh-base h6-specific-fontsize-14">Périmètre</h6>
+        <p class="fr-mb-1w {% if not perimeter_label %}fr-text--grey{% endif %}">
+            {% if perimeter_label %}
+                {{ perimeter_label }}
+            {% else %}
+                Non renseigné
+            {% endif %}
+        </p>
+        {% if can_update %}
+            <div>
+                <a href="{% url 'plugin_mi_depafi:depafi-project-perimeter-update' project_id=project.pk %}"
+                   class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-pencil-line"
+                   data-cy="update-project-perimeter">
+                    Modifier
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
