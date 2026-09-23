@@ -49,10 +49,6 @@ function RealisationsMap() {
       return Object.keys(this.realisationsByProject).length;
     },
 
-    get hasActiveFilters() {
-      return this.searchQuery !== '' || this.selectedDepartments.length > 0;
-    },
-
     sidebarRealisationsForProject(projectId) {
       return this.realisations.filter((r) => r.project.id === projectId);
     },
