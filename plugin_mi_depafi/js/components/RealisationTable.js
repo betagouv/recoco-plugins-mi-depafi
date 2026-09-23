@@ -5,23 +5,21 @@ import _ from 'lodash';
 import '@core/css/crm/table.scss';
 import '@core/css/crm/projectList.scss';
 
-import realisationsFeed from '../utils/realisationsFeed';
-
-Alpine.data('RealisationTable', () => ({
-  ...realisationsFeed(),
+Alpine.data('RealisationTable', (regionsData) => ({
   htmx,
+  regions: JSON.parse(regionsData.textContent),
   realisationsGroupedBySite : {},
 
-  async init() {
-    await this.fetchData();
+  get realisationsDataTable () {
+    return this.realisations;
   },
 
-  afterFetch() {
-    this.realisationsGroupedBySite = _.groupBy(this.realisations, 'project.id');
+  get realisationsGroupedBySite () {
+    return _.groupBy(this.realisationsDataTable, 'project.id');;
   },
 
   countLabel() {
-    const count = this.realisations.length;
+    const count = this.realisationsDataTable.length;
     if (count === 0) return 'Aucun résultat';
     return `${count} réalisation${count > 1 ? 's' : ''}`;
   },
@@ -34,7 +32,7 @@ Alpine.data('RealisationTable', () => ({
   },
 
   queryLabel() {
-    const realisationCount = this.realisations.length;
+    const realisationCount = this.realisationsDataTable.length;
     const siteCount = Object.values(this.realisationsGroupedBySite).length;
     if (siteCount === 0) return 'Aucun résultat';
     return `${siteCount} site${siteCount > 1 ? 's' : ''} ayant ${realisationCount} réalisation${realisationCount > 1 ? 's' : ''} correspondante${realisationCount > 1 ? 's' : ''}`

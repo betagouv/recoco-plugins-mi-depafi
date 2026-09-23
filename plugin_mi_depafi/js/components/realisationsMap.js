@@ -9,11 +9,8 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
-import realisationsFeed from '../utils/realisationsFeed';
-
 function RealisationsMap(regionsData) {
   return {
-    ...realisationsFeed(),
     htmx,
     regions: JSON.parse(regionsData.textContent),
     selectedProjectId: null,
@@ -41,9 +38,8 @@ function RealisationsMap(regionsData) {
       return this.realisations.filter((r) => r.project.id === projectId);
     },
 
-    async init() {
+    init() {
       this.initMap();
-      await this.fetchData();
     },
 
     initMap() {
