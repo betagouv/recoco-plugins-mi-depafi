@@ -61,3 +61,6 @@ class PluginMiDepafiConfig(AppConfig):
         EmailTemplate._meta.get_field(
             "name"
         ).choices = communication_constants.TPL_CHOICES
+
+
+PLUGIN_NAME = PluginMiDepafiConfig.name

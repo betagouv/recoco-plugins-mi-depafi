@@ -13,16 +13,14 @@ from notifications.models import Notification
 from recoco.apps.conversations.models import Message
 from recoco import verbs as recoco_verbs
 from recoco.apps.feature_flag.models import Switch as WaffleSwitch
-from recoco.apps.home import models as home_models
-from recoco.apps.plugins.resolvers import set_enabled_plugins
 from recoco.apps.projects import utils as project_utils
 from recoco.apps.resources.models import Resource
 from recoco.utils import assign_site_staff, login
 
-from recoco.apps.conversations.models import Message
 from recoco.apps.geomatics.models import Department
 
-from .conftest import PLUGIN_NAME, make_project_on_site
+from .apps import PLUGIN_NAME
+from .conftest import make_project_on_site
 
 from . import verbs as plugin_verbs
 from .digests import send_new_realisations_digest
@@ -30,8 +28,6 @@ from .models import Realisation, RealisationLike, RealisationNode, RealisationPh
 from .plugin import MiDepafiPlugin
 from .signals import notify_staff_on_project_validated, realisation_published
 
-
-PLUGIN_NAME = "plugin_mi_depafi"
 
 # ---------------------------------------------------------------------------
 # Fixtures

@@ -4,7 +4,7 @@ from model_bakery import baker
 
 from recoco.apps.resources.models import Resource
 
-from ..conftest import PLUGIN_NAME
+from ..apps import PLUGIN_NAME
 
 # ---------------------------------------------------------------------------
 # Fixtures
