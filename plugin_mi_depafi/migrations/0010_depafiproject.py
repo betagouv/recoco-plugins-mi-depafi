@@ -5,7 +5,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         ("plugin_mi_depafi", "0009_realisationdocument"),
-        ("projects", "0126_alter_document_the_file"),
+        ("projects", "0124_randomize_document_paths"),
     ]
 
     operations = [
