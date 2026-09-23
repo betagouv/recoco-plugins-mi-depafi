@@ -11,12 +11,12 @@
 
 {% block js %}
     {{ block.super }}
+    {% vite_asset 'js/plugins/components/RealisationBrowse.js' %}
     {% vite_asset 'js/plugins/components/realisationsMap.js' %}
     {% vite_asset 'js/components/DepartmentsSelector.js' %}
     {% vite_asset 'js/styles/departments-selector.css.js' %}
     {% vite_asset 'js/plugins/styles/fragments/realisation-map-panel.css.js' %}
     {% vite_asset 'js/plugins/components/RealisationTable.js' %}
-    {% vite_asset 'js/plugins/components/RealisationBrowse.js' %}
 {% endblock js %}
 
 {% block content %}
@@ -32,10 +32,10 @@
         {% include "plugin_mi_depafi/fragments/toggle_map_table.html" %}
     </div>
 
-    <template x-if="displayedViewName == viewsName.MAP">
+    <template x-if="realisations && displayedViewName == viewsName.MAP">
         {% include "plugin_mi_depafi/fragments/realisation_map.html" %}
     </template>
-    <template x-if="displayedViewName == viewsName.TABLE">
+    <template x-if="realisations && displayedViewName == viewsName.TABLE">
         {% include "plugin_mi_depafi/fragments/realisation_table.html" %}
     </template>
     
