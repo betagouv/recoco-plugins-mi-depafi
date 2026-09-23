@@ -1,7 +1,5 @@
 <div class="d-flex fr-px-0 crm">
-    <div x-data="RealisationTable(regionsArray, realisations)" class="w-100 d-flex flex-column justify-content-start project-list-crm">
-        
-        {% include "plugin_mi_depafi/fragments/filter_map_table.html" %}
+    <div x-data="RealisationTable(realisations)" class="w-100 d-flex flex-column justify-content-start project-list-crm">
         
         <template x-if="searchQuery">
             <h2 class="fr-px-5v fr-mt-4v fr-mb-3w ">Résultat de la recherche : <span x-text="queryLabel"></span></h2>
