@@ -17,6 +17,7 @@ class MiDepafiPlugin:
     urls_module = "plugin_mi_depafi.urls"
     rest_urls_module = "plugin_mi_depafi.rest_urls"
     vite_entries = {
+        "realisationBrowse": "js/components/RealisationBrowse.js",
         "realisationsMap": "js/components/realisationsMap.js",
         "realisationTable": "js/components/RealisationTable.js",
         "realisationMapPanelStyles": "js/styles/fragments/realisation-map-panel.css.js",
