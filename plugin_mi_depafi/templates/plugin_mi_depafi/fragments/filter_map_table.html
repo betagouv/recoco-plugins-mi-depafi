@@ -1,0 +1,36 @@
+<div class="row fr-mb-2w fr-px-5v align-items-center g-2"
+    @displayed-label="onDisplayedLabel($event)"
+    @selected-departments="onDepartmentsSelected($event)">
+    <div class="col-auto flex-grow-1">
+        <div class="fr-input-group search-bar">
+            <label class="fr-label fr-sr-only" for="search-map-input">
+                Rechercher par nom, localisation ou mot-clef...
+            </label>
+            <span class="fr-icon-search-line fr-icon--sm" aria-hidden="true"></span>
+            <input class="fr-input" x-model="searchQuery" @input="onSearch()" placeholder="Nom, localisation ou mot-clef..." id="search-map-input" type="text">
+        </div>
+    </div>
+    <div class="col-auto">
+        {% include "projects/project/fragments/departments_selector/departments_selector_dsfr.html" with filter_by_regions=True zone_objects="regions" select_all=True label_filter="Territoire :" extra_classes="inline-chevron " %}
+    </div>
+    <div class="col-auto">
+        <div class="fr-select-group d-flex align-items-center">
+            <label class="fr-label text-nowrap fr-mr-1w" for="perimeter-filter">
+                Périmètre :
+            </label>
+            <select class="fr-select" aria-describedby="perimeter-filter-messages" id="perimeter-filter" name="permimeter" x-model="selectedPerimeter" @change="onPerimeterSelected">
+                <option value="">Tous les périmètres</option>
+                {% for value, label in perimeter %}
+                    <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+            <div class="fr-messages-group fr-sr-only" id="perimeter-filter-messages" aria-live="polite">
+                Selectionnez un perimètre pour filtrer les sites
+            </div>
+        </div>
+    </div>
+
+    <button class="fr-btn fr-btn--tertiary-no-outline" @click="onClickResetQuery">
+        <span class="fr-icon-close-line fr-icon--sm fr-mr-1w" aria-hidden="true"></span> Réinitialiser les filtres
+    </button>
+</div>

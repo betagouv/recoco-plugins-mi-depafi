@@ -1,6 +1,5 @@
 from django.db.models import Count
 from django.urls import reverse
-
 from rest_framework import serializers
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.generics import ListAPIView
@@ -17,7 +16,17 @@ class RealisationDepartmentsFilter(BaseFilterBackend):
     def filter_queryset(self, request, queryset, _view):
         departments = request.GET.getlist("departments")
         if departments:
-            queryset = queryset.filter(project__commune__department__code__in=departments)
+            queryset = queryset.filter(
+                project__commune__department__code__in=departments
+            )
+        return queryset
+
+
+class RealisationPerimeterFilter(BaseFilterBackend):
+    def filter_queryset(self, request, queryset, _view):
+        perimeter = request.GET.get("perimeter")
+        if perimeter:
+            queryset = queryset.filter(project__depafi__perimeter=perimeter)
         return queryset
 
 
@@ -64,7 +73,15 @@ class RealisationMapSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Realisation
-        fields = ["id", "description", "updated_at", "project", "resource", "photos"]
+        fields = [
+            "id",
+            "description",
+            "date",
+            "updated_at",
+            "project",
+            "resource",
+            "photos",
+        ]
 
     def get_photos(self, obj):
         request = self.context.get("request")
@@ -137,10 +154,14 @@ class CrmRealisationSerializer(serializers.ModelSerializer):
         return reverse("plugin_mi_depafi:realisation-detail", args=[obj.pk])
 
     def get_update_url(self, obj):
-        return reverse("plugin_mi_depafi:realisation-update", args=[obj.project_id, obj.pk])
+        return reverse(
+            "plugin_mi_depafi:realisation-update", args=[obj.project_id, obj.pk]
+        )
 
     def get_delete_url(self, obj):
-        return reverse("plugin_mi_depafi:realisation-delete", args=[obj.project_id, obj.pk])
+        return reverse(
+            "plugin_mi_depafi:realisation-delete", args=[obj.project_id, obj.pk]
+        )
 
 
 class CrmRealisationPagination(LimitOffsetPagination):
@@ -150,7 +171,11 @@ class CrmRealisationPagination(LimitOffsetPagination):
 class CrmRealisationListAPIView(ListAPIView):
     serializer_class = CrmRealisationSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [CrmRealisationSearchFilter, CrmRealisationStatusFilter, RealisationDepartmentsFilter]
+    filter_backends = [
+        CrmRealisationSearchFilter,
+        CrmRealisationStatusFilter,
+        RealisationDepartmentsFilter,
+    ]
     pagination_class = CrmRealisationPagination
 
     def get_queryset(self):
@@ -166,10 +191,18 @@ class CrmRealisationListAPIView(ListAPIView):
 
 class RealisationsForMapAPIView(ListAPIView):
     serializer_class = RealisationMapSerializer
-    filter_backends = [RealisationStatusFilter, WatsonSearchFilter, RealisationDepartmentsFilter]
+    filter_backends = [
+        RealisationStatusFilter,
+        WatsonSearchFilter,
+        RealisationDepartmentsFilter,
+        RealisationPerimeterFilter,
+    ]
     pagination_class = None
 
     def get_queryset(self):
-        return Realisation.objects.select_related(
-            "project__commune__department", "resource"
-        ).prefetch_related("photos")
+        return (
+            Realisation.objects.filter(project__project_sites__site=self.request.site)
+            .select_related("project__commune__department", "resource")
+            .prefetch_related("photos")
+            .distinct()
+        )

@@ -17,7 +17,10 @@ class MiDepafiPlugin:
     urls_module = "plugin_mi_depafi.urls"
     rest_urls_module = "plugin_mi_depafi.rest_urls"
     vite_entries = {
+        "realisationBrowse": "js/components/RealisationBrowse.js",
         "realisationsMap": "js/components/realisationsMap.js",
+        "realisationTable": "js/components/RealisationTable.js",
+        "realisationMapPanelStyles": "js/styles/fragments/realisation-map-panel.css.js",
         "realisationDetailView": "js/components/RealisationDetailView.js",
         "realisationListCrm": "js/apps/realisationListCrm.js",
         "realisationForm": "js/apps/realisationForm.js",
@@ -47,6 +50,13 @@ class MiDepafiPlugin:
             "url_name": "plugin_mi_depafi:crm-realisation-list",
             "tab_key": "plugin_mi_depafi",
             "index": 15,
+        }
+
+    @hookimpl
+    def header_menu_entries(self, request):
+        return {
+            "label": "Sites et réalisations",
+            "url_name": "plugin_mi_depafi:realisation-browse",
         }
 
     @hookimpl
@@ -88,6 +98,26 @@ class MiDepafiPlugin:
     @hookimpl
     def send_digests_for_staff_users(self, site, user, dry_run):
         return send_new_realisations_digest(site, user, dry_run)
+
+    @hookimpl
+    def project_overview_sidebar_blocks(self, request, project):
+        # Legacy projects (created before the plugin was enabled) may lack their
+        # profile row; getattr swallows the related DoesNotExist gracefully.
+        profile = getattr(project, "depafi", None)
+        can_update = request.user.has_perm("projects.change_project", project)
+        return mark_safe(
+            render_to_string(
+                "plugin_mi_depafi/fragments/project_perimeter_block.html",
+                {
+                    "project": project,
+                    "perimeter_label": (
+                        profile.get_perimeter_display() if profile else ""
+                    ),
+                    "can_update": can_update,
+                },
+                request=request,
+            )
+        )
 
     @hookimpl
     def notification_project_verbs(self):

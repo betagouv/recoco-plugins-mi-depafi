@@ -3,13 +3,14 @@ from django.contrib.sites.models import Site
 from django.contrib.sites.shortcuts import get_current_site
 from model_bakery import baker
 from multisite.models import Alias
+from waffle.testutils import override_switch
+
 from recoco.apps.home import models as home_models
 from recoco.apps.plugins.resolvers import set_enabled_plugins
 from recoco.apps.projects.models import Project
-from waffle.testutils import override_switch
 
-PLUGIN_NAME = "plugin_mi_depafi"
-
+from .apps import PLUGIN_NAME
+from .models import DepafiProject
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -55,6 +56,18 @@ def make_project_on_site(request):
     project = baker.make(Project)
     project.project_sites.create(site=site, status="READY", is_origin=True)
     return project
+
+
+def set_project_perimeter(project, perimeter):
+    """Store `perimeter` on the project's DepafiProject profile.
+
+    The profile is normally auto-created by the plugin signal on Project
+    creation; it is created here if missing (legacy projects).
+    """
+    profile, _ = DepafiProject.objects.get_or_create(project=project)
+    profile.perimeter = perimeter
+    profile.save()
+    return profile
 
 
 @pytest.fixture(scope="session", autouse=True)

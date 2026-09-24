@@ -1,0 +1,28 @@
+<fieldset class="fr-segmented fr-segmented--sm fr-pl-5v">
+    <legend class="fr-segmented__legend inline text-nowrap fr-mb-0 fr-pr-1w">Vue :</legend>
+    <div class="fr-segmented__elements">
+        <div class="fr-segmented__element">
+            <input :value="viewsName.MAP"
+                    :checked="displayedViewName == viewsName.MAP"
+                    type="radio"
+                    id="table-display"
+                    name="display-select-radio"
+                    x-model="displayedViewName">
+            <label class="fr-label" for="table-display">
+                Carte
+            </label>
+        </div>
+        <div class="fr-segmented__element">
+            <input :value="viewsName.TABLE"
+                    :checked="displayedViewName == viewsName.TABLE"
+                    type="radio"
+                    id="map-display"
+                    name="display-select-radio"
+                    x-model="displayedViewName">
+            <label class="fr-label" for="map-display">
+                Tableau
+            </label>
+        </div>
+    </div>
+</fieldset>
+

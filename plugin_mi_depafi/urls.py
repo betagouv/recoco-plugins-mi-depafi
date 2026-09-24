@@ -3,12 +3,13 @@ from django.urls import path
 from .views import (
     CrmRealisationCsvView,
     CrmRealisationListView,
+    DepafiProjectPerimeterUpdateView,
+    RealisationBrowseView,
     RealisationCreateView,
     RealisationDeleteView,
     RealisationDetailView,
     RealisationLikeToggleView,
     RealisationListView,
-    RealisationMapView,
     RealisationPickProjectView,
     RealisationUpdateView,
     RealisationsByResourceView,
@@ -29,8 +30,13 @@ urlpatterns = [
     ),
     path(
         "realisations/",
-        RealisationMapView.as_view(),
-        name="realisation-map",
+        RealisationBrowseView.as_view(),
+        name="realisation-browse",
+    ),
+    path(
+        "project/<int:project_id>/perimetre/modifier/",
+        DepafiProjectPerimeterUpdateView.as_view(),
+        name="depafi-project-perimeter-update",
     ),
     path(
         "project/<int:project_id>/realisations/",
