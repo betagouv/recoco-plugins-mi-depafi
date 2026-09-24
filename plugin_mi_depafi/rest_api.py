@@ -1,6 +1,5 @@
 from django.db.models import Count
 from django.urls import reverse
-
 from rest_framework import serializers
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.generics import ListAPIView
@@ -20,6 +19,14 @@ class RealisationDepartmentsFilter(BaseFilterBackend):
             queryset = queryset.filter(
                 project__commune__department__code__in=departments
             )
+        return queryset
+
+
+class RealisationPerimeterFilter(BaseFilterBackend):
+    def filter_queryset(self, request, queryset, _view):
+        perimeter = request.GET.get("perimeter")
+        if perimeter:
+            queryset = queryset.filter(project__depafi__perimeter=perimeter)
         return queryset
 
 
@@ -188,6 +195,7 @@ class RealisationsForMapAPIView(ListAPIView):
         RealisationStatusFilter,
         WatsonSearchFilter,
         RealisationDepartmentsFilter,
+        RealisationPerimeterFilter,
     ]
     pagination_class = None
 
