@@ -13,11 +13,14 @@ Alpine.data('RealisationBrowse', (regionsData) => ({
   regions: JSON.parse(regionsData.textContent),
   realisations: [],
   searchQuery: '',
+  labelSelectedDepartment: '',
   selectedDepartments: [],
+  selectedPerimeter: '',
+  selectPerimeterState: 'pristine',
   loading: true,
 
   get hasActiveFilters() {
-    return this.searchQuery !== '' || this.selectedDepartments.length > 0;
+    return this.searchQuery !== '' || this.selectedDepartments.length > 0 || this.selectPerimeterState == 'dirty';
   },
 
   async init() {
@@ -42,6 +45,7 @@ Alpine.data('RealisationBrowse', (regionsData) => ({
     const params = new URLSearchParams();
     if (this.searchQuery) params.set('search', this.searchQuery);
     this.selectedDepartments.forEach((d) => params.append('departments', d));
+    params.append('perimeter', this.selectedPerimeter);
     this.realisations = (await api.get(`/api/realisations/map/?${params}`)).data;
     this.loading = false;
   },
@@ -49,6 +53,11 @@ Alpine.data('RealisationBrowse', (regionsData) => ({
   onSearch: _.debounce(async function () {
     await this.fetchData();
   }, 400),
+
+  async onPerimeterSelected() {
+    this.selectPerimeterState = 'dirty'
+    await this.fetchData();
+  },
 
   async onDepartmentsSelected(event) {
     this.selectedDepartments = event.detail || [];
@@ -62,5 +71,6 @@ Alpine.data('RealisationBrowse', (regionsData) => ({
   onClickResetQuery() {
     this.searchQuery = '';
     this.$dispatch('reset-departments-selector');
+    this.selectedPerimeter = '';
   },
 }));
