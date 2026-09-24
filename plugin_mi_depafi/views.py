@@ -350,6 +350,7 @@ class RealisationBrowseView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         regions = Region.objects.prefetch_related("departments").order_by("name")
+        ctx["perimeter"] = DepafiProject.Perimeter.choices
         ctx["regions"] = list(RegionSerializer(regions, many=True).data)
         return ctx
 
