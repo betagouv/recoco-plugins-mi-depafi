@@ -1,7 +1,7 @@
 <div x-data="RealisationsMap">
     
     <div class="row">
-        <div :class="{'col-8 col-xl-9': panelConfig.isOpen, 'col-12': !panelConfig.isOpen }" class="fr-pr-0 position-relative">
+        <div :class="{'col-8 col-xl-9': panelConfig.isOpen, 'col-12': !panelConfig.isOpen }" class="fr-p-0 position-relative">
             <div id="realisations-map"></div>
             {% include "projects/project/fragments/map/grey_scale_toggle.html" with is_checked=False %}
         </div>

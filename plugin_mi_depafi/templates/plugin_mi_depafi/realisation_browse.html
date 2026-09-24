@@ -21,16 +21,18 @@
 
 {% block content %}
 {{ regions|json_script:"regionsArray" }}
-<div class="container-fluid fr-py-3w"
+<div class="container-fluid fr-p-0"
      x-data="RealisationBrowse(regionsArray)">
 
     <div x-data="{ breadcrumbs: { links: [{url: '{% url 'home' %}', title: 'Accueil'}], current: 'Réalisations' } }"
-         class="fr-p-0">{% include "tools/breadcrumb.html" %}</div>
-    <h1 class="fr-h3 fr-px-5v fr-mb-2w">Découvrir les sites et leurs réalisations</h1>
+    class="fr-p-0">{% include "tools/breadcrumb.html" %}</div>
 
     <div class="fr-my-2w">
         {% include "plugin_mi_depafi/fragments/toggle_map_table.html" %}
     </div>
+    
+    <h1 class="fr-h3 fr-px-5v fr-mb-2w">Découvrir les sites et leurs réalisations</h1>
+
 
     {% include "plugin_mi_depafi/fragments/filter_map_table.html" %}
 
