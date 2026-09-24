@@ -3,6 +3,16 @@
   min-height: 400px;
   z-index: 1;
 }
+
+.realisation-browse__filter-container {
+  label {
+    color: var(--light-decisions-text-text-mention-grey, #666);
+
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5rem; 
+  }
+}
 .map-panel {
   padding: 1.5rem;
   padding-top: 0.5rem;
