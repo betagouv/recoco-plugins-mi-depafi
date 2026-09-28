@@ -54,6 +54,7 @@ class MiDepafiPlugin:
         return {
             "label": "Sites et réalisations",
             "url_name": "plugin_mi_depafi:realisation-map",
+            "index": 45,
         }
 
     @hookimpl
