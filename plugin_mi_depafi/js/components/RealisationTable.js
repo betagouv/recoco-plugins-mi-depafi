@@ -8,13 +8,23 @@ import '@core/css/crm/projectList.scss';
 Alpine.data('RealisationTable', () => ({
   htmx,
   realisationsGroupedBySite : {},
+  displayedSites: [],
 
   get realisationsDataTable () {
     return this.realisations;
   },
 
+  get displayedSites () {
+    const start = (this.pagination.currentPage - 1) * this.pagination.limit;
+    return Object.values(this.realisationsGroupedBySite).slice(start, start+ this.pagination.limit)
+  },
+
   get realisationsGroupedBySite () {
     return _.groupBy(this.realisationsDataTable, 'project.id');;
+  },
+
+  init() {
+    this.$watch('realisations', () => this.updatePagination())
   },
 
   countLabel() {
@@ -47,4 +57,20 @@ Alpine.data('RealisationTable', () => ({
     const value = realisation.date ?? realisation.updated_at;
     return value ? new Date(value).toLocaleDateString('fr-FR') : '—';
   },
+
+  // Pagination
+  pagination: {
+    currentPage: 1,
+    limit: 20,
+    total: 0
+  },
+
+  updatePagination() {
+    this.pagination.total = Math.ceil(Object.values(this.realisationsGroupedBySite).length / this.pagination.limit);
+    this.pagination.currentPage = 1;
+  },
+
+  onChangePage(pageNumber) {
+    this.pagination.currentPage = pageNumber;
+  }
 }));
