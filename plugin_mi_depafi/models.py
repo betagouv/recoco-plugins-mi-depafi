@@ -1,3 +1,5 @@
+import uuid
+
 from django.conf import settings
 from django.db import models
 from django.urls import reverse
@@ -176,7 +178,10 @@ class RealisationNode(Node):
 
 
 def _realisation_photo_upload_path(instance, filename):
-    return f"plugins/mi_depafi/realisations/{instance.realisation_id}/photos/{filename}"
+    return (
+        f"plugins/mi_depafi/realisations/{instance.realisation_id}/"
+        f"{uuid.uuid4().hex}/photos/{filename}"
+    )
 
 
 class RealisationPhoto(models.Model):
@@ -196,7 +201,8 @@ class RealisationPhoto(models.Model):
 
 def _realisation_document_upload_path(instance, filename):
     return (
-        f"plugins/mi_depafi/realisations/{instance.realisation_id}/documents/{filename}"
+        f"plugins/mi_depafi/realisations/{instance.realisation_id}/"
+        f"{uuid.uuid4().hex}/documents/{filename}"
     )
 
 
