@@ -1,9 +1,8 @@
 import csv
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Exists, OuterRef, Q
-from django.http import HttpResponse
+from django.db.models import Count, Exists, OuterRef
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import DetailView, ListView, TemplateView, View
@@ -13,7 +12,7 @@ from recoco.apps.geomatics.serializers import RegionSerializer
 from recoco.apps.projects.models import Project
 from recoco.apps.projects.views.detail import ProjectDetailBaseView
 from recoco.apps.resources.models import Resource
-from recoco.utils import has_perm_or_403, is_staff_for_site
+from recoco.utils import has_perm, has_perm_or_403
 
 from .forms import DepafiProjectPerimeterForm, RealisationForm
 from .models import (
@@ -24,6 +23,22 @@ from .models import (
     RealisationPhoto,
 )
 from .signals import realisation_deleted, realisation_published
+
+
+class RealisationWriteMixin:
+    """Permissions for realisation write views (create, update, delete).
+
+    Realisations are project content (photos, documents): whoever may manage
+    the project documents may manage its realisations. This covers
+    collaborators of accepted projects, advisors/observers, and site staff
+    through guardian's staff bypass (see recoco.apps.home.models).
+    """
+
+    def check_permissions(self):
+        has_perm_or_403(self.request.user, "projects.manage_documents", self.object)
+
+    def _get_realisation(self):
+        return get_object_or_404(Realisation, pk=self.kwargs["pk"], project=self.object)
 
 
 class DepafiProjectPerimeterUpdateView(ProjectDetailBaseView):
@@ -92,8 +107,7 @@ class RealisationListView(ProjectDetailBaseView):
         return context
 
 
-class RealisationCreateView(ProjectDetailBaseView):
-    # FIXME needs permissions handling
+class RealisationCreateView(RealisationWriteMixin, ProjectDetailBaseView):
     template_name = "plugin_mi_depafi/realisation_create_update.html"
     http_method_names = ["get", "head", "options", "post"]
 
@@ -107,13 +121,14 @@ class RealisationCreateView(ProjectDetailBaseView):
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
+        self.check_permissions()
         form = RealisationForm(request.POST)
 
         if form.is_valid():
             realisation = form.save(commit=False)
             realisation.project = self.object
             realisation.created_by = request.user
-            new_status = request.POST.get("status", Realisation.DRAFT)
+            new_status = form.cleaned_data.get("status") or Realisation.DRAFT
             realisation.status = new_status
             realisation.save()
 
@@ -145,19 +160,9 @@ class RealisationCreateView(ProjectDetailBaseView):
         return self.render_to_response(context)
 
 
-class RealisationUpdateView(ProjectDetailBaseView):
+class RealisationUpdateView(RealisationWriteMixin, ProjectDetailBaseView):
     template_name = "plugin_mi_depafi/realisation_create_update.html"
     http_method_names = ["get", "head", "options", "post"]
-
-    def _get_realisation(self):
-        filters = {"pk": self.kwargs["pk"], "project": self.object}
-        if not is_staff_for_site(self.request.user, self.request.site):
-            filters["status"] = Realisation.DRAFT
-        realisation = get_object_or_404(Realisation, **filters)
-        if not is_staff_for_site(self.request.user, self.request.site):
-            if realisation.created_by_id != self.request.user.pk:
-                raise PermissionDenied
-        return realisation
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -176,7 +181,7 @@ class RealisationUpdateView(ProjectDetailBaseView):
         if form.is_valid():
             old_status = realisation.status
             realisation = form.save(commit=False)
-            new_status = request.POST.get("status", Realisation.DRAFT)
+            new_status = form.cleaned_data.get("status") or Realisation.DRAFT
             realisation.status = new_status
             realisation.save()
 
@@ -229,18 +234,8 @@ class RealisationUpdateView(ProjectDetailBaseView):
         return self.render_to_response(context)
 
 
-class RealisationDeleteView(ProjectDetailBaseView):
+class RealisationDeleteView(RealisationWriteMixin, ProjectDetailBaseView):
     http_method_names = ["get", "post"]
-
-    def _get_realisation(self):
-        filters = {"pk": self.kwargs["pk"], "project": self.object}
-        if not is_staff_for_site(self.request.user, self.request.site):
-            filters["status"] = Realisation.DRAFT
-        realisation = get_object_or_404(Realisation, **filters)
-        if not is_staff_for_site(self.request.user, self.request.site):
-            if realisation.created_by_id != self.request.user.pk:
-                raise PermissionDenied
-        return realisation
 
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -302,10 +297,7 @@ class RealisationDetailView(LoginRequiredMixin, DetailView):
     context_object_name = "realisation"
 
     def get_queryset(self):
-        # Published realisations are visible to any logged-in user, but drafts
-        # are private work-in-progress: only their creator (or site staff) can
-        # read them, consistently with the update/delete views.
-        queryset = (
+        return (
             super()
             .get_queryset()
             .select_related("resource", "project")
@@ -313,11 +305,20 @@ class RealisationDetailView(LoginRequiredMixin, DetailView):
             .filter(project__project_sites__site=self.request.site)
             .distinct()
         )
-        if not is_staff_for_site(self.request.user, self.request.site):
-            queryset = queryset.filter(
-                Q(status=Realisation.PUBLISHED) | Q(created_by=self.request.user)
-            )
-        return queryset
+
+    def get_object(self, queryset=None):
+        # Published realisations are visible to any logged-in user, but drafts
+        # are work-in-progress: only their creator and those who may edit them
+        # (see RealisationWriteMixin) can read them.
+        realisation = super().get_object(queryset)
+        user = self.request.user
+        if (
+            realisation.status != Realisation.PUBLISHED
+            and realisation.created_by_id != user.pk
+            and not has_perm(user, "projects.manage_documents", realisation.project)
+        ):
+            raise Http404
+        return realisation
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -330,7 +331,7 @@ class RealisationDetailView(LoginRequiredMixin, DetailView):
 
 class RealisationPickProjectView(LoginRequiredMixin, View):
     def get(self, request, resource_id):
-        resource = get_object_or_404(Resource, pk=resource_id)
+        resource = get_object_or_404(Resource.on_site, pk=resource_id)
         projects = (
             Project.on_site.filter(members=request.user)
             .select_related("commune")
@@ -418,19 +419,21 @@ class RealisationsByResourceView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        self.resource = get_object_or_404(Resource, pk=self.kwargs["resource_id"])
+        self.resource = get_object_or_404(
+            Resource.on_site, pk=self.kwargs["resource_id"]
+        )
 
-        current_site = self.request.site
         return (
             Realisation.objects.filter(
                 resource=self.resource,
                 status=Realisation.PUBLISHED,
-                site=current_site,
+                project__project_sites__site=self.request.site,
             )
             .select_related("project__commune__department")
             .prefetch_related("photos")
             .annotate(like_count=Count("likes"))
             .order_by("-created_at")
+            .distinct()
         )
 
     def get_context_data(self, **kwargs):
