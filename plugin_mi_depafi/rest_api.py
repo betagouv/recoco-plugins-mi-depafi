@@ -184,6 +184,7 @@ class CrmRealisationListAPIView(ListAPIView):
 
 class RealisationsForMapAPIView(ListAPIView):
     serializer_class = RealisationMapSerializer
+    permission_classes = [IsAuthenticated]
     filter_backends = [
         RealisationStatusFilter,
         WatsonSearchFilter,
