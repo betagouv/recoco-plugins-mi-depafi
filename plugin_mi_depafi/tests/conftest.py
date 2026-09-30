@@ -4,7 +4,7 @@ from model_bakery import baker
 
 from recoco.apps.resources.models import Resource
 
-from ..conftest import PLUGIN_NAME
+from ..apps import PLUGIN_NAME
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -23,6 +23,13 @@ def make_resource(request, **kwargs):
 
 def list_url(project):
     return reverse(f"{PLUGIN_NAME}:realisation-list", kwargs={"project_id": project.pk})
+
+
+def perimeter_update_url(project):
+    return reverse(
+        f"{PLUGIN_NAME}:depafi-project-perimeter-update",
+        kwargs={"project_id": project.pk},
+    )
 
 
 def create_url(project):

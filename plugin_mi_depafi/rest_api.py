@@ -17,7 +17,9 @@ class RealisationDepartmentsFilter(BaseFilterBackend):
     def filter_queryset(self, request, queryset, _view):
         departments = request.GET.getlist("departments")
         if departments:
-            queryset = queryset.filter(project__commune__department__code__in=departments)
+            queryset = queryset.filter(
+                project__commune__department__code__in=departments
+            )
         return queryset
 
 
@@ -145,10 +147,14 @@ class CrmRealisationSerializer(serializers.ModelSerializer):
         return reverse("plugin_mi_depafi:realisation-detail", args=[obj.pk])
 
     def get_update_url(self, obj):
-        return reverse("plugin_mi_depafi:realisation-update", args=[obj.project_id, obj.pk])
+        return reverse(
+            "plugin_mi_depafi:realisation-update", args=[obj.project_id, obj.pk]
+        )
 
     def get_delete_url(self, obj):
-        return reverse("plugin_mi_depafi:realisation-delete", args=[obj.project_id, obj.pk])
+        return reverse(
+            "plugin_mi_depafi:realisation-delete", args=[obj.project_id, obj.pk]
+        )
 
 
 class CrmRealisationPagination(LimitOffsetPagination):
@@ -158,7 +164,11 @@ class CrmRealisationPagination(LimitOffsetPagination):
 class CrmRealisationListAPIView(ListAPIView):
     serializer_class = CrmRealisationSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [CrmRealisationSearchFilter, CrmRealisationStatusFilter, RealisationDepartmentsFilter]
+    filter_backends = [
+        CrmRealisationSearchFilter,
+        CrmRealisationStatusFilter,
+        RealisationDepartmentsFilter,
+    ]
     pagination_class = CrmRealisationPagination
 
     def get_queryset(self):
@@ -174,10 +184,17 @@ class CrmRealisationListAPIView(ListAPIView):
 
 class RealisationsForMapAPIView(ListAPIView):
     serializer_class = RealisationMapSerializer
-    filter_backends = [RealisationStatusFilter, WatsonSearchFilter, RealisationDepartmentsFilter]
+    filter_backends = [
+        RealisationStatusFilter,
+        WatsonSearchFilter,
+        RealisationDepartmentsFilter,
+    ]
     pagination_class = None
 
     def get_queryset(self):
-        return Realisation.objects.select_related(
-            "project__commune__department", "resource"
-        ).prefetch_related("photos")
+        return (
+            Realisation.objects.filter(project__project_sites__site=self.request.site)
+            .select_related("project__commune__department", "resource")
+            .prefetch_related("photos")
+            .distinct()
+        )

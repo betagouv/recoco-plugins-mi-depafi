@@ -8,7 +8,7 @@ from recoco.apps.plugins.resolvers import set_enabled_plugins
 from recoco.apps.projects.models import Project
 from waffle.testutils import override_switch
 
-PLUGIN_NAME = "plugin_mi_depafi"
+from .apps import PLUGIN_NAME
 
 
 # ---------------------------------------------------------------------------
