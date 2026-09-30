@@ -16,6 +16,7 @@ import os
 import re
 import urllib.request
 from datetime import datetime
+from html import unescape
 
 import html2text
 from tqdm import tqdm
@@ -45,6 +46,12 @@ _RESOURCE_STATUS = {
     "published": Resource.PUBLISHED,
     "draft": Resource.DRAFT,
 }
+
+
+# Column limits: longer Lakaa values are shortened (with a warning) instead of
+# failing the insert, and their full text is kept in a free-text field.
+_SUMMARY_MAX_LENGTH = Resource._meta.get_field("summary").max_length
+_SITE_MAX_LENGTH = Realisation._meta.get_field("site").max_length
 
 
 def _resource_status(value):
@@ -167,6 +174,25 @@ def _html_to_markdown(html):
     converter = html2text.HTML2Text()
     converter.body_width = 0
     return converter.handle(html).strip()
+
+
+def _html_to_text(html):
+    """Convert Lakaa's HTML fields to a single line of plain text."""
+    if not html:
+        return ""
+    # Replace tags with spaces so block elements don't glue words together.
+    text = unescape(re.sub(r"<[^>]+>", " ", html))
+    return " ".join(text.split())
+
+
+def _shorten(text, max_length):
+    """Cut text to at most max_length chars on a word boundary, ending with '…'."""
+    if len(text) <= max_length:
+        return text
+    cut = text[: max_length - 1]
+    if " " in cut:
+        cut = cut.rsplit(" ", 1)[0]
+    return cut.rstrip(" ,;:.-") + "…"
 
 
 def _theme_style(theme_name):
@@ -330,7 +356,7 @@ class Command(TenantCommand):
     def _import_resources(self, actions_path, site, *, force=False):
         rows = _load_csv(actions_path)
         resource_map = {}  # action name (stripped) => Resource pk
-        created_cat = created_res = updated_res = skipped_res = 0
+        created_cat = created_res = updated_res = skipped_res = shortened_summaries = 0
 
         for row in tqdm(rows, desc="Actions", unit="action", file=self.stdout._out):
             name = _strip_org(_val(row.get("Nom Forest")) or "")
@@ -349,8 +375,24 @@ class Command(TenantCommand):
                 created_cat += 1
 
             # description = short intro HTML => summary; body = full how-to HTML => content.
-            summary = _html_to_markdown(_val(row.get("description")) or "")[:512]
-            content = _html_to_markdown(_val(row.get("body")) or "") or summary or name
+            # The summary is displayed as plain text and capped by the core model:
+            # when the description doesn't fit, keep its full text at the top of
+            # content so nothing is lost.
+            description_html = _val(row.get("description")) or ""
+            description_md = _html_to_markdown(description_html)
+            summary_text = _html_to_text(description_html)
+            summary = _shorten(summary_text, _SUMMARY_MAX_LENGTH)
+            body_md = _html_to_markdown(_val(row.get("body")) or "")
+            if summary != summary_text:
+                self.stderr.write(
+                    f"  [WARN] Summary of '{name}' shortened to {_SUMMARY_MAX_LENGTH} chars, "
+                    "full description kept in content"
+                )
+                shortened_summaries += 1
+            if body_md and summary != summary_text:
+                content = f"{description_md}\n\n{body_md}"
+            else:
+                content = body_md or description_md or name
 
             time_indication = _val(row.get("time indication"))
             if time_indication:
@@ -393,7 +435,8 @@ class Command(TenantCommand):
 
         self.stdout.write(
             f"  Categories: {created_cat} created  |  "
-            f"Resources: {created_res} created, {updated_res} updated, {skipped_res} skipped"
+            f"Resources: {created_res} created, {updated_res} updated, {skipped_res} skipped, "
+            f"{shortened_summaries} summaries shortened"
         )
         return resource_map
 
@@ -577,7 +620,7 @@ class Command(TenantCommand):
     def _import_realisations(self, reports_path, project_map, resource_map):
         rows = _load_csv(reports_path)
         declarations = _group_by_declaration(rows)
-        created = skipped = warn = 0
+        created = skipped = warn = shortened_sites = 0
 
         for lakaa_id, group_rows in tqdm(
             declarations.items(), desc="Réalisations", unit="décl", file=self.stdout._out
@@ -625,6 +668,19 @@ class Command(TenantCommand):
             if description_body:
                 description = f"{sentinel}\n\n{description_body}"
 
+            site = _shorten(site_field, _SITE_MAX_LENGTH)
+            if site != site_field:
+                # Keep the full list in the (Markdown) description, one line each.
+                sites_md = "  \n".join(
+                    line.strip() for line in site_field.splitlines() if line.strip()
+                )
+                description = f"{description}\n\n**Sites concernés :**  \n{sites_md}"
+                self.stderr.write(
+                    f"  [WARN] 'Sites concernés' shortened to {_SITE_MAX_LENGTH} chars "
+                    f"(decl {lakaa_id}), full text kept in description"
+                )
+                shortened_sites += 1
+
             creator_email = (_val(base_row.get("Email du déclarant")) or "").lower()
             creator = User.objects.filter(username=creator_email).first()
 
@@ -633,7 +689,7 @@ class Command(TenantCommand):
                 resource_id=resource_pk,
                 created_by=creator,
                 partners=_val(base_row.get("Partenaires")) or "",
-                site=site_field[:255],
+                site=site,
                 date=_parse_date(base_row.get("Date de début")),
                 description=description,
                 key_figures=key_figures,
@@ -674,5 +730,6 @@ class Command(TenantCommand):
             created += 1
 
         self.stdout.write(
-            f"  Réalisations: {created} created, {skipped} skipped, {warn} warnings"
+            f"  Réalisations: {created} created, {skipped} skipped, {warn} warnings, "
+            f"{shortened_sites} site lists shortened"
         )
