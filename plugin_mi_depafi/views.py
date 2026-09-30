@@ -342,6 +342,7 @@ class RealisationPickProjectView(LoginRequiredMixin, View):
             {"resource": resource, "projects": projects},
         )
 
+
 class RealisationBrowseView(LoginRequiredMixin, TemplateView):
     """Browse realisations as a table or a map."""
 
@@ -418,9 +419,13 @@ class RealisationsByResourceView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         self.resource = get_object_or_404(Resource, pk=self.kwargs["resource_id"])
+
+        current_site = self.request.site
         return (
             Realisation.objects.filter(
-                resource=self.resource, status=Realisation.PUBLISHED
+                resource=self.resource,
+                status=Realisation.PUBLISHED,
+                site=current_site,
             )
             .select_related("project__commune__department")
             .prefetch_related("photos")
