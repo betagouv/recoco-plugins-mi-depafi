@@ -1,0 +1,56 @@
+<div class="d-flex fr-px-0 crm">
+    <div x-data="RealisationTable(realisations)" class="w-100 d-flex flex-column justify-content-start project-list-crm">
+        
+        <template x-if="searchQuery">
+            <h2 class="fr-px-5v fr-mt-4v fr-mb-3w ">Résultat de la recherche : <span x-text="queryLabel"></span></h2>
+        </template>
+        <div class="fr-mb-2w table-responsive fr-px-5v fr-pb-5v">
+            <table class="project-table w-100">
+                <caption x-show="!loading"
+                            x-transition.opacity.duration.500ms
+                            class="fr-ml-2v">
+                    <span x-text="countLabel()" data-test-id="realisations-count-label"></span>
+                </caption>
+                <colgroup>
+                    <col class="col--large">
+                    <col class="col--small">
+                    <col class="col--small">
+                </colgroup>
+                <thead class="project-table__thead">
+                    <tr>
+                        <th scope="col">Nom du site</th>
+                        <th scope="col">Localisation</th>
+                        <th scope="col">Réalisations</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="site in displayedSites" :key="site[0].id">
+                        <tr>
+                            <td class="text-ellipsis" :title="site[0].project.name">
+                                <a class="fr-link"
+                                    :href="'{% url 'projects-project-detail' 0 %}'.replace('0', site[0].project.id)" 
+                                    x-text="site[0].project.name"></a>
+                            </td>
+                            <td x-text="locationLabel(site[0].project)"></td>
+                            <template x-if="searchQuery">
+                                <td x-text="realisationLabel(site)"></td>
+                            </template>
+                            <template x-if="!searchQuery">
+                                <td x-text="site.length"></td>
+                            </template>
+                        </tr>
+                    </template>
+                    <template x-if="!loading && realisationsDataTable.length === 0">
+                        <tr>
+                            <td colspan="4">-- Aucun résultat --</td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+            <template x-if="pagination.total > 1">
+                {% include "tools/pagination.html" %}
+            </template>
+        </div>
+    </div>
+</div>
+

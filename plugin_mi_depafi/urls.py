@@ -3,12 +3,12 @@ from django.urls import path
 from .views import (
     CrmRealisationCsvView,
     CrmRealisationListView,
+    RealisationBrowseView,
     RealisationCreateView,
     RealisationDeleteView,
     RealisationDetailView,
     RealisationLikeToggleView,
     RealisationListView,
-    RealisationMapView,
     RealisationPickProjectView,
     RealisationUpdateView,
     RealisationsByResourceView,
@@ -29,8 +29,8 @@ urlpatterns = [
     ),
     path(
         "realisations/",
-        RealisationMapView.as_view(),
-        name="realisation-map",
+        RealisationBrowseView.as_view(),
+        name="realisation-browse",
     ),
     path(
         "project/<int:project_id>/realisations/",

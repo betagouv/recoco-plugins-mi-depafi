@@ -17,7 +17,10 @@ class MiDepafiPlugin:
     urls_module = "plugin_mi_depafi.urls"
     rest_urls_module = "plugin_mi_depafi.rest_urls"
     vite_entries = {
+        "realisationBrowse": "js/components/RealisationBrowse.js",
         "realisationsMap": "js/components/realisationsMap.js",
+        "realisationTable": "js/components/RealisationTable.js",
+        "realisationMapPanelStyles": "js/styles/fragments/realisation-map-panel.css.js",
         "realisationDetailView": "js/components/RealisationDetailView.js",
         "realisationListCrm": "js/apps/realisationListCrm.js",
         "realisationForm": "js/apps/realisationForm.js",
@@ -47,6 +50,14 @@ class MiDepafiPlugin:
             "url_name": "plugin_mi_depafi:crm-realisation-list",
             "tab_key": "plugin_mi_depafi",
             "index": 15,
+        }
+
+    @hookimpl
+    def main_navigation_tabs(self, request):
+        return {
+            "label": "Sites et réalisations",
+            "url_name": "plugin_mi_depafi:realisation-browse",
+            "index": 45,
         }
 
     @hookimpl
