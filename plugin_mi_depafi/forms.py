@@ -27,6 +27,14 @@ class RealisationForm(forms.ModelForm):
         required=False,
         label="Description de l'action",
     )
+    # Not rendered in the template: status is submitted through the
+    # "Sauvegarder en brouillon" / "Sauvegarder et publier" buttons. The
+    # choice field validates that only "draft" or "published" is accepted.
+    status = forms.ChoiceField(
+        choices=Realisation.STATUS_CHOICES,
+        required=False,
+        initial=Realisation.DRAFT,
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
