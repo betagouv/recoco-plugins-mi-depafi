@@ -12,6 +12,7 @@ from datetime import date
 import pytest
 from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
+from django.utils import timezone
 from model_bakery import baker
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.geomatics.models import Commune, Department
@@ -20,8 +21,10 @@ from recoco.apps.resources.models import Category, Resource
 
 from plugin_mi_depafi.management.commands.import_lakaa import (
     Command,
+    _html_to_text,
     _parse_date,
     _parse_dt,
+    _shorten,
     _strip_org,
     _val,
 )
@@ -91,6 +94,13 @@ def test_parse_dt_utc_string():
 
 
 @pytest.mark.django_db
+def test_parse_dt_day_month_year():
+    dt = _parse_dt("6/2/2024")
+    assert dt is not None
+    assert dt.date() == date(2024, 2, 6)
+
+
+@pytest.mark.django_db
 def test_val_sentinels_return_none():
     for sentinel in ("n.a", "-", "n.a.", "", None):
         assert _val(sentinel) is None
@@ -109,6 +119,29 @@ def test_strip_org_removes_suffix():
 @pytest.mark.django_db
 def test_strip_org_no_suffix_unchanged():
     assert _strip_org("GGD Meurthe") == "GGD Meurthe"
+
+
+@pytest.mark.django_db
+def test_html_to_text_separates_blocks_and_unescapes():
+    html = "<p>Trier les <strong>déchets</strong></p><ul><li>bac&nbsp;jaune</li></ul>"
+    assert _html_to_text(html) == "Trier les déchets bac jaune"
+
+
+@pytest.mark.django_db
+def test_shorten_keeps_short_text():
+    assert _shorten("court", 10) == "court"
+
+
+@pytest.mark.django_db
+def test_shorten_cuts_on_word_boundary():
+    result = _shorten("un deux trois, quatre", 17)
+    assert result == "un deux trois…"
+    assert len(result) <= 17
+
+
+@pytest.mark.django_db
+def test_shorten_single_long_word():
+    assert _shorten("abcdefghij", 5) == "abcd…"
 
 
 # ---------------------------------------------------------------------------
@@ -327,6 +360,70 @@ def test_import_resources_force_updates_existing(tmp_path, request):
 
 
 @pytest.mark.django_db
+def test_import_resources_long_description_kept_in_content(tmp_path, request):
+    site = _get_site(request)
+    long_desc = (
+        "<p>"
+        + " ".join(["**mot**"] * 10)
+        + " "
+        + "<strong>gras</strong> " * 200
+        + "fin.</p>"
+    )
+    path = _write_csv(
+        tmp_path,
+        "actions.csv",
+        [
+            {"Nom Forest": "X", "topic": "X", "description": "X", "body": "X"},
+            {
+                "Nom Forest": "Action longue",
+                "topic": "1. RH",
+                "description": long_desc,
+                "body": "<h1>Etape 1</h1>",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    resource_map = cmd._import_resources(path, site)
+
+    resource = Resource.objects.get(pk=resource_map["Action longue"])
+    assert len(resource.summary) <= 512
+    assert resource.summary.endswith("…")
+    assert "<strong>" not in resource.summary
+    # The full description is kept at the top of content, before the body.
+    assert resource.content.endswith("# Etape 1")
+    assert "fin." in resource.content
+    assert "**gras**" in resource.content
+    assert "Summary of 'Action longue' shortened" in cmd.stderr.getvalue()
+
+
+@pytest.mark.django_db
+def test_import_resources_long_description_without_body(tmp_path, request):
+    site = _get_site(request)
+    long_desc = "<p>" + "texte " * 200 + "fin.</p>"
+    path = _write_csv(
+        tmp_path,
+        "actions.csv",
+        [
+            {"Nom Forest": "X", "topic": "X", "description": "X", "body": "X"},
+            {
+                "Nom Forest": "Sans corps",
+                "topic": "1. RH",
+                "description": long_desc,
+                "body": "",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    resource_map = cmd._import_resources(path, site)
+
+    resource = Resource.objects.get(pk=resource_map["Sans corps"])
+    assert resource.summary.endswith("…")
+    assert resource.content.endswith("fin.")
+
+
+@pytest.mark.django_db
 def test_import_resources_category_scoped_per_site(tmp_path, request):
     site_a = _get_site(request)
     site_b = baker.make(Site, domain="other-site.example.com")
@@ -443,8 +540,8 @@ def test_import_projects_sets_coordinates(tmp_path, request):
     project_map = cmd._import_projects(path, site)
 
     project = Project.objects.get(pk=project_map["Site GPS"])
-    assert project.location_x == pytest.approx(48.6921)
-    assert project.location_y == pytest.approx(6.1844)
+    assert project.location_y == pytest.approx(48.6921)
+    assert project.location_x == pytest.approx(6.1844)
 
 
 @pytest.mark.django_db
@@ -571,8 +668,8 @@ def test_import_projects_force_updates_location(tmp_path, request):
 
     existing.refresh_from_db()
     assert existing.location == "Nouvelle adresse"
-    assert existing.location_x == pytest.approx(48.6921)
-    assert existing.location_y == pytest.approx(6.1844)
+    assert existing.location_y == pytest.approx(48.6921)
+    assert existing.location_x == pytest.approx(6.1844)
 
 
 @pytest.mark.django_db
@@ -740,8 +837,8 @@ def test_import_projects_reads_coordinates_forest_column(tmp_path, request):
     project_map = cmd._import_projects(path, site)
 
     project = Project.objects.get(pk=project_map["Site GPS forest"])
-    assert project.location_x == pytest.approx(48.6921)
-    assert project.location_y == pytest.approx(6.1844)
+    assert project.location_y == pytest.approx(48.6921)
+    assert project.location_x == pytest.approx(6.1844)
 
 
 @pytest.mark.django_db
@@ -1022,6 +1119,36 @@ def test_import_realisations_maps_site_field(tmp_path, request):
 
 
 @pytest.mark.django_db
+def test_import_realisations_long_site_field_kept_in_description(tmp_path, request):
+    project, resource, _ = _setup_realisation_prereqs(request)
+    sites = "\n".join(f"Brigade de gendarmerie numéro {i}" for i in range(20))
+
+    path = _write_csv(
+        tmp_path,
+        "decl.csv",
+        [
+            _decl_row(),
+            _decl_row("Description de votre action", "Tri des déchets"),
+            _decl_row("Sites concernés", sites),
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_realisations(
+        path, {project.name: project.pk}, {resource.title: resource.pk}
+    )
+
+    r = Realisation.objects.get(project=project)
+    assert len(r.site) <= 255
+    assert r.site.endswith("…")
+    assert "Tri des déchets" in r.description
+    assert "**Sites concernés :**" in r.description
+    assert "Brigade de gendarmerie numéro 19" in r.description
+    assert "numéro 0  \nBrigade" in r.description
+    assert "'Sites concernés' shortened" in cmd.stderr.getvalue()
+
+
+@pytest.mark.django_db
 def test_import_realisations_maps_date(tmp_path, request):
     project, resource, _ = _setup_realisation_prereqs(request)
 
@@ -1037,6 +1164,21 @@ def test_import_realisations_maps_date(tmp_path, request):
     )
 
     assert Realisation.objects.get(project=project).date == date(2022, 11, 15)
+
+
+@pytest.mark.django_db
+def test_import_realisations_applies_declaration_date(tmp_path, request):
+    project, resource, _ = _setup_realisation_prereqs(request)
+
+    path = _write_csv(tmp_path, "decl.csv", [_decl_row(), _decl_row()])
+
+    cmd = _make_command()
+    cmd._import_realisations(
+        path, {project.name: project.pk}, {resource.title: resource.pk}
+    )
+
+    created_at = Realisation.objects.get(project=project).created_at
+    assert timezone.localtime(created_at).date() == date(2024, 2, 6)
 
 
 @pytest.mark.django_db
