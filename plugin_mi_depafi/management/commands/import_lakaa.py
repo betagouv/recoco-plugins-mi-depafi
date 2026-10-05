@@ -12,6 +12,7 @@ The command is idempotent: re-running it skips already-imported objects.
 """
 
 import csv
+import math
 import os
 import re
 import urllib.request
@@ -222,8 +223,25 @@ def _theme_style(theme_name):
 _POSTAL_CITY_RE = re.compile(r"(\d{5})\s+(.+)$")
 
 
-def _match_commune(address):
-    """Best-effort lookup of the Commune referenced by a Lakaa address string."""
+def _pick_commune(candidates, lat, lng):
+    """Choose among communes: the closest to (lat, lng) if known, else the
+    first by INSEE code."""
+    candidates = list(candidates.order_by("insee"))
+    if len(candidates) <= 1 or lat is None or lng is None:
+        return candidates[0] if candidates else None
+    cos_lat = math.cos(math.radians(lat))
+    return min(
+        candidates,
+        key=lambda c: (c.latitude - lat) ** 2 + ((c.longitude - lng) * cos_lat) ** 2,
+    )
+
+
+def _match_commune(address, lat=None, lng=None):
+    """Best-effort lookup of the Commune referenced by a Lakaa address string.
+
+    Several communes can share a postal code or a name ("Saint-Denis"); when
+    the site coordinates are known they pick the closest candidate.
+    """
     address = _val(address)
     if not address:
         return None
@@ -231,15 +249,17 @@ def _match_commune(address):
     m = _POSTAL_CITY_RE.search(address)
     if m:
         postal, city = m.group(1), m.group(2).strip()
-        commune = Commune.objects.filter(postal=postal, name__iexact=city).first()
+        commune = _pick_commune(
+            Commune.objects.filter(postal=postal, name__iexact=city), lat, lng
+        )
         if commune:
             return commune
-        commune = Commune.objects.filter(postal=postal).first()
+        commune = _pick_commune(Commune.objects.filter(postal=postal), lat, lng)
         if commune:
             return commune
         address = city
 
-    return Commune.objects.filter(name__iexact=address).first()
+    return _pick_commune(Commune.objects.filter(name__iexact=address), lat, lng)
 
 
 class Command(TenantCommand):
@@ -498,7 +518,6 @@ class Command(TenantCommand):
             ext_id = _val(row.get("external id")) or name
 
             address = _val(row.get("address"))
-            commune = _match_commune(address)
             location_x = location_y = None
             coords_raw = _val(row.get("coordinates")) or _val(
                 row.get("coordinates forest")
@@ -513,6 +532,8 @@ class Command(TenantCommand):
                         location_x = float(parts[1].strip())
                     except ValueError:
                         pass
+
+            commune = _match_commune(address, location_y, location_x)
 
             if (
                 location_x is None

@@ -844,6 +844,99 @@ def test_import_projects_matches_commune_by_postal_code_and_city(tmp_path, reque
 
 
 @pytest.mark.django_db
+def test_import_projects_homonym_communes_resolved_by_coordinates(tmp_path, request):
+    site = _get_site(request)
+    department = baker.make(Department)
+    saint_denis_93 = baker.make(
+        Commune,
+        department=department,
+        name="Saint-Denis",
+        postal="93200",
+        insee="93066",
+        latitude=48.936,
+        longitude=2.357,
+    )
+    saint_denis_974 = baker.make(
+        Commune,
+        department=department,
+        name="Saint-Denis",
+        postal="97400",
+        insee="97411",
+        latitude=-20.879,
+        longitude=55.448,
+    )
+
+    def _row(name, coordinates):
+        return {
+            "id": name,
+            "name": name,
+            "external id": name,
+            "organisation": "",
+            "coordinates": coordinates,
+            "created at": "",
+            "group": "",
+            "address": "Saint-Denis",
+        }
+
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            _row("Site 93", "48.94,2.36"),
+            _row("Site Réunion", "-20.88,55.45"),
+        ],
+    )
+
+    project_map = _make_command()._import_projects(path, site)
+
+    assert Project.objects.get(pk=project_map["Site 93"]).commune == saint_denis_93
+    assert (
+        Project.objects.get(pk=project_map["Site Réunion"]).commune == saint_denis_974
+    )
+
+
+@pytest.mark.django_db
+def test_match_commune_postal_fallback_uses_coordinates():
+    department = baker.make(Department)
+    baker.make(
+        Commune,
+        department=department,
+        name="Autre",
+        postal="12345",
+        insee="12001",
+        latitude=44.0,
+        longitude=2.0,
+    )
+    near = baker.make(
+        Commune,
+        department=department,
+        name="Voisine",
+        postal="12345",
+        insee="12002",
+        latitude=45.0,
+        longitude=3.0,
+    )
+
+    commune = import_lakaa._match_commune("1 rue X 12345 Inconnue", 45.01, 3.01)
+
+    assert commune == near
+
+
+@pytest.mark.django_db
+def test_match_commune_without_coordinates_is_deterministic():
+    department = baker.make(Department)
+    first = baker.make(
+        Commune, department=department, name="Doublon", postal="11111", insee="11001"
+    )
+    baker.make(
+        Commune, department=department, name="Doublon", postal="22222", insee="22002"
+    )
+
+    assert import_lakaa._match_commune("Doublon") == first
+
+
+@pytest.mark.django_db
 def test_import_projects_no_commune_match_leaves_commune_none(tmp_path, request):
     site = _get_site(request)
     path = _write_csv(
