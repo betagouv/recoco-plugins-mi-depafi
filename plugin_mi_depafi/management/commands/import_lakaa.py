@@ -43,6 +43,11 @@ _EMPTY = {"n.a", "-", "n.a.", "", None}
 # Organisation suffix appended to all names in the Lakaa export
 _ORG_SUFFIX = " - Ministère de l'Intérieur"
 
+# Declarations sometimes spell an action differently from the actions export.
+_ACTION_ALIASES = {
+    "Diagnostic du gaspillage alimentaire": "Diagnostique du gaspillage alimentaire",
+}
+
 # Mapping from Lakaa "status" column to Resource.status
 _RESOURCE_STATUS = {
     "published": Resource.PUBLISHED,
@@ -654,6 +659,7 @@ class Command(TenantCommand):
             base_row = group_rows[0]
             site_name = _strip_org(base_row.get("Nom de l'établissement") or "")
             action_name = _strip_org(base_row.get("Nom de l'action") or "")
+            action_name = _ACTION_ALIASES.get(action_name, action_name)
 
             project_pk = project_map.get(site_name)
             resource_pk = resource_map.get(action_name)

@@ -1064,6 +1064,25 @@ def test_import_realisations_incomplete_creates_draft(tmp_path, request):
 
 
 @pytest.mark.django_db
+def test_import_realisations_resolves_misspelled_action_name(tmp_path, request):
+    project, _, _ = _setup_realisation_prereqs(request)
+    resource = baker.make(Resource, title="Diagnostique du gaspillage alimentaire")
+    resource.sites.add(project.project_sites.first().site)
+
+    row = _decl_row(**{"Nom de l'action": "Diagnostic du gaspillage alimentaire"})
+    path = _write_csv(tmp_path, "decl.csv", [row, row])
+
+    cmd = _make_command()
+    cmd._import_realisations(
+        path,
+        {project.name: project.pk},
+        {resource.title: resource.pk},
+    )
+
+    assert Realisation.objects.filter(project=project, resource=resource).exists()
+
+
+@pytest.mark.django_db
 def test_import_realisations_complet_creates_published(tmp_path, request):
     project, resource, _ = _setup_realisation_prereqs(request)
 
