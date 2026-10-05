@@ -1320,3 +1320,42 @@ def test_import_realisations_warns_on_unknown_resource(tmp_path, request):
 
     assert "WARN" in cmd.stderr.getvalue()
     assert Realisation.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_import_projects_falls_back_to_commune_centre(tmp_path, request):
+    site = _get_site(request)
+    department = baker.make(Department)
+    baker.make(
+        Commune,
+        department=department,
+        name="Melun",
+        postal="77000",
+        insee="77288",
+        latitude=48.54,
+        longitude=2.66,
+    )
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1",
+                "name": "Site sans GPS",
+                "external id": "EXT-1",
+                "organisation": "",
+                "address": "Melun",
+                "coordinates": ",",
+                "created at": "",
+                "group": "",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    project_map = cmd._import_projects(path, site)
+
+    project = Project.objects.get(pk=project_map["Site sans GPS"])
+    assert project.location_y == pytest.approx(48.54)
+    assert project.location_x == pytest.approx(2.66)

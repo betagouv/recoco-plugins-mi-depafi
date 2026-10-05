@@ -402,7 +402,11 @@ class Command(TenantCommand):
             if cost_indication:
                 content = f"{content}\n\n## Evaluation des coûts\n\n{cost_indication}"
 
-            subtitle = _val(row.get("impact indication")) or _val(row.get("external name")) or ""
+            subtitle = (
+                _val(row.get("impact indication"))
+                or _val(row.get("external name"))
+                or ""
+            )
             status = _resource_status(row.get("status"))
 
             resource = Resource.objects.filter(title=name, sites=site).first()
@@ -425,7 +429,13 @@ class Command(TenantCommand):
                 resource.summary = summary
                 resource.status = status
                 resource.save(
-                    update_fields=["subtitle", "category", "content", "summary", "status"]
+                    update_fields=[
+                        "subtitle",
+                        "category",
+                        "content",
+                        "summary",
+                        "status",
+                    ]
                 )
                 updated_res += 1
             else:
@@ -444,7 +454,9 @@ class Command(TenantCommand):
     # Phase 2 - Projects (Lakaa "sites")
     # ------------------------------------------------------------------
 
-    def _import_projects(self, sites_path, site, *, force_projects=False, force_orgs=False):
+    def _import_projects(
+        self, sites_path, site, *, force_projects=False, force_orgs=False
+    ):
         rows = _load_csv(sites_path)
         project_map = {}  # site name => Project pk
         created = updated = skipped = 0
@@ -471,6 +483,19 @@ class Command(TenantCommand):
                         location_x = float(parts[1].strip())
                     except ValueError:
                         pass
+
+            if (
+                location_x is None
+                and commune
+                and (commune.latitude or commune.longitude)
+            ):
+                # Some Lakaa sites have no coordinates (",") so they would be
+                # missing from the map: fall back to the commune's centre.
+                location_y, location_x = commune.latitude, commune.longitude
+                self.stderr.write(
+                    f"  [WARN] No coordinates for site '{name}', "
+                    f"using the centre of {commune.name}"
+                )
 
             existing = Project.objects.filter(
                 name=name, project_sites__site=site
@@ -529,7 +554,9 @@ class Command(TenantCommand):
             project_map[name] = project.pk
             created += 1
 
-        self.stdout.write(f"  Projects: {created} created, {updated} updated, {skipped} skipped")
+        self.stdout.write(
+            f"  Projects: {created} created, {updated} updated, {skipped} skipped"
+        )
         return project_map
 
     # ------------------------------------------------------------------
@@ -623,7 +650,10 @@ class Command(TenantCommand):
         created = skipped = warn = shortened_sites = 0
 
         for lakaa_id, group_rows in tqdm(
-            declarations.items(), desc="Réalisations", unit="décl", file=self.stdout._out
+            declarations.items(),
+            desc="Réalisations",
+            unit="décl",
+            file=self.stdout._out,
         ):
             base_row = group_rows[0]
             site_name = _strip_org(base_row.get("Nom de l'établissement") or "")
