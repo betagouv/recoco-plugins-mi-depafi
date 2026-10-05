@@ -16,7 +16,7 @@ from django.utils import timezone
 from model_bakery import baker
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.geomatics.models import Commune, Department
-from recoco.apps.projects.models import Project
+from recoco.apps.projects.models import Project, ProjectMember, ProjectSite
 from recoco.apps.resources.models import Category, Resource
 
 from plugin_mi_depafi.management.commands.import_lakaa import (
@@ -1359,3 +1359,46 @@ def test_import_projects_falls_back_to_commune_centre(tmp_path, request):
     project = Project.objects.get(pk=project_map["Site sans GPS"])
     assert project.location_y == pytest.approx(48.54)
     assert project.location_x == pytest.approx(2.66)
+
+
+@pytest.mark.django_db
+def test_import_users_grants_project_permissions(tmp_path, current_site):
+    project = baker.make(Project, name="GGD Meurthe")
+    ProjectSite.objects.create(
+        project=project, site=current_site, is_origin=True, status="TO_PROCESS"
+    )
+    users_path, reports_path = _setup_user_import(
+        tmp_path, [_user_row()], [_decl_for_user_row()]
+    )
+
+    _make_command()._import_users(
+        users_path, {"GGD Meurthe": project.pk}, reports_path, current_site
+    )
+
+    user = User.objects.get(username="alice@interieur.gouv.fr")
+    assert ProjectMember.objects.get(member=user, project=project).is_owner
+    assert user.has_perm("projects.view_project", project)
+    assert user.has_perm("projects.use_tasks", project)
+
+
+@pytest.mark.django_db
+def test_import_users_only_first_manager_is_owner(tmp_path, current_site):
+    project = baker.make(Project, name="GGD Meurthe")
+    ProjectSite.objects.create(
+        project=project, site=current_site, is_origin=True, status="TO_PROCESS"
+    )
+    bob = "bob@interieur.gouv.fr"
+    users_path, reports_path = _setup_user_import(
+        tmp_path,
+        [_user_row(), _user_row(email=bob)],
+        [_decl_for_user_row(), _decl_for_user_row(**{"Email du déclarant": bob})],
+    )
+
+    _make_command()._import_users(
+        users_path, {"GGD Meurthe": project.pk}, reports_path, current_site
+    )
+
+    owners = ProjectMember.objects.filter(project=project, is_owner=True)
+    assert owners.count() == 1
+    assert ProjectMember.objects.filter(project=project).count() == 2
+    assert User.objects.get(username=bob).has_perm("projects.view_project", project)

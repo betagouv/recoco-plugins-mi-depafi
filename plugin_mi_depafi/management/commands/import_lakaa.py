@@ -21,6 +21,7 @@ from html import unescape
 import html2text
 from tqdm import tqdm
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.core.management.base import CommandError
@@ -30,7 +31,8 @@ from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.geomatics.models import Commune
 from recoco.apps.home.models import SiteConfiguration, UserProfile
 from recoco.apps.plugins.management.base import TenantCommand
-from recoco.apps.projects.models import Project, ProjectMember, ProjectSite
+from recoco.apps.projects.models import Project, ProjectSite
+from recoco.apps.projects.utils import assign_collaborator
 from recoco.apps.resources.models import Category, Resource
 
 from plugin_mi_depafi.models import Realisation, RealisationDocument, RealisationPhoto
@@ -623,18 +625,12 @@ class Command(TenantCommand):
                 project_pk = project_map.get(site_name)
                 if project_pk is None:
                     continue
-                if force:
-                    ProjectMember.objects.update_or_create(
-                        member=user,
-                        project_id=project_pk,
-                        defaults={"is_owner": is_owner},
-                    )
-                else:
-                    ProjectMember.objects.get_or_create(
-                        member=user,
-                        project_id=project_pk,
-                        defaults={"is_owner": is_owner},
-                    )
+                project = Project.objects.get(pk=project_pk)
+
+                # Use assign_collaborator so permissions are actually
+                # matching.
+                with settings.SITE_ID.override(site.pk):
+                    assign_collaborator(user, project, is_owner=is_owner)
 
         self.stdout.write(
             f"  Users: {created} created, {updated} updated, {skipped} skipped"
