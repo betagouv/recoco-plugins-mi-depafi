@@ -461,6 +461,22 @@ class Command(TenantCommand):
     # Phase 2 - Projects (Lakaa "sites")
     # ------------------------------------------------------------------
 
+    def _sync_organisation(self, org_name, group_name, site, force_orgs):
+        """Get or create the organisation (and group) of a Lakaa site."""
+        org_group = None
+        if group_name:
+            org_group, _ = OrganizationGroup.objects.get_or_create(name=group_name)
+        if not org_name:
+            return
+        org, _ = Organization.objects.get_or_create(
+            name=org_name,
+            defaults={"group": org_group},
+        )
+        if org_group and (org.group_id is None or force_orgs):
+            org.group = org_group
+            org.save(update_fields=["group"])
+        org.sites.add(site)
+
     def _import_projects(
         self, sites_path, site, *, force_projects=False, force_orgs=False
     ):
@@ -504,11 +520,20 @@ class Command(TenantCommand):
                     f"using the centre of {commune.name}"
                 )
 
+            group_name = _strip_org(_val(row.get("group")) or "")
+            org_name = _strip_org(_val(row.get("organisation")) or "")
+            tags = [f"lakaa_id:{ext_id}"]
+            if group_name:
+                tags.append(group_name)
+
             existing = Project.objects.filter(
                 name=name, project_sites__site=site
             ).first()
             if existing is not None:
                 project_map[name] = existing.pk
+                # Organisations are synced on every run, not only for new
+                # projects, otherwise --force-update-orgs never takes effect.
+                self._sync_organisation(org_name, group_name, site, force_orgs)
                 if force_projects:
                     Project.objects.filter(pk=existing.pk).update(
                         location=address,
@@ -516,6 +541,7 @@ class Command(TenantCommand):
                         location_y=location_y,
                         commune=commune,
                     )
+                    existing.tags.add(*tags)
                     updated += 1
                 else:
                     skipped += 1
@@ -536,26 +562,7 @@ class Command(TenantCommand):
             )
             project.sites.add(site)
 
-            group_name = _strip_org(_val(row.get("group")) or "")
-            org_name = _strip_org(_val(row.get("organisation")) or "")
-
-            org_group = None
-            if group_name:
-                org_group, _ = OrganizationGroup.objects.get_or_create(name=group_name)
-
-            if org_name:
-                org, _ = Organization.objects.get_or_create(
-                    name=org_name,
-                    defaults={"group": org_group},
-                )
-                if org_group and (org.group_id is None or force_orgs):
-                    org.group = org_group
-                    org.save(update_fields=["group"])
-                org.sites.add(site)
-
-            tags = [f"lakaa_id:{ext_id}"]
-            if group_name:
-                tags.append(group_name)
+            self._sync_organisation(org_name, group_name, site, force_orgs)
             project.tags.add(*tags)
 
             project_map[name] = project.pk

@@ -606,6 +606,73 @@ def test_import_projects_force_updates_org_group(tmp_path, request):
 
 
 @pytest.mark.django_db
+def test_import_projects_force_updates_org_group_of_existing_project(tmp_path, request):
+    existing = make_project_on_site(request)
+    existing.name = "Mon site"
+    existing.save()
+    site = existing.project_sites.first().site
+    old_group = baker.make(OrganizationGroup, name="Ancien groupe")
+    org = baker.make(Organization, name="GGD Meurthe", group=old_group)
+
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1",
+                "name": "Mon site",
+                "external id": "EXT-1",
+                "organisation": "GGD Meurthe",
+                "address": "",
+                "coordinates": "",
+                "created at": "",
+                "group": "Nouveau groupe",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_projects(path, site, force_orgs=True)
+
+    org.refresh_from_db()
+    assert org.group.name == "Nouveau groupe"
+    assert site in org.sites.all()
+
+
+@pytest.mark.django_db
+def test_import_projects_force_updates_tags_of_existing_project(tmp_path, request):
+    existing = make_project_on_site(request)
+    existing.name = "Mon site"
+    existing.save()
+    site = existing.project_sites.first().site
+
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1",
+                "name": "Mon site",
+                "external id": "EXT-1",
+                "organisation": "",
+                "address": "",
+                "coordinates": "",
+                "created at": "",
+                "group": "Mon groupe",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_projects(path, site, force_projects=True)
+
+    tags = set(existing.tags.names())
+    assert {"lakaa_id:EXT-1", "Mon groupe"} <= tags
+
+
+@pytest.mark.django_db
 def test_import_projects_does_not_overwrite_org_group_without_force(tmp_path, request):
     site = _get_site(request)
     existing_group = baker.make(OrganizationGroup, name="Groupe existant")
