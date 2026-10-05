@@ -1142,6 +1142,88 @@ def test_import_users_force_updates_organisation(tmp_path, current_site):
 
 
 @pytest.mark.django_db
+def test_import_users_reuses_account_with_different_username_case(
+    tmp_path, current_site
+):
+    existing = baker.make(
+        User, username="Alice@Interieur.gouv.fr", email="Alice@Interieur.gouv.fr"
+    )
+    users_path, reports_path = _setup_user_import(
+        tmp_path, [_user_row()], [_decl_for_user_row()]
+    )
+
+    _make_command()._import_users(users_path, {}, reports_path, current_site)
+
+    assert User.objects.filter(email__iexact="alice@interieur.gouv.fr").count() == 1
+    assert current_site in existing.profile.sites.all()
+
+
+@pytest.mark.django_db
+def test_import_users_reuses_account_whose_username_is_not_the_email(
+    tmp_path, current_site
+):
+    existing = baker.make(User, username="alice.d", email="alice@interieur.gouv.fr")
+    users_path, reports_path = _setup_user_import(
+        tmp_path, [_user_row()], [_decl_for_user_row()]
+    )
+
+    _make_command()._import_users(users_path, {}, reports_path, current_site)
+
+    assert User.objects.filter(email="alice@interieur.gouv.fr").count() == 1
+    assert current_site in existing.profile.sites.all()
+
+
+@pytest.mark.django_db
+def test_import_users_matches_organisation_case_insensitively(tmp_path, current_site):
+    org = baker.make(Organization, name="ggd meurthe")
+    users_path, reports_path = _setup_user_import(
+        tmp_path, [_user_row(organisation="GGD Meurthe")], [_decl_for_user_row()]
+    )
+
+    _make_command()._import_users(users_path, {}, reports_path, current_site)
+
+    assert Organization.objects.filter(name__iexact="ggd meurthe").count() == 1
+    assert current_site in org.sites.all()
+
+
+@pytest.mark.django_db
+def test_import_projects_force_does_not_regroup_organisation_shared_with_other_site(
+    tmp_path, request
+):
+    site = _get_site(request)
+    other_site = baker.make(Site)
+    old_group = baker.make(OrganizationGroup, name="Ancien groupe")
+    org = baker.make(Organization, name="GGD Meurthe", group=old_group)
+    org.sites.add(other_site)
+
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1",
+                "name": "Mon site",
+                "external id": "EXT-1",
+                "organisation": "GGD Meurthe",
+                "address": "",
+                "coordinates": "",
+                "created at": "",
+                "group": "Nouveau groupe",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_projects(path, site, force_orgs=True)
+
+    org.refresh_from_db()
+    assert org.group == old_group
+    assert "shared with other sites" in cmd.stderr.getvalue()
+    assert site in org.sites.all()
+
+
+@pytest.mark.django_db
 def test_import_users_skips_organisation_update_without_force(tmp_path, current_site):
     old_org = baker.make(Organization, name="Organisation originale")
     user = baker.make(

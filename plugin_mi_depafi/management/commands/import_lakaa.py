@@ -27,6 +27,7 @@ from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.core.management.base import CommandError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
@@ -192,6 +193,23 @@ def _html_to_text(html):
     # Replace tags with spaces so block elements don't glue words together.
     text = unescape(re.sub(r"<[^>]+>", " ", html))
     return " ".join(text.split())
+
+
+def _find_user(email):
+    """Existing account for an email, whatever the case of its username.
+
+    Falls back to the email field for accounts whose username isn't the email.
+    """
+    users = User.objects.filter(Q(username__iexact=email) | Q(email__iexact=email))
+    return users.order_by("id").first()
+
+
+def _get_or_create_organization(name, group=None):
+    """Organization by case-insensitive name (names are unique across sites)."""
+    org = Organization.objects.filter(name__iexact=name).first()
+    if org is not None:
+        return org, False
+    return Organization.objects.create(name=name, group=group), True
 
 
 def _download(url):
@@ -495,13 +513,22 @@ class Command(TenantCommand):
             org_group, _ = OrganizationGroup.objects.get_or_create(name=group_name)
         if not org_name:
             return
-        org, _ = Organization.objects.get_or_create(
-            name=org_name,
-            defaults={"group": org_group},
-        )
-        if org_group and (org.group_id is None or force_orgs):
-            org.group = org_group
-            org.save(update_fields=["group"])
+        org, _ = _get_or_create_organization(org_name, org_group)
+        if org_group and org.group_id != org_group.pk:
+            if org.group_id is None:
+                org.group = org_group
+                org.save(update_fields=["group"])
+            elif force_orgs:
+                # Organization names are unique across sites: never regroup
+                # an organisation that another site also uses.
+                if org.sites.exclude(pk=site.pk).exists():
+                    self.stderr.write(
+                        f"  [WARN] Organisation '{org.name}' is shared with other "
+                        f"sites, its group was left unchanged"
+                    )
+                else:
+                    org.group = org_group
+                    org.save(update_fields=["group"])
         org.sites.add(site)
 
     def _import_projects(
@@ -627,14 +654,17 @@ class Command(TenantCommand):
             first_name = row.get("first name") or ""
             last_name = row.get("last name") or ""
 
-            user, user_new = User.objects.get_or_create(
-                username=email,
-                defaults={
-                    "email": email,
-                    "first_name": first_name,
-                    "last_name": last_name,
-                },
-            )
+            user = _find_user(email)
+            if user is None:
+                user = User.objects.create(
+                    username=email,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                )
+                user_new = True
+            else:
+                user_new = False
             if user_new:
                 user.set_unusable_password()
                 user.save(update_fields=["password"])
@@ -652,7 +682,7 @@ class Command(TenantCommand):
 
             org_name = _strip_org(_val(row.get("organisation")) or "")
             if org_name:
-                org, _ = Organization.objects.get_or_create(name=org_name)
+                org, _ = _get_or_create_organization(org_name)
                 org.sites.add(site)
                 if profile.organization_id is None or force:
                     profile.organization = org
@@ -749,7 +779,7 @@ class Command(TenantCommand):
                 shortened_sites += 1
 
             creator_email = (_val(base_row.get("Email du déclarant")) or "").lower()
-            creator = User.objects.filter(username=creator_email).first()
+            creator = _find_user(creator_email) if creator_email else None
 
             # Download every file before creating anything: if one fails, the
             # declaration is left out entirely so the next run retries it.
