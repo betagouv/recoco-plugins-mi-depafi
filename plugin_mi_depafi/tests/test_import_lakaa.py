@@ -19,6 +19,7 @@ from recoco.apps.geomatics.models import Commune, Department
 from recoco.apps.projects.models import Project, ProjectMember, ProjectSite
 from recoco.apps.resources.models import Category, Resource
 
+from plugin_mi_depafi.management.commands import import_lakaa
 from plugin_mi_depafi.management.commands.import_lakaa import (
     Command,
     _html_to_text,
@@ -1150,6 +1151,33 @@ def test_import_realisations_resolves_misspelled_action_name(tmp_path, request):
 
 
 @pytest.mark.django_db
+def test_import_realisations_failed_download_is_left_out_then_retried(
+    tmp_path, request, settings, monkeypatch
+):
+    settings.MEDIA_ROOT = str(tmp_path / "media")
+    project, resource, _ = _setup_realisation_prereqs(request)
+    row = _decl_row(Images="https://example.test/a.png")
+    path = _write_csv(tmp_path, "decl.csv", [row, row])
+    args = (path, {project.name: project.pk}, {resource.title: resource.pk})
+
+    def _fail(url):
+        raise OSError("boom")
+
+    monkeypatch.setattr(import_lakaa, "_download", _fail)
+    cmd = _make_command()
+    cmd._import_realisations(*args)
+
+    assert not Realisation.objects.filter(project=project).exists()
+    assert "will retry on the next run" in cmd.stderr.getvalue()
+
+    monkeypatch.setattr(import_lakaa, "_download", lambda url: b"png-bytes")
+    _make_command()._import_realisations(*args)
+
+    realisation = Realisation.objects.get(project=project, resource=resource)
+    assert realisation.photos.count() == 1
+
+
+@pytest.mark.django_db
 def test_import_realisations_complet_creates_published(tmp_path, request):
     project, resource, _ = _setup_realisation_prereqs(request)
 
@@ -1319,8 +1347,12 @@ def test_import_realisations_maps_description_indicator_to_description(
 
 
 @pytest.mark.django_db
-def test_import_realisations_consolidates_multi_row_declaration(tmp_path, request):
+def test_import_realisations_consolidates_multi_row_declaration(
+    tmp_path, request, settings, monkeypatch
+):
     """A declaration spread across several CSV rows must become a single Realisation."""
+    settings.MEDIA_ROOT = str(tmp_path / "media")
+    monkeypatch.setattr(import_lakaa, "_download", lambda url: b"%PDF-1.4")
     project, resource, user = _setup_realisation_prereqs(request)
 
     path = _write_csv(
@@ -1348,6 +1380,7 @@ def test_import_realisations_consolidates_multi_row_declaration(tmp_path, reques
     assert r.site == "Caserne Roux, Lexy"
     assert r.key_figures == "Nombre d'agents bénéficiaires: 120"
     assert r.created_by == user
+    assert r.documents.count() == 1
 
 
 @pytest.mark.django_db

@@ -25,6 +25,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.core.management.base import CommandError
+from django.db import transaction
 from django.utils import timezone
 
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
@@ -190,6 +191,12 @@ def _html_to_text(html):
     # Replace tags with spaces so block elements don't glue words together.
     text = unescape(re.sub(r"<[^>]+>", " ", html))
     return " ".join(text.split())
+
+
+def _download(url):
+    """Return the content of a remote file; raises on any failure."""
+    with urllib.request.urlopen(url, timeout=10) as resp:
+        return resp.read()
 
 
 def _shorten(text, max_length):
@@ -655,7 +662,7 @@ class Command(TenantCommand):
     def _import_realisations(self, reports_path, project_map, resource_map):
         rows = _load_csv(reports_path)
         declarations = _group_by_declaration(rows)
-        created = skipped = warn = shortened_sites = 0
+        created = skipped = warn = shortened_sites = failed_downloads = 0
 
         for lakaa_id, group_rows in tqdm(
             declarations.items(),
@@ -723,52 +730,54 @@ class Command(TenantCommand):
             creator_email = (_val(base_row.get("Email du déclarant")) or "").lower()
             creator = User.objects.filter(username=creator_email).first()
 
-            realisation = Realisation.objects.create(
-                project_id=project_pk,
-                resource_id=resource_pk,
-                created_by=creator,
-                partners=_val(base_row.get("Partenaires")) or "",
-                site=site,
-                date=_parse_date(base_row.get("Date de début")),
-                description=description,
-                key_figures=key_figures,
-                status=status,
-            )
+            # Download every file before creating anything: if one fails, the
+            # declaration is left out entirely so the next run retries it.
+            images_raw = _val(base_row.get("Images")) or ""
+            image_urls = [u.strip() for u in images_raw.split(",") if u.strip()]
+            try:
+                images = [(url, _download(url)) for url in image_urls]
+                documents = [(url, _download(url)) for url in pdf_urls]
+            except Exception as exc:
+                self.stderr.write(
+                    f"  [WARN] Could not download a file for decl {lakaa_id}, "
+                    f"will retry on the next run: {exc}"
+                )
+                failed_downloads += 1
+                continue
 
-            declared_on = _parse_dt(base_row.get("Déclaré le"))
-            if declared_on:
-                Realisation.objects.filter(pk=realisation.pk).update(
-                    created_at=declared_on
+            with transaction.atomic():
+                realisation = Realisation.objects.create(
+                    project_id=project_pk,
+                    resource_id=resource_pk,
+                    created_by=creator,
+                    partners=_val(base_row.get("Partenaires")) or "",
+                    site=site,
+                    date=_parse_date(base_row.get("Date de début")),
+                    description=description,
+                    key_figures=key_figures,
+                    status=status,
                 )
 
-            images_raw = _val(base_row.get("Images")) or ""
-            for order, url in enumerate(
-                u.strip() for u in images_raw.split(",") if u.strip()
-            ):
-                try:
-                    with urllib.request.urlopen(url, timeout=10) as resp:
-                        data = resp.read()
-                    filename = url.rsplit("/", 1)[-1]
-                    photo = RealisationPhoto(realisation=realisation, order=order)
-                    photo.image.save(filename, ContentFile(data), save=True)
-                except Exception as exc:
-                    self.stderr.write(f"  [WARN] Could not download image {url}: {exc}")
-
-            for order, url in enumerate(pdf_urls):
-                try:
-                    with urllib.request.urlopen(url, timeout=10) as resp:
-                        data = resp.read()
-                    filename = url.rsplit("/", 1)[-1]
-                    doc = RealisationDocument(realisation=realisation, order=order)
-                    doc.file.save(filename, ContentFile(data), save=True)
-                except Exception as exc:
-                    self.stderr.write(
-                        f"  [WARN] Could not download document {url}: {exc}"
+                declared_on = _parse_dt(base_row.get("Déclaré le"))
+                if declared_on:
+                    Realisation.objects.filter(pk=realisation.pk).update(
+                        created_at=declared_on
                     )
+
+                for order, (url, data) in enumerate(images):
+                    photo = RealisationPhoto(realisation=realisation, order=order)
+                    photo.image.save(
+                        url.rsplit("/", 1)[-1], ContentFile(data), save=True
+                    )
+
+                for order, (url, data) in enumerate(documents):
+                    doc = RealisationDocument(realisation=realisation, order=order)
+                    doc.file.save(url.rsplit("/", 1)[-1], ContentFile(data), save=True)
 
             created += 1
 
         self.stdout.write(
             f"  Réalisations: {created} created, {skipped} skipped, {warn} warnings, "
-            f"{shortened_sites} site lists shortened"
+            f"{shortened_sites} site lists shortened, "
+            f"{failed_downloads} left out after a failed download"
         )
