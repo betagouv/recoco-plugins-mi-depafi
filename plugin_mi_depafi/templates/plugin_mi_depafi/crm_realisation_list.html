@@ -32,7 +32,7 @@
                         <template x-for="code in (allSelected ? [] : selectedCodes)" :key="code">
                             <input type="hidden" name="departments" :value="code">
                         </template>
-                        {% include "projects/project/fragments/departments_selector.html" with label_filter="Localisation :" filter_by_regions=True select_all=False selected_departments=selected_departments extra_classes="inline-chevron" %}
+                        {% include "projects/project/fragments/departments_selector/departments_selector.html" with label_filter="Localisation :" filter_by_regions=True select_all=False selected_departments=selected_departments extra_classes="inline-chevron" %}
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <label class="fr-label fr-mb-0 text-nowrap" for="status-filter">Statut :</label>
@@ -108,6 +108,7 @@
                                         —
                                     {% endif %}
                                 </td>
+                                <td>{{ realisation.date|date:"d/m/Y"|default:"—" }}</td>
                                 <td>{{ realisation.created_at|date:"d/m/Y" }}</td>
                                 <td class="project-table__status">
                                     <span class="fr-badge fr-badge--no-icon {% if realisation.status == 'published' %}fr-badge--success{% else %}fr-badge--warning{% endif %}">
@@ -137,7 +138,7 @@
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="8">-- Aucun résultat --</td>
+                                <td colspan="9">-- Aucun résultat --</td>
                             </tr>
                         {% endfor %}
                     </tbody>
