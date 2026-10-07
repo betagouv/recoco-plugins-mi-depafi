@@ -375,7 +375,6 @@ class CrmRealisationMixin(UserPassesTestMixin):
         return (
             Realisation.objects.filter(project__project_sites__site=self.request.site)
             .select_related("resource__category", "project__commune")
-            .annotate(like_count=Count("likes", distinct=True))
             .order_by("-created_at")
             .distinct()
         )
@@ -387,6 +386,9 @@ class CrmRealisationListView(CrmRealisationMixin, FilterView):
     template_name = "plugin_mi_depafi/crm_realisation_list.html"
     context_object_name = "realisations"
     paginate_by = 25
+
+    def get_queryset(self):
+        return super().get_queryset().annotate(like_count=Count("likes", distinct=True))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

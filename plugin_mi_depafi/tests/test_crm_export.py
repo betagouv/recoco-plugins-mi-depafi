@@ -10,7 +10,7 @@ from recoco.apps.geomatics.models import Department
 from recoco.utils import login
 
 from ..conftest import make_project_on_site
-from ..models import Realisation
+from ..models import Realisation, RealisationLike
 from .conftest import crm_list_url, csv_url, make_resource
 
 # ---------------------------------------------------------------------------
@@ -59,18 +59,19 @@ def test_crm_list_lists_realisations_for_crm_user(request, client):
     project = make_project_on_site(request)
     site = get_current_site(request)
     resource = make_resource(request, title="Action listée")
-    baker.make(
+    realisation = baker.make(
         Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
     )
+    baker.make(RealisationLike, realisation=realisation, _quantity=2)
 
     with login(client) as user:
         assign_perm("use_crm", user, site)
         response = client.get(crm_list_url())
 
     assert response.status_code == 200
-    assert [r.resource.title for r in response.context["realisations"]] == [
-        "Action listée"
-    ]
+    assert [
+        (r.resource.title, r.like_count) for r in response.context["realisations"]
+    ] == [("Action listée", 2)]
 
 
 # ---------------------------------------------------------------------------
