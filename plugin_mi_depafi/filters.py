@@ -55,10 +55,10 @@ class RealisationFilter(django_filters.FilterSet):
     )
 
     perimeter = django_filters.ChoiceFilter(
-          label="Périmètre",
-          field_name="project__depafi__perimeter",
-          choices=DepafiProject.Perimeter.choices,
-      )
+        label="Périmètre",
+        field_name="project__depafi__perimeter",
+        choices=DepafiProject.Perimeter.choices,
+    )
 
     class Meta:
         model = Realisation

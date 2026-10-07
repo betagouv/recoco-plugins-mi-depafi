@@ -5,7 +5,6 @@ from .views import (
     CrmRealisationListView,
     DepafiProjectPerimeterUpdateView,
     RealisationBrowseView,
-    DepafiProjectPerimeterUpdateView,
     RealisationCreateView,
     RealisationDeleteView,
     RealisationDetailView,

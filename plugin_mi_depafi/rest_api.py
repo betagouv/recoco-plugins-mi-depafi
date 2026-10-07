@@ -68,16 +68,16 @@ class RealisationMapSerializer(serializers.ModelSerializer):
 class RealisationsForMapAPIView(ListAPIView):
     serializer_class = RealisationMapSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [
-        WatsonSearchFilter,
-        filters.DjangoFilterBackend
-    ]
+    filter_backends = [WatsonSearchFilter, filters.DjangoFilterBackend]
     filterset_class = RealisationFilter
     pagination_class = None
 
     def get_queryset(self):
         return (
-            Realisation.objects.filter(project__project_sites__site=self.request.site, status=Realisation.PUBLISHED)
+            Realisation.objects.filter(
+                project__project_sites__site=self.request.site,
+                status=Realisation.PUBLISHED,
+            )
             .select_related("project__commune__department", "resource")
             .prefetch_related("photos")
             .distinct()

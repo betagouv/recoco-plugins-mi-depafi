@@ -358,6 +358,7 @@ class RealisationBrowseView(LoginRequiredMixin, TemplateView):
         ctx["regions"] = list(RegionSerializer(regions, many=True).data)
         return ctx
 
+
 class CrmRealisationMixin(UserPassesTestMixin):
     """Site scoping, CRM permission check and filtering shared by the CRM views.
 
@@ -380,20 +381,6 @@ class CrmRealisationMixin(UserPassesTestMixin):
         )
 
 
-# class CrmRealisationListView(LoginRequiredMixin, TemplateView):
-#     """CRM-side list of all Realisations across the site."""
-
-#     template_name = "plugin_mi_depafi/crm_realisation_list.html"
-
-#     def get(self, request, *args, **kwargs):
-#         has_perm_or_403(request.user, "use_crm", request.site)
-#         return super().get(request, *args, **kwargs)
-    
-#     def get_context_data(self, **kwargs):
-#         context = super().get_context_data(**kwargs)
-#         context["perimeter"] = DepafiProject.Perimeter.choices
-#         return context
-
 class CrmRealisationListView(CrmRealisationMixin, FilterView):
     """CRM-side list of all Realisations across the site."""
 
@@ -413,7 +400,6 @@ class CrmRealisationListView(CrmRealisationMixin, FilterView):
         context["selected_departments"] = selected_departments
         context["perimeter"] = DepafiProject.Perimeter.choices
         return context
-
 
 
 class CrmRealisationCsvView(CrmRealisationMixin, BaseFilterView):
