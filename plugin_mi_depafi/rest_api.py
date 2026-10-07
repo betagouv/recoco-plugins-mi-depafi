@@ -1,39 +1,38 @@
 from django.db.models import Count
 from django.urls import reverse
+from django_filters import rest_framework as filters
 from rest_framework import serializers
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
 
+from recoco.apps.geomatics import models as geomatics_models
 from recoco.rest_api.filters import WatsonSearchFilter
 from recoco.utils import has_perm_or_403
 
-from .models import Realisation
+from .models import DepafiProject, Realisation
 
 
-class RealisationDepartmentsFilter(BaseFilterBackend):
-    def filter_queryset(self, request, queryset, _view):
-        departments = request.GET.getlist("departments")
-        if departments:
-            queryset = queryset.filter(
-                project__commune__department__code__in=departments
-            )
-        return queryset
+class RealisationFilterSet(filters.FilterSet): 
+    departments = filters.ModelMultipleChoiceFilter(
+        field_name="project__commune__department",
+        to_field_name="code",
+        queryset=geomatics_models.Department.objects.all(),
+    )
 
+    perimeter = filters.ChoiceFilter(
+        field_name="project__depafi__perimeter",
+        choices=DepafiProject.Perimeter.choices,
+    )
 
-class RealisationPerimeterFilter(BaseFilterBackend):
-    def filter_queryset(self, request, queryset, _view):
-        perimeter = request.GET.get("perimeter")
-        if perimeter:
-            queryset = queryset.filter(project__depafi__perimeter=perimeter)
-        return queryset
+    status = filters.MultipleChoiceFilter(
+          choices=Realisation.STATUS_CHOICES,
+    )
 
-
-class RealisationStatusFilter(BaseFilterBackend):
-    def filter_queryset(self, _request, queryset, _view):
-        return queryset.filter(status=Realisation.PUBLISHED)
-
+    class Meta: 
+        model = Realisation
+        fields = ('departments', 'perimeter', 'status')
 
 class DepartmentMapSerializer(serializers.Serializer):
     code = serializers.CharField()
@@ -96,14 +95,6 @@ class CrmRealisationSearchFilter(BaseFilterBackend):
         search = request.GET.get("q", "").strip()
         if search:
             queryset = queryset.filter(resource__title__icontains=search)
-        return queryset
-
-
-class CrmRealisationStatusFilter(BaseFilterBackend):
-    def filter_queryset(self, request, queryset, _view):
-        statuses = request.GET.getlist("status")
-        if statuses:
-            queryset = queryset.filter(status__in=statuses)
         return queryset
 
 
@@ -173,10 +164,9 @@ class CrmRealisationListAPIView(ListAPIView):
     permission_classes = [IsAuthenticated]
     filter_backends = [
         CrmRealisationSearchFilter,
-        CrmRealisationStatusFilter,
-        RealisationDepartmentsFilter,
-        RealisationPerimeterFilter,
+        filters.DjangoFilterBackend
     ]
+    filterset_class = RealisationFilterSet
     pagination_class = CrmRealisationPagination
 
     def get_queryset(self):
@@ -194,16 +184,15 @@ class RealisationsForMapAPIView(ListAPIView):
     serializer_class = RealisationMapSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [
-        RealisationStatusFilter,
         WatsonSearchFilter,
-        RealisationDepartmentsFilter,
-        RealisationPerimeterFilter,
+        filters.DjangoFilterBackend
     ]
+    filterset_class = RealisationFilterSet
     pagination_class = None
 
     def get_queryset(self):
         return (
-            Realisation.objects.filter(project__project_sites__site=self.request.site)
+            Realisation.objects.filter(project__project_sites__site=self.request.site, status=Realisation.PUBLISHED)
             .select_related("project__commune__department", "resource")
             .prefetch_related("photos")
             .distinct()
