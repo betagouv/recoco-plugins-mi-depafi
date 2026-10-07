@@ -2,12 +2,12 @@ import csv
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
-from django.core.paginator import Paginator
 from django.db.models import Count, Exists, OuterRef
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import DetailView, ListView, TemplateView, View
+from django_filters.views import FilterMixin, FilterView
 
 from recoco.apps.geomatics.models import Region
 from recoco.apps.geomatics.serializers import RegionSerializer
@@ -16,6 +16,7 @@ from recoco.apps.projects.views.detail import ProjectDetailBaseView
 from recoco.apps.resources.models import Resource
 from recoco.utils import has_perm_or_403, is_staff_for_site
 
+from .filters import RealisationFilter
 from .forms import RealisationForm
 from .models import (
     Realisation,
@@ -295,68 +296,51 @@ class RealisationMapView(TemplateView):
         return ctx
 
 
-class CrmRealisationListView(LoginRequiredMixin, View):
-    """CRM-side list of all Realisations across the site."""
+class CrmRealisationMixin(LoginRequiredMixin):
+    """Site scoping, CRM permission check and filtering shared by the CRM views."""
 
-    template_name = "plugin_mi_depafi/crm_realisation_list.html"
+    filterset_class = RealisationFilter
 
-    def get(self, request):
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
         has_perm_or_403(request.user, "use_crm", request.site)
+        return super().dispatch(request, *args, **kwargs)
 
-        realisations = (
-            Realisation.objects.filter(project__project_sites__site=request.site)
+    def get_queryset(self):
+        return (
+            Realisation.objects.filter(project__project_sites__site=self.request.site)
             .select_related("resource__category", "project__commune")
             .annotate(like_count=Count("likes", distinct=True))
             .order_by("-created_at")
             .distinct()
         )
 
-        if q := request.GET.get("q", "").strip():
-            realisations = realisations.filter(resource__title__icontains=q)
 
-        if statuses := [s for s in request.GET.getlist("status") if s]:
-            realisations = realisations.filter(status__in=statuses)
+class CrmRealisationListView(CrmRealisationMixin, FilterView):
+    """CRM-side list of all Realisations across the site."""
 
-        if departments := request.GET.getlist("departments"):
-            realisations = realisations.filter(
-                project__commune__department__code__in=departments
-            )
+    template_name = "plugin_mi_depafi/crm_realisation_list.html"
+    context_object_name = "realisations"
+    paginate_by = 25
 
-        paginator = Paginator(realisations, 25)
-        page_number = request.GET.get("page") or 1
-        page_obj = paginator.get_page(page_number)
-
-        return render(
-            request,
-            self.template_name,
-            {
-                "realisations": realisations,
-                "paginator": paginator,
-                "page_obj": page_obj,
-                "selected_departments": request.GET.getlist("departments"),
-            },
-        )
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        selected_departments = []
+        if self.filterset.is_valid():
+            departments = self.filterset.form.cleaned_data.get("departments") or []
+            selected_departments = [department.code for department in departments]
+        context["selected_departments"] = selected_departments
+        return context
 
 
-class CrmRealisationCsvView(LoginRequiredMixin, View):
-    def get(self, request):
-        has_perm_or_403(request.user, "use_crm", request.site)
-
-        qs = (
-            Realisation.objects.filter(project__project_sites__site=request.site)
-            .select_related("resource__category", "project__commune")
-            .order_by("-created_at")
-            .distinct()
-        )
-
-        if q := request.GET.get("q", "").strip():
-            qs = qs.filter(resource__title__icontains=q)
-
-        if statuses := [s for s in request.GET.getlist("status") if s]:
-            qs = qs.filter(status__in=statuses)
-
-        if departments := request.GET.getlist("departments"):
-            qs = qs.filter(project__commune__department__code__in=departments)
+class CrmRealisationCsvView(CrmRealisationMixin, FilterMixin, View):
+    def get(self, request, *args, **kwargs):
+        filterset = self.get_filterset(self.get_filterset_class())
+        if filterset.is_bound and not filterset.is_valid() and self.get_strict():
+            qs = filterset.queryset.none()
+        else:
+            qs = filterset.qs
 
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = 'attachment; filename="realisations.csv"'
