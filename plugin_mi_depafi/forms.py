@@ -4,13 +4,36 @@ from django import forms
 from markdownx.fields import MarkdownxFormField
 from recoco.apps.resources.models import Resource
 
-from .models import Realisation
+from .models import DepafiProject, Realisation
+
+
+class DepafiProjectPerimeterForm(forms.ModelForm):
+    class Meta:
+        model = DepafiProject
+        fields = ["perimeter"]
+        widgets = {
+            "perimeter": forms.Select(attrs={"class": "fr-select"}),
+        }
+        labels = {
+            "perimeter": "Périmètre",
+        }
+        help_texts = {
+            "perimeter": "Périmètre auquel se rapporte le dossier",
+        }
 
 
 class RealisationForm(forms.ModelForm):
     description = MarkdownxFormField(
         required=False,
         label="Description de l'action",
+    )
+    # Not rendered in the template: status is submitted through the
+    # "Sauvegarder en brouillon" / "Sauvegarder et publier" buttons. The
+    # choice field validates that only "draft" or "published" is accepted.
+    status = forms.ChoiceField(
+        choices=Realisation.STATUS_CHOICES,
+        required=False,
+        initial=Realisation.DRAFT,
     )
 
     def __init__(self, *args, **kwargs):

@@ -1,9 +1,11 @@
 import pytest
+from django.contrib.sites.shortcuts import get_current_site
 from django.core.files.uploadedfile import SimpleUploadedFile
+from guardian.shortcuts import assign_perm
 from model_bakery import baker
 
 from recoco.apps.projects import utils as project_utils
-from recoco.utils import login
+from recoco.utils import assign_site_staff, login
 
 from ..conftest import make_project_on_site
 from ..models import Realisation, RealisationLike, RealisationPhoto
@@ -114,6 +116,51 @@ def test_realisation_create_forbidden_for_unprivileged_user(request, client):
 
 
 @pytest.mark.django_db
+def test_realisation_create_post_forbidden_for_unprivileged_user(request, client):
+    """A logged-in user with no link to the project cannot create a
+    realisation by POSTing directly (IDOR)."""
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+
+    with login(client):
+        response = client.post(
+            create_url(project),
+            {
+                "resource": resource.pk,
+                "partners": "",
+                "description": "",
+                "status": "published",
+            },
+        )
+
+    assert response.status_code == 403
+    assert not Realisation.objects.filter(project=project).exists()
+
+
+@pytest.mark.django_db
+def test_realisation_create_post_forbidden_for_read_only_observer(request, client):
+    """A user who can see the project (site-wide list_projects) but has no
+    membership on it cannot create a realisation."""
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+
+    with login(client) as user:
+        assign_perm("list_projects", user, get_current_site(request))
+        response = client.post(
+            create_url(project),
+            {
+                "resource": resource.pk,
+                "partners": "",
+                "description": "",
+                "status": "draft",
+            },
+        )
+
+    assert response.status_code == 403
+    assert not Realisation.objects.filter(project=project).exists()
+
+
+@pytest.mark.django_db
 def test_realisation_create_form_accessible_for_project_member(request, client):
     project = make_project_on_site(request)
     with login(client) as user:
@@ -173,6 +220,30 @@ def test_realisation_create_saves_published(request, client):
 
 
 @pytest.mark.django_db
+def test_realisation_create_rejects_invalid_status(request, client):
+    """status is validated against (draft, published): arbitrary strings
+    must not be stored (and must not trigger the publish notification)."""
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        response = client.post(
+            create_url(project),
+            {
+                "resource": resource.pk,
+                "partners": "",
+                "description": "",
+                "status": "hacked_status",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.context["form"].errors
+    assert not Realisation.objects.filter(project=project).exists()
+
+
+@pytest.mark.django_db
 def test_realisation_create_assigns_project(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
@@ -196,6 +267,9 @@ def test_realisation_create_assigns_project(request, client):
 def test_realisation_create_redirects_to_list_on_success(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
+    # Resolve the expected URL before the request: the tenant middleware
+    # clears the enabled-plugins registry when the request exits.
+    expected_url = list_url(project)
 
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
@@ -210,7 +284,7 @@ def test_realisation_create_redirects_to_list_on_success(request, client):
         )
 
     assert response.status_code == 302
-    assert response["Location"] == list_url(project)
+    assert response["Location"] == expected_url
 
 
 @pytest.mark.django_db
@@ -283,6 +357,28 @@ def test_realisation_update_forbidden_for_unprivileged_user(request, client):
 
 
 @pytest.mark.django_db
+def test_realisation_update_post_forbidden_for_unprivileged_user(request, client):
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.DRAFT
+    )
+    with login(client):
+        response = client.post(
+            update_url(project, realisation),
+            {
+                "resource": resource.pk,
+                "partners": "Hacked",
+                "description": "",
+                "status": "draft",
+            },
+        )
+    assert response.status_code == 403
+    realisation.refresh_from_db()
+    assert realisation.partners != "Hacked"
+
+
+@pytest.mark.django_db
 def test_realisation_update_form_accessible_for_project_member(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
@@ -301,7 +397,7 @@ def test_realisation_update_form_accessible_for_project_member(request, client):
 
 
 @pytest.mark.django_db
-def test_realisation_update_returns_404_for_published(request, client):
+def test_realisation_update_form_accessible_for_published(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
@@ -310,7 +406,7 @@ def test_realisation_update_returns_404_for_published(request, client):
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
         response = client.get(update_url(project, realisation))
-    assert response.status_code == 404
+    assert response.status_code == 200
 
 
 @pytest.mark.django_db
@@ -339,6 +435,34 @@ def test_realisation_update_saves_changes(request, client):
     realisation.refresh_from_db()
     assert realisation.partners == "Nouveau partenaire"
     assert realisation.resource == new_resource
+
+
+@pytest.mark.django_db
+def test_realisation_update_rejects_invalid_status(request, client):
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(
+            Realisation,
+            project=project,
+            resource=resource,
+            status=Realisation.DRAFT,
+            created_by=user,
+        )
+        response = client.post(
+            update_url(project, realisation),
+            {
+                "resource": resource.pk,
+                "partners": "",
+                "description": "",
+                "status": "hacked_status",
+            },
+        )
+    assert response.status_code == 200
+    assert response.context["form"].errors
+    realisation.refresh_from_db()
+    assert realisation.status == Realisation.DRAFT
 
 
 @pytest.mark.django_db
@@ -407,6 +531,7 @@ def test_realisation_update_redirects_to_list_on_success(request, client):
             status=Realisation.DRAFT,
             created_by=user,
         )
+        expected_url = list_url(project)
         response = client.post(
             update_url(project, realisation),
             {
@@ -417,7 +542,7 @@ def test_realisation_update_redirects_to_list_on_success(request, client):
             },
         )
     assert response.status_code == 302
-    assert response["Location"] == list_url(project)
+    assert response["Location"] == expected_url
 
 
 # ---------------------------------------------------------------------------
@@ -468,7 +593,7 @@ def test_realisation_delete_get_shows_confirm_fragment(request, client):
 
 
 @pytest.mark.django_db
-def test_realisation_delete_get_returns_404_for_published(request, client):
+def test_realisation_delete_get_shows_confirm_for_published(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
@@ -477,7 +602,7 @@ def test_realisation_delete_get_returns_404_for_published(request, client):
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
         response = client.get(delete_url(project, realisation))
-    assert response.status_code == 404
+    assert response.status_code == 200
 
 
 @pytest.mark.django_db
@@ -523,7 +648,7 @@ def test_realisation_delete_post_removes_draft(request, client):
 
 
 @pytest.mark.django_db
-def test_realisation_delete_post_returns_404_for_published(request, client):
+def test_realisation_delete_post_removes_published(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
@@ -532,7 +657,8 @@ def test_realisation_delete_post_returns_404_for_published(request, client):
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
         response = client.post(delete_url(project, realisation))
-    assert response.status_code == 404
+    assert response.status_code == 302
+    assert not Realisation.objects.filter(pk=realisation.pk).exists()
 
 
 @pytest.mark.django_db
@@ -548,8 +674,9 @@ def test_realisation_delete_post_redirects_to_list(request, client):
             status=Realisation.DRAFT,
             created_by=user,
         )
+        expected_url = list_url(project)
         response = client.post(delete_url(project, realisation))
-    assert response["Location"] == list_url(project)
+    assert response["Location"] == expected_url
 
 
 # ---------------------------------------------------------------------------
@@ -640,7 +767,9 @@ def test_realisation_detail_redirects_unauthenticated(request, client):
 def test_realisation_detail_accessible_for_any_logged_in_user(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
-    realisation = baker.make(Realisation, project=project, resource=resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
     with login(client):
         response = client.get(detail_url(realisation))
     assert response.status_code == 200
@@ -650,7 +779,9 @@ def test_realisation_detail_accessible_for_any_logged_in_user(request, client):
 def test_realisation_detail_shows_resource_title(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request, title="Mon action vélo")
-    realisation = baker.make(Realisation, project=project, resource=resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
     with login(client):
         response = client.get(detail_url(realisation))
     assert b"Mon action v\xc3\xa9lo" in response.content
@@ -665,6 +796,7 @@ def test_realisation_detail_shows_partners(request, client):
         project=project,
         resource=resource,
         partners="Fondation Jean-Moulin",
+        status=Realisation.PUBLISHED,
     )
     with login(client):
         response = client.get(detail_url(realisation))
@@ -677,7 +809,9 @@ def test_realisation_detail_shows_project_name(request, client):
     project.name = "ATE Doubs"
     project.save()
     resource = make_resource(request)
-    realisation = baker.make(Realisation, project=project, resource=resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
     with login(client):
         response = client.get(detail_url(realisation))
     assert b"ATE Doubs" in response.content
@@ -687,7 +821,222 @@ def test_realisation_detail_shows_project_name(request, client):
 def test_realisation_detail_context_has_realisation(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
-    realisation = baker.make(Realisation, project=project, resource=resource)
+    realisation = baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
     with login(client):
         response = client.get(detail_url(realisation))
     assert response.context["realisation"] == realisation
+
+
+@pytest.mark.django_db
+def test_realisation_detail_draft_hidden_from_other_users(request, client):
+    """Another user's draft is not readable by pk enumeration (IDOR)."""
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    realisation = baker.make(
+        Realisation,
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
+        created_by=baker.make("auth.User"),
+    )
+    with login(client):
+        response = client.get(detail_url(realisation))
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_realisation_detail_draft_accessible_to_creator(request, client):
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    with login(client) as user:
+        realisation = baker.make(
+            Realisation,
+            project=project,
+            resource=resource,
+            status=Realisation.DRAFT,
+            created_by=user,
+        )
+        response = client.get(detail_url(realisation))
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_realisation_detail_draft_accessible_to_staff(request, client):
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    realisation = baker.make(
+        Realisation,
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
+        created_by=baker.make("auth.User"),
+    )
+    with login(client) as user:
+        assign_site_staff(get_current_site(request), user)
+        response = client.get(detail_url(realisation))
+    assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Write permission (projects.manage_documents + staff bypass)
+# ---------------------------------------------------------------------------
+
+
+def _post_realisation(client, url, resource, status="draft", **extra):
+    return client.post(
+        url,
+        {
+            "resource": resource.pk,
+            "partners": "",
+            "description": "",
+            "status": status,
+            **extra,
+        },
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "assign", [project_utils.assign_advisor, project_utils.assign_observer]
+)
+def test_realisation_create_allowed_for_advisor_and_observer(request, client, assign):
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    with login(client) as user:
+        assign(user, project)
+        response = _post_realisation(client, create_url(project), resource)
+    assert response.status_code == 302
+    assert Realisation.objects.filter(project=project, created_by=user).exists()
+
+
+@pytest.mark.django_db
+def test_realisation_create_allowed_for_staff(request, client):
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    with login(client) as user:
+        assign_site_staff(get_current_site(request), user)
+        response = _post_realisation(client, create_url(project), resource)
+    assert response.status_code == 302
+    assert Realisation.objects.filter(project=project, created_by=user).exists()
+
+
+@pytest.mark.django_db
+def test_realisation_create_forbidden_for_collaborator_of_draft_project(
+    request, client
+):
+    """Collaborators only get manage_documents once the project is accepted."""
+    project = make_project_on_site(request)
+    project.project_sites.update(status="DRAFT")
+    resource = make_resource(request)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        response = _post_realisation(client, create_url(project), resource)
+    assert response.status_code == 403
+    assert not Realisation.objects.filter(project=project).exists()
+
+
+@pytest.mark.django_db
+def test_realisation_update_allowed_on_other_collaborator_draft(request, client):
+    """Like project documents, any realisation of the project can be edited by
+    whoever may manage the project documents, whoever created it."""
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    realisation = baker.make(
+        Realisation,
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
+        created_by=baker.make("auth.User"),
+    )
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        response = _post_realisation(
+            client, update_url(project, realisation), resource, partners="Edited"
+        )
+    assert response.status_code == 302
+    realisation.refresh_from_db()
+    assert realisation.partners == "Edited"
+
+
+@pytest.mark.django_db
+def test_realisation_update_allowed_for_staff_on_published(request, client):
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    realisation = baker.make(
+        Realisation,
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
+        created_by=baker.make("auth.User"),
+    )
+    with login(client) as user:
+        assign_site_staff(get_current_site(request), user)
+        response = _post_realisation(
+            client,
+            update_url(project, realisation),
+            resource,
+            status="published",
+            partners="Staff edit",
+        )
+    assert response.status_code == 302
+    realisation.refresh_from_db()
+    assert realisation.partners == "Staff edit"
+
+
+@pytest.mark.django_db
+def test_realisation_delete_allowed_for_staff_on_other_user_realisation(
+    request, client
+):
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    realisation = baker.make(
+        Realisation,
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
+        created_by=baker.make("auth.User"),
+    )
+    with login(client) as user:
+        assign_site_staff(get_current_site(request), user)
+        response = client.post(delete_url(project, realisation))
+    assert response.status_code == 302
+    assert not Realisation.objects.filter(pk=realisation.pk).exists()
+
+
+@pytest.mark.django_db
+def test_realisation_detail_draft_accessible_to_project_advisor(request, client):
+    """Whoever may edit a draft (manage_documents on its project) can read it."""
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    realisation = baker.make(
+        Realisation,
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
+        created_by=baker.make("auth.User"),
+    )
+    with login(client) as user:
+        project_utils.assign_advisor(user, project)
+        response = client.get(detail_url(realisation))
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_realisation_detail_draft_hidden_from_read_only_user(request, client):
+    """A user who can see the project (site-wide list_projects) but cannot
+    manage its documents does not see other people's drafts."""
+    project = make_project_on_site(request)
+    resource = make_resource(request)
+    realisation = baker.make(
+        Realisation,
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
+        created_by=baker.make("auth.User"),
+    )
+    with login(client) as user:
+        assign_perm("list_projects", user, get_current_site(request))
+        response = client.get(detail_url(realisation))
+    assert response.status_code == 404

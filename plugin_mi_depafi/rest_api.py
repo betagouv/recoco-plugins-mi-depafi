@@ -11,7 +11,9 @@ class RealisationDepartmentsFilter(BaseFilterBackend):
     def filter_queryset(self, request, queryset, _view):
         departments = request.GET.getlist("departments")
         if departments:
-            queryset = queryset.filter(project__commune__department__code__in=departments)
+            queryset = queryset.filter(
+                project__commune__department__code__in=departments
+            )
         return queryset
 
 
@@ -58,7 +60,15 @@ class RealisationMapSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Realisation
-        fields = ["id", "description", "updated_at", "project", "resource", "photos"]
+        fields = [
+            "id",
+            "description",
+            "date",
+            "updated_at",
+            "project",
+            "resource",
+            "photos",
+        ]
 
     def get_photos(self, obj):
         request = self.context.get("request")
@@ -70,10 +80,18 @@ class RealisationMapSerializer(serializers.ModelSerializer):
 
 class RealisationsForMapAPIView(ListAPIView):
     serializer_class = RealisationMapSerializer
-    filter_backends = [RealisationStatusFilter, WatsonSearchFilter, RealisationDepartmentsFilter]
+    permission_classes = [IsAuthenticated]
+    filter_backends = [
+        RealisationStatusFilter,
+        WatsonSearchFilter,
+        RealisationDepartmentsFilter,
+    ]
     pagination_class = None
 
     def get_queryset(self):
-        return Realisation.objects.select_related(
-            "project__commune__department", "resource"
-        ).prefetch_related("photos")
+        return (
+            Realisation.objects.filter(project__project_sites__site=self.request.site)
+            .select_related("project__commune__department", "resource")
+            .prefetch_related("photos")
+            .distinct()
+        )

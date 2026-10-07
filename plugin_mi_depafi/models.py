@@ -1,3 +1,5 @@
+import uuid
+
 from django.conf import settings
 from django.db import models
 from django.urls import reverse
@@ -95,6 +97,52 @@ class Realisation(models.Model):
         return str(self.resource)
 
 
+class DepafiProject(models.Model):
+    """
+    Plugin-specific data attached to a core Project (OneToOne profile).
+    Example data: Lakaa import id, perimeter, ...
+    """
+
+    class Perimeter(models.TextChoices):
+        GENDARMERIE_NATIONALE = "gendarmerie_nationale", "Gendarmerie nationale"
+        POLICE_NATIONALE = "police_nationale", "Police nationale"
+        SECURITE_CIVILE = "securite_civile", "Sécurité Civile"
+        SGAMI = "sgami", "SGAMI"
+        ATE = "ate", "ATE"
+        OPERATEUR = "operateur", "Opérateur"
+        ADMINISTRATION_CENTRALE = (
+            "administration_centrale",
+            "Administration Centrale",
+        )
+
+    project = models.OneToOneField(
+        "projects.Project",
+        on_delete=models.CASCADE,
+        related_name="depafi",
+        primary_key=True,
+        verbose_name="Projet",
+    )
+    lakaa_import_id = models.CharField(
+        max_length=100,
+        unique=True,
+        null=True,
+        blank=True,
+        verbose_name="Identifiant d'import Lakaa",
+    )
+    perimeter = models.CharField(
+        max_length=32,
+        choices=Perimeter.choices,
+        blank=True,
+        verbose_name="Périmètre",
+    )
+
+    class Meta:
+        verbose_name = "Dossier Artemi"
+
+    def __str__(self):
+        return f"Dossier Artemi {self.project_id}"
+
+
 class RealisationLike(models.Model):
     realisation = models.ForeignKey(
         Realisation,
@@ -130,7 +178,10 @@ class RealisationNode(Node):
 
 
 def _realisation_photo_upload_path(instance, filename):
-    return f"plugins/mi_depafi/realisations/{instance.realisation_id}/photos/{filename}"
+    return (
+        f"plugins/mi_depafi/realisations/{instance.realisation_id}/"
+        f"{uuid.uuid4().hex}/photos/{filename}"
+    )
 
 
 class RealisationPhoto(models.Model):
@@ -149,7 +200,10 @@ class RealisationPhoto(models.Model):
 
 
 def _realisation_document_upload_path(instance, filename):
-    return f"plugins/mi_depafi/realisations/{instance.realisation_id}/documents/{filename}"
+    return (
+        f"plugins/mi_depafi/realisations/{instance.realisation_id}/"
+        f"{uuid.uuid4().hex}/documents/{filename}"
+    )
 
 
 class RealisationDocument(models.Model):
