@@ -42,3 +42,19 @@ def test_map_api_filters_by_perimeter(request, client):
     assert sgami.pk in ids
     assert other_perimeter.pk not in ids
     assert no_perimeter.pk not in ids
+
+
+@pytest.mark.django_db
+def test_map_api_ignores_invalid_filter_values(request, client):
+    realisation = make_published_realisation(
+        request, perimeter=DepafiProject.Perimeter.SGAMI
+    )
+
+    with login(client):
+        response = client.get(
+            map_api_url(),
+            {"perimeter": "unknown", "departments": "XX", "status": "bogus"},
+        )
+
+    assert response.status_code == 200
+    assert realisation.pk in {item["id"] for item in response.json()}

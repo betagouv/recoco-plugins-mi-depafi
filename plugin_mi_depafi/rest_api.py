@@ -9,6 +9,13 @@ from .filters import RealisationFilter
 from .models import Realisation
 
 
+class LenientDjangoFilterBackend(filters.DjangoFilterBackend):
+    """Ignore invalid filter values (stale bookmark, unknown department code…)
+    instead of answering 400, as the map filters did before django-filter."""
+
+    raise_exception = False
+
+
 class DepartmentMapSerializer(serializers.Serializer):
     code = serializers.CharField()
     name = serializers.CharField()
@@ -68,7 +75,7 @@ class RealisationMapSerializer(serializers.ModelSerializer):
 class RealisationsForMapAPIView(ListAPIView):
     serializer_class = RealisationMapSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [WatsonSearchFilter, filters.DjangoFilterBackend]
+    filter_backends = [WatsonSearchFilter, LenientDjangoFilterBackend]
     filterset_class = RealisationFilter
     pagination_class = None
 
