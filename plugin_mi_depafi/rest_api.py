@@ -175,6 +175,7 @@ class CrmRealisationListAPIView(ListAPIView):
         CrmRealisationSearchFilter,
         CrmRealisationStatusFilter,
         RealisationDepartmentsFilter,
+        RealisationPerimeterFilter,
     ]
     pagination_class = CrmRealisationPagination
 

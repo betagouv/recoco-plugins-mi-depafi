@@ -372,7 +372,7 @@ class CrmRealisationListView(LoginRequiredMixin, View):
 
     def get(self, request):
         has_perm_or_403(request.user, "use_crm", request.site)
-        return render(request, self.template_name)
+        return render(request, self.template_name, {"perimeter": DepafiProject.Perimeter.choices})
 
 
 class CrmRealisationCsvView(LoginRequiredMixin, View):

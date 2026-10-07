@@ -13,7 +13,7 @@
     <label class="fr-label text-nowrap fr-mr-1w" for="perimeter-filter">
         Périmètre :
     </label>
-    <select class="fr-select fr-mt-0" aria-describedby="perimeter-filter-messages" id="perimeter-filter" name="permimeter" x-model="selectedPerimeter" @change="onPerimeterSelected">
+    <select class="fr-select fr-mt-0" aria-describedby="perimeter-filter-messages" id="perimeter-filter" name="perimeter" x-model="{{ x_model|default:'selectedPerimeter' }}" @change="onPerimeterSelected">
         <option value="">Tous les périmètres</option>
         {% for value, label in perimeter %}
             <option value="{{ value }}">{{ label }}</option>

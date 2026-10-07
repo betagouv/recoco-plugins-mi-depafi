@@ -2,11 +2,12 @@ import Alpine from "alpinejs";
 import api from "@core/js/utils/api";
 import htmx from 'htmx.org';
 
-function realisationsUrl({ search = "", departments = [], status = [], limit = 20, offset = 0 } = {}) {
+function realisationsUrl({ search = "", departments = [], status = [], perimeter="", limit = 20, offset = 0,  } = {}) {
   const params = new URLSearchParams({ limit, offset });
   if (search) params.set("q", search);
   departments.forEach((d) => params.append("departments", d));
   status.forEach((s) => params.append("status", s));
+  params.append('perimeter', perimeter);
   return `/api/crm/realisations/?${params.toString()}`;
 }
 
@@ -19,6 +20,7 @@ Alpine.data("RealisationListCrm", () => ({
     searchText: "",
     searchDepartment: [],
     searchStatus: [],
+    selectedPerimeter: ""
   },
   pagination: {
     currentPage: 1,
@@ -56,15 +58,17 @@ Alpine.data("RealisationListCrm", () => ({
   async saveSelectedDepartment(event) {
     if (!event.detail) return;
     this.backendSearch.searchDepartment = [...event.detail];
-    const response = await this.fetchRealisations();
-    this.updateListAndPagination(response);
+    await this.onSearch();
   },
 
   async saveSelectedStatus(event) {
     if (!event.detail) return;
     this.backendSearch.searchStatus = [...event.detail];
-    const response = await this.fetchRealisations();
-    this.updateListAndPagination(response);
+    await this.onSearch();
+  },
+
+  async onPerimeterSelected() {
+    await this.onSearch();
   },
 
   async onSearch() {
@@ -85,6 +89,7 @@ Alpine.data("RealisationListCrm", () => ({
         search: this.backendSearch.searchText,
         departments: this.backendSearch.searchDepartment,
         status: this.backendSearch.searchStatus,
+        perimeter: this.backendSearch.selectedPerimeter,
         limit: this.pagination.limit,
         offset,
       }),
