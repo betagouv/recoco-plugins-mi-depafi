@@ -1,5 +1,8 @@
 import pytest
+from django.conf import settings
+from django.contrib.sites.models import Site
 from django.contrib.sites.shortcuts import get_current_site
+from django.shortcuts import resolve_url
 from guardian.shortcuts import assign_perm
 from model_bakery import baker
 
@@ -8,26 +11,71 @@ from recoco.utils import login
 
 from ..conftest import make_project_on_site
 from ..models import Realisation
-from .conftest import csv_url, make_resource
+from .conftest import crm_list_url, csv_url, make_resource
+
+# ---------------------------------------------------------------------------
+# CRM access control (list + CSV export)
+# ---------------------------------------------------------------------------
+
+crm_urls = pytest.mark.parametrize("url_func", [crm_list_url, csv_url])
+
+
+@crm_urls
+@pytest.mark.django_db
+def test_crm_view_redirects_unauthenticated_to_login(request, client, url_func):
+    make_project_on_site(request)
+    response = client.get(url_func())
+    assert response.status_code == 302
+    assert response.url.startswith(resolve_url(settings.LOGIN_URL))
+
+
+@crm_urls
+@pytest.mark.django_db
+def test_crm_view_forbidden_for_non_crm_user(request, client, url_func):
+    make_project_on_site(request)
+    with login(client):
+        response = client.get(url_func())
+    assert response.status_code == 403
+
+
+@crm_urls
+@pytest.mark.django_db
+def test_crm_view_forbidden_for_crm_user_of_other_site(request, client, url_func):
+    make_project_on_site(request)
+    other_site = baker.make(Site)
+    with login(client) as user:
+        assign_perm("use_crm", user, other_site)
+        response = client.get(url_func())
+    assert response.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# CRM list
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_crm_list_lists_realisations_for_crm_user(request, client):
+    project = make_project_on_site(request)
+    site = get_current_site(request)
+    resource = make_resource(request, title="Action listée")
+    baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
+
+    with login(client) as user:
+        assign_perm("use_crm", user, site)
+        response = client.get(crm_list_url())
+
+    assert response.status_code == 200
+    assert [r.resource.title for r in response.context["realisations"]] == [
+        "Action listée"
+    ]
+
 
 # ---------------------------------------------------------------------------
 # CRM CSV export
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.django_db
-def test_crm_csv_redirects_unauthenticated(request, client):
-    make_project_on_site(request)
-    response = client.get(csv_url())
-    assert response.status_code == 302
-
-
-@pytest.mark.django_db
-def test_crm_csv_forbidden_for_non_crm_user(request, client):
-    make_project_on_site(request)
-    with login(client):
-        response = client.get(csv_url())
-    assert response.status_code == 403
 
 
 @pytest.mark.django_db
