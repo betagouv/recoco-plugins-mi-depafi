@@ -49,6 +49,13 @@ def update_url(project, realisation):
     )
 
 
+def publish_url(project, realisation):
+    return reverse(
+        f"{PLUGIN_NAME}:realisation-publish",
+        kwargs={"project_id": project.pk, "pk": realisation.pk},
+    )
+
+
 def delete_url(project, realisation):
     return reverse(
         f"{PLUGIN_NAME}:realisation-delete",
