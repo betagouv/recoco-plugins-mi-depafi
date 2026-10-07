@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.generics import ListAPIView
+from rest_framework.permissions import IsAuthenticated
 
 from recoco.rest_api.filters import WatsonSearchFilter
 
