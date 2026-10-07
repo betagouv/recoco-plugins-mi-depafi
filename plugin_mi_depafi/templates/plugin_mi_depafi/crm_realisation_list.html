@@ -12,7 +12,7 @@
     <div x-data="{ breadcrumbs: { links: [{url: '{% url 'crm-site-dashboard' %}', title: 'Admin'}], current: 'Réalisations' } }"
          class="fr-p-0">{% include "tools/breadcrumb.html" %}</div>
     <div x-data="Crm" class="d-flex fr-px-0 crm">
-        <div class="w-100 d-flex flex-column justify-content-start project-list-crm">
+        <div class="w-100 d-flex flex-column justify-content-start project-list-crm crm-list-scroll">
             <form method="get"
                   action="{% url 'plugin_mi_depafi:crm-realisation-list' %}"
                   class="w-100">

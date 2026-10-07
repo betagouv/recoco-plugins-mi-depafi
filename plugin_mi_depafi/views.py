@@ -1,7 +1,7 @@
 import csv
 
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Count, Exists, OuterRef
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.db.models import Count, Exists, OuterRef, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -388,18 +388,37 @@ class CrmRealisationMixin(UserPassesTestMixin):
         )
 
 
-class CrmRealisationListView(LoginRequiredMixin, TemplateView):
+# class CrmRealisationListView(LoginRequiredMixin, TemplateView):
+#     """CRM-side list of all Realisations across the site."""
+
+#     template_name = "plugin_mi_depafi/crm_realisation_list.html"
+
+#     def get(self, request, *args, **kwargs):
+#         has_perm_or_403(request.user, "use_crm", request.site)
+#         return super().get(request, *args, **kwargs)
+    
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+#         context["perimeter"] = DepafiProject.Perimeter.choices
+#         return context
+
+class CrmRealisationListView(CrmRealisationMixin, FilterView):
     """CRM-side list of all Realisations across the site."""
 
     template_name = "plugin_mi_depafi/crm_realisation_list.html"
+    context_object_name = "realisations"
+    paginate_by = 25
 
-    def get(self, request, *args, **kwargs):
-        has_perm_or_403(request.user, "use_crm", request.site)
-        return super().get(request, *args, **kwargs)
-    
+    def get_queryset(self):
+        return super().get_queryset().annotate(like_count=Count("likes", distinct=True))
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["perimeter"] = DepafiProject.Perimeter.choices
+        selected_departments = []
+        if self.filterset.is_valid():
+            departments = self.filterset.form.cleaned_data.get("departments") or []
+            selected_departments = [department.code for department in departments]
+        context["selected_departments"] = selected_departments
         return context
 
 
