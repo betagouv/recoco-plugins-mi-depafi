@@ -1,6 +1,6 @@
 import csv
 
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models import Count, Exists, OuterRef
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -358,16 +358,18 @@ class RealisationBrowseView(LoginRequiredMixin, TemplateView):
         return ctx
 
 
-class CrmRealisationMixin(LoginRequiredMixin):
-    """Site scoping, CRM permission check and filtering shared by the CRM views."""
+class CrmRealisationMixin(UserPassesTestMixin):
+    """Site scoping, CRM permission check and filtering shared by the CRM views.
+
+    Anonymous users are redirected to the login page, authenticated users
+    without the `use_crm` permission get a 403.
+    """
 
     filterset_class = RealisationFilter
+    permission_denied_message = "L'information demandée n'est pas disponible"
 
-    def dispatch(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return self.handle_no_permission()
-        has_perm_or_403(request.user, "use_crm", request.site)
-        return super().dispatch(request, *args, **kwargs)
+    def test_func(self):
+        return has_perm(self.request.user, "use_crm", self.request.site)
 
     def get_queryset(self):
         return (
