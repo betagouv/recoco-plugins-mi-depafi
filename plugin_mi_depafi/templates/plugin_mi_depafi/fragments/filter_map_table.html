@@ -17,7 +17,7 @@
     </div>
     <div class="row fr-mt-3v">
         <div class="col-auto">
-            {% include "plugin_mi_depafi/fragments/filter_perimeter.html" %}
+            {% include "plugin_mi_depafi/fragments/filter_perimeter.html" with js_activate=True %}
         </div>
     
         <button class="fr-btn fr-btn--tertiary-no-outline" :disabled="!hasActiveFilters" @click="onClickResetQuery">

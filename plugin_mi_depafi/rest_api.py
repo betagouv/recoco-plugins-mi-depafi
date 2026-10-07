@@ -7,32 +7,12 @@ from rest_framework.generics import ListAPIView
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
 
-from recoco.apps.geomatics import models as geomatics_models
 from recoco.rest_api.filters import WatsonSearchFilter
 from recoco.utils import has_perm_or_403
 
-from .models import DepafiProject, Realisation
+from .filters import RealisationFilter
+from .models import Realisation
 
-
-class RealisationFilterSet(filters.FilterSet): 
-    departments = filters.ModelMultipleChoiceFilter(
-        field_name="project__commune__department",
-        to_field_name="code",
-        queryset=geomatics_models.Department.objects.all(),
-    )
-
-    perimeter = filters.ChoiceFilter(
-        field_name="project__depafi__perimeter",
-        choices=DepafiProject.Perimeter.choices,
-    )
-
-    status = filters.MultipleChoiceFilter(
-          choices=Realisation.STATUS_CHOICES,
-    )
-
-    class Meta: 
-        model = Realisation
-        fields = ('departments', 'perimeter', 'status')
 
 class DepartmentMapSerializer(serializers.Serializer):
     code = serializers.CharField()
@@ -166,7 +146,7 @@ class CrmRealisationListAPIView(ListAPIView):
         CrmRealisationSearchFilter,
         filters.DjangoFilterBackend
     ]
-    filterset_class = RealisationFilterSet
+    filterset_class = RealisationFilter
     pagination_class = CrmRealisationPagination
 
     def get_queryset(self):
@@ -187,7 +167,7 @@ class RealisationsForMapAPIView(ListAPIView):
         WatsonSearchFilter,
         filters.DjangoFilterBackend
     ]
-    filterset_class = RealisationFilterSet
+    filterset_class = RealisationFilter
     pagination_class = None
 
     def get_queryset(self):

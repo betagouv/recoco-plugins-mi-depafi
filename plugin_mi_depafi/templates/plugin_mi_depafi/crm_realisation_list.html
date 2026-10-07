@@ -25,6 +25,7 @@
                     <div style="flex: 1; min-width: 200px; position: relative;">
                         {% include "projects/project/fragments/search_bar.html" with name="q" value=request.GET.q placeholder="Rechercher" show_search_button=True %}
                     </div>
+                    {% include "plugin_mi_depafi/fragments/filter_perimeter.html" with rounded_version=True %}
                     <div x-data="DepartmentsFilterWrapper({{ selected_departments|default:'[]' }})"
                          @is-select-all-departments="onSelectAll($event.detail)"
                          @selected-departments="onSelected($event.detail)"

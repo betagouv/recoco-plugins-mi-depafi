@@ -419,6 +419,7 @@ class CrmRealisationListView(CrmRealisationMixin, FilterView):
             departments = self.filterset.form.cleaned_data.get("departments") or []
             selected_departments = [department.code for department in departments]
         context["selected_departments"] = selected_departments
+        context["perimeter"] = DepafiProject.Perimeter.choices
         return context
 
 

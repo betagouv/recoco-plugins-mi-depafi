@@ -6,6 +6,7 @@
     Context Variables:
         - rounded_version: boolean
         - perimeter: list of values
+        - js_activate: to activate js event
 
 {% endcomment %}
 
@@ -13,10 +14,10 @@
     <label class="fr-label text-nowrap fr-mr-1w" for="perimeter-filter">
         Périmètre :
     </label>
-    <select class="fr-select fr-mt-0" aria-describedby="perimeter-filter-messages" id="perimeter-filter" name="perimeter" x-model="{{ x_model|default:'selectedPerimeter' }}" @change="onPerimeterSelected">
+    <select class="fr-select fr-mt-0" aria-describedby="perimeter-filter-messages" id="perimeter-filter" name="perimeter" {% if js_activate %}x-model="{{ x_model|default:'selectedPerimeter' }}" @change="onPerimeterSelected" {% else %}onchange="this.form.submit()"{% endif %}>
         <option value="">Tous les périmètres</option>
         {% for value, label in perimeter %}
-            <option value="{{ value }}">{{ label }}</option>
+            <option value="{{ value }}" {% if request.GET.perimeter == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
     </select>
     <div class="fr-messages-group fr-sr-only" id="perimeter-filter-messages" aria-live="polite">
