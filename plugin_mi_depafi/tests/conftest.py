@@ -62,5 +62,9 @@ def like_toggle_url(realisation):
     )
 
 
+def crm_list_url():
+    return reverse(f"{PLUGIN_NAME}:crm-realisation-list")
+
+
 def csv_url():
     return reverse(f"{PLUGIN_NAME}:crm-realisation-csv")
