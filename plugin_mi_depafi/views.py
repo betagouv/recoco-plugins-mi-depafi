@@ -365,14 +365,19 @@ class RealisationBrowseView(LoginRequiredMixin, TemplateView):
         return ctx
 
 
-class CrmRealisationListView(LoginRequiredMixin, View):
+class CrmRealisationListView(LoginRequiredMixin, TemplateView):
     """CRM-side list of all Realisations across the site."""
 
     template_name = "plugin_mi_depafi/crm_realisation_list.html"
 
-    def get(self, request):
+    def get(self, request, *args, **kwargs):
         has_perm_or_403(request.user, "use_crm", request.site)
-        return render(request, self.template_name, {"perimeter": DepafiProject.Perimeter.choices})
+        return super().get(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["perimeter"] = DepafiProject.Perimeter.choices
+        return context
 
 
 class CrmRealisationCsvView(LoginRequiredMixin, View):
