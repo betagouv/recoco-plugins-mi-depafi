@@ -1,0 +1,9 @@
+{% with count=paginator.count %}
+    {% if count == 0 %}
+        Aucun résultat
+    {% elif paginator.num_pages > 1 %}
+        {{ page_obj.object_list|length }} sur {{ count }} réalisation{{ count|pluralize }}
+    {% else %}
+        {{ count }} réalisation{{ count|pluralize }}
+    {% endif %}
+{% endwith %}

@@ -1,11 +1,12 @@
 import csv
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Count, Exists, OuterRef, Q
+from django.db.models import Count, Exists, OuterRef
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import DetailView, ListView, TemplateView, View
+from django_filters.views import BaseFilterView, FilterView
 
 from recoco.apps.geomatics.models import Region
 from recoco.apps.geomatics.serializers import RegionSerializer
@@ -14,6 +15,7 @@ from recoco.apps.projects.views.detail import ProjectDetailBaseView
 from recoco.apps.resources.models import Resource
 from recoco.utils import has_perm, has_perm_or_403, is_staff_for_site
 
+from .filters import RealisationFilter
 from .forms import DepafiProjectPerimeterForm, RealisationForm
 from .models import (
     DepafiProject,
@@ -364,6 +366,27 @@ class RealisationBrowseView(LoginRequiredMixin, TemplateView):
         ctx["regions"] = list(RegionSerializer(regions, many=True).data)
         return ctx
 
+class CrmRealisationMixin(UserPassesTestMixin):
+    """Site scoping, CRM permission check and filtering shared by the CRM views.
+
+    Anonymous users are redirected to the login page, authenticated users
+    without the `use_crm` permission get a 403.
+    """
+
+    filterset_class = RealisationFilter
+    permission_denied_message = "L'information demandée n'est pas disponible"
+
+    def test_func(self):
+        return has_perm(self.request.user, "use_crm", self.request.site)
+
+    def get_queryset(self):
+        return (
+            Realisation.objects.filter(project__project_sites__site=self.request.site)
+            .select_related("resource__category", "project__commune")
+            .order_by("-created_at")
+            .distinct()
+        )
+
 
 class CrmRealisationListView(LoginRequiredMixin, TemplateView):
     """CRM-side list of all Realisations across the site."""
@@ -380,26 +403,11 @@ class CrmRealisationListView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class CrmRealisationCsvView(LoginRequiredMixin, View):
-    def get(self, request):
-        has_perm_or_403(request.user, "use_crm", request.site)
 
-        qs = (
-            Realisation.objects.filter(project__project_sites__site=request.site)
-            .select_related("resource__category", "project__commune")
-            .order_by("-created_at")
-            .distinct()
-        )
+class CrmRealisationCsvView(CrmRealisationMixin, BaseFilterView):
+    """CSV export of the CRM list, honouring the same filters."""
 
-        if q := request.GET.get("q", "").strip():
-            qs = qs.filter(resource__title__icontains=q)
-
-        if statuses := request.GET.getlist("status"):
-            qs = qs.filter(status__in=statuses)
-
-        if departments := request.GET.getlist("departments"):
-            qs = qs.filter(project__commune__department__code__in=departments)
-
+    def render_to_response(self, context):
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = 'attachment; filename="realisations.csv"'
         response.write("﻿")  # BOM for Excel
@@ -410,7 +418,7 @@ class CrmRealisationCsvView(LoginRequiredMixin, View):
         )
 
         status_labels = dict(Realisation.STATUS_CHOICES)
-        for r in qs:
+        for r in self.object_list:
             commune = r.project.commune
             localisation = f"{commune.name} ({commune.postal})" if commune else ""
             writer.writerow(

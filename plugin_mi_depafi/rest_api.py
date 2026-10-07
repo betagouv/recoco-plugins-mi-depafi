@@ -4,12 +4,10 @@ from django_filters import rest_framework as filters
 from rest_framework import serializers
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.generics import ListAPIView
-from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
 
 from recoco.apps.geomatics import models as geomatics_models
 from recoco.rest_api.filters import WatsonSearchFilter
-from recoco.utils import has_perm_or_403
 
 from .models import DepafiProject, Realisation
 
