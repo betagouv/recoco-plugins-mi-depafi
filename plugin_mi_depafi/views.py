@@ -1,7 +1,7 @@
 import csv
 
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.db.models import Count, Exists, OuterRef, Q
+from django.db.models import Count, Exists, OuterRef
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -13,7 +13,7 @@ from recoco.apps.geomatics.serializers import RegionSerializer
 from recoco.apps.projects.models import Project
 from recoco.apps.projects.views.detail import ProjectDetailBaseView
 from recoco.apps.resources.models import Resource
-from recoco.utils import has_perm, has_perm_or_403, is_staff_for_site
+from recoco.utils import has_perm, has_perm_or_403
 
 from .filters import RealisationFilter
 from .forms import DepafiProjectPerimeterForm, RealisationForm
@@ -299,10 +299,7 @@ class RealisationDetailView(LoginRequiredMixin, DetailView):
     context_object_name = "realisation"
 
     def get_queryset(self):
-        # Published realisations are visible to any logged-in user, but drafts
-        # are private work-in-progress: only their creator (or site staff) can
-        # read them, consistently with the update/delete views.
-        queryset = (
+        return (
             super()
             .get_queryset()
             .select_related("resource", "project")
@@ -310,11 +307,6 @@ class RealisationDetailView(LoginRequiredMixin, DetailView):
             .filter(project__project_sites__site=self.request.site)
             .distinct()
         )
-        if not is_staff_for_site(self.request.user, self.request.site):
-            queryset = queryset.filter(
-                Q(status=Realisation.PUBLISHED) | Q(created_by=self.request.user)
-            )
-        return queryset
 
     def get_object(self, queryset=None):
         # Published realisations are visible to any logged-in user, but drafts
