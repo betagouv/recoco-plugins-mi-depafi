@@ -1,0 +1,25 @@
+{% comment %} 
+    
+    Template: filter_perimeter.html
+    Description: Select perimeter area for filter purpose
+    
+    Context Variables:
+        - rounded_version: boolean
+        - perimeter: list of values
+
+{% endcomment %}
+
+<div class="fr-select-group {% if rounded_version %}fr-select-group--rounded{% endif %} d-flex align-items-center fr-mb-0">
+    <label class="fr-label text-nowrap fr-mr-1w" for="perimeter-filter">
+        Périmètre :
+    </label>
+    <select class="fr-select fr-mt-0" aria-describedby="perimeter-filter-messages" id="perimeter-filter" name="permimeter" x-model="selectedPerimeter" @change="onPerimeterSelected">
+        <option value="">Tous les périmètres</option>
+        {% for value, label in perimeter %}
+            <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+    </select>
+    <div class="fr-messages-group fr-sr-only" id="perimeter-filter-messages" aria-live="polite">
+        Sélectionnez un perimètre pour filtrer les sites
+    </div>
+</div>
