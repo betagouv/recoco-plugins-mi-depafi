@@ -160,3 +160,22 @@ def test_crm_csv_filters_by_search(request, client):
     content = response.content.decode("utf-8-sig")
     assert "Action vélo" in content
     assert "Action eau" not in content
+
+
+@pytest.mark.django_db
+def test_crm_csv_is_empty_for_invalid_filter(request, client):
+    project = make_project_on_site(request)
+    site = get_current_site(request)
+    resource = make_resource(request, title="Action visible")
+    baker.make(
+        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+    )
+
+    with login(client) as user:
+        assign_perm("use_crm", user, site)
+        response = client.get(csv_url() + "?departments=unknown")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8-sig")
+    assert content.startswith("Intitulé,")
+    assert "Action visible" not in content

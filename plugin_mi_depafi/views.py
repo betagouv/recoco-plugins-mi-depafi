@@ -6,7 +6,7 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import DetailView, ListView, TemplateView, View
-from django_filters.views import FilterMixin, FilterView
+from django_filters.views import BaseFilterView, FilterView
 
 from recoco.apps.geomatics.models import Region
 from recoco.apps.geomatics.serializers import RegionSerializer
@@ -398,14 +398,10 @@ class CrmRealisationListView(CrmRealisationMixin, FilterView):
         return context
 
 
-class CrmRealisationCsvView(CrmRealisationMixin, FilterMixin, View):
-    def get(self, request, *args, **kwargs):
-        filterset = self.get_filterset(self.get_filterset_class())
-        if filterset.is_bound and not filterset.is_valid() and self.get_strict():
-            qs = filterset.queryset.none()
-        else:
-            qs = filterset.qs
+class CrmRealisationCsvView(CrmRealisationMixin, BaseFilterView):
+    """CSV export of the CRM list, honouring the same filters."""
 
+    def render_to_response(self, context):
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = 'attachment; filename="realisations.csv"'
         response.write("﻿")  # BOM for Excel
@@ -416,7 +412,7 @@ class CrmRealisationCsvView(CrmRealisationMixin, FilterMixin, View):
         )
 
         status_labels = dict(Realisation.STATUS_CHOICES)
-        for r in qs:
+        for r in self.object_list:
             commune = r.project.commune
             localisation = f"{commune.name} ({commune.postal})" if commune else ""
             writer.writerow(
