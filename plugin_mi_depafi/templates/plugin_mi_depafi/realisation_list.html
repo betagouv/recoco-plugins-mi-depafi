@@ -115,7 +115,7 @@
                 <div class="realisations-list col-9 fr-py-4w fr-px-3w">
                     <!-- Header -->
                     <div class="d-flex justify-content-between align-items-center fr-mb-4w">
-                        <h2 class="fr-h4 fr-mb-0">{{ realisations|length }} réalisation{{ realisations|length|pluralize }}</h2>
+                        <h2 class="fr-h4 fr-mb-0">{{ realisations|length }} réalisation{{ realisations|length|pluralize }} {% if draft_realisations %} et {{ draft_realisations|length }} brouillon{{ draft_realisations|length|pluralize }} {% endif %}</h2>
                         <a href="{% url 'plugin_mi_depafi:realisation-create' project_id=project.pk %}"
                            class="fr-btn fr-btn--primary fr-btn--sm">+ Déclarer une réalisation</a>
                     </div>
@@ -130,7 +130,7 @@
                         <!-- Drafts -->
                         {% if draft_realisations %}
                             <div class="fr-mb-4w">
-                                <p class="fr-text--sm fr-text--bold fr-mb-2v" style="color: #777;">Brouillons</p>
+                                <p class="realisations-list__sub-header fr-text--sm fr-text--bold fr-mb-2v">Brouillons</p>
                                 {% for realisation in draft_realisations %}
                                     {% include "plugin_mi_depafi/fragments/realisation_card.html" with realisation=realisation %}
                                 {% endfor %}
@@ -138,6 +138,7 @@
                         {% endif %}
                         <!-- Published, grouped by date -->
                         {% regroup published_realisations by created_at.date as grouped %}
+                        <p class="realisations-list__sub-header fr-text--sm fr-text--bold fr-mb-2v">Réalisations</p>
                         {% for group in grouped %}
                             <p class="fr-mb-2v realisation-list__date">le {{ group.grouper|date:"d F Y" }}</p>
                             <div class="realisation-list__group">
