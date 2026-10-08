@@ -8,7 +8,7 @@ from recoco.apps.projects import utils as project_utils
 from recoco.utils import assign_site_staff, login
 
 from ..conftest import make_project_on_site
-from ..models import Realisation, RealisationLike, RealisationPhoto
+from ..models import Realisation, RealisationLike, RealisationNode, RealisationPhoto
 from .conftest import (
     create_url,
     delete_url,
@@ -16,6 +16,7 @@ from .conftest import (
     like_toggle_url,
     list_url,
     make_resource,
+    publish_url,
     update_url,
 )
 
@@ -543,6 +544,118 @@ def test_realisation_update_redirects_to_list_on_success(request, client):
         )
     assert response.status_code == 302
     assert response["Location"] == expected_url
+
+
+# ---------------------------------------------------------------------------
+# Realisation publish (one-click from the list)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_realisation_publish_redirects_unauthenticated(request, client):
+    project = make_project_on_site(request)
+    realisation = baker.make(
+        Realisation,
+        project=project,
+        resource=make_resource(request),
+        status=Realisation.DRAFT,
+    )
+    response = client.post(publish_url(project, realisation))
+    assert response.status_code == 302
+    assert "/login" in response["Location"] or "/accounts" in response["Location"]
+    realisation.refresh_from_db()
+    assert realisation.status == Realisation.DRAFT
+
+
+@pytest.mark.django_db
+def test_realisation_publish_forbidden_for_unprivileged_user(request, client):
+    project = make_project_on_site(request)
+    realisation = baker.make(
+        Realisation,
+        project=project,
+        resource=make_resource(request),
+        status=Realisation.DRAFT,
+    )
+    with login(client):
+        response = client.post(publish_url(project, realisation))
+    assert response.status_code == 403
+    realisation.refresh_from_db()
+    assert realisation.status == Realisation.DRAFT
+
+
+@pytest.mark.django_db
+def test_realisation_publish_rejects_get(request, client):
+    project = make_project_on_site(request)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(
+            Realisation,
+            project=project,
+            resource=make_resource(request),
+            status=Realisation.DRAFT,
+            created_by=user,
+        )
+        response = client.get(publish_url(project, realisation))
+    assert response.status_code == 405
+    realisation.refresh_from_db()
+    assert realisation.status == Realisation.DRAFT
+
+
+@pytest.mark.django_db
+def test_realisation_publish_publishes_draft_and_notifies(request, client):
+    project = make_project_on_site(request)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(
+            Realisation,
+            project=project,
+            resource=make_resource(request),
+            status=Realisation.DRAFT,
+            created_by=user,
+        )
+        expected_url = list_url(project)
+        response = client.post(publish_url(project, realisation))
+    assert response.status_code == 302
+    assert response["Location"] == expected_url
+    realisation.refresh_from_db()
+    assert realisation.status == Realisation.PUBLISHED
+    # realisation_published was sent (its receiver creates the conversation node)
+    assert RealisationNode.objects.filter(realisation=realisation).count() == 1
+
+
+@pytest.mark.django_db
+def test_realisation_publish_already_published_is_noop(request, client):
+    project = make_project_on_site(request)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(
+            Realisation,
+            project=project,
+            resource=make_resource(request),
+            status=Realisation.PUBLISHED,
+            created_by=user,
+        )
+        response = client.post(publish_url(project, realisation))
+    assert response.status_code == 302
+    assert not RealisationNode.objects.filter(realisation=realisation).exists()
+
+
+@pytest.mark.django_db
+def test_realisation_publish_404_for_other_project_realisation(request, client):
+    project = make_project_on_site(request)
+    other_project = make_project_on_site(request)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(
+            Realisation,
+            project=other_project,
+            resource=make_resource(request),
+            status=Realisation.DRAFT,
+        )
+        response = client.post(publish_url(project, realisation))
+    assert response.status_code == 404
+    realisation.refresh_from_db()
+    assert realisation.status == Realisation.DRAFT
 
 
 # ---------------------------------------------------------------------------

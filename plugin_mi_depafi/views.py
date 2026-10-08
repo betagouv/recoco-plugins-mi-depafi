@@ -27,6 +27,23 @@ from .models import (
 from .signals import realisation_deleted, realisation_published
 
 
+def notify_if_published(realisation, old_status, user):
+    """Send realisation_published if the realisation just became PUBLISHED.
+
+    Single source of truth for the draft -> published transition, shared by
+    the create/update forms and the one-click publish action.
+    """
+    if (
+        old_status != Realisation.PUBLISHED
+        and realisation.status == Realisation.PUBLISHED
+    ):
+        realisation_published.send(
+            sender=Realisation,
+            realisation=realisation,
+            published_by=user,
+        )
+
+
 class RealisationWriteMixin:
     """Permissions for realisation write views (create, update, delete).
 
@@ -144,12 +161,7 @@ class RealisationCreateView(RealisationWriteMixin, ProjectDetailBaseView):
                     realisation=realisation, file=document, order=order
                 )
 
-            if new_status == Realisation.PUBLISHED:
-                realisation_published.send(
-                    sender=Realisation,
-                    realisation=realisation,
-                    published_by=request.user,
-                )
+            notify_if_published(realisation, None, request.user)
 
             return redirect(
                 reverse(
@@ -215,15 +227,7 @@ class RealisationUpdateView(RealisationWriteMixin, ProjectDetailBaseView):
                     realisation=realisation, file=document, order=order
                 )
 
-            if (
-                old_status != Realisation.PUBLISHED
-                and new_status == Realisation.PUBLISHED
-            ):
-                realisation_published.send(
-                    sender=Realisation,
-                    realisation=realisation,
-                    published_by=request.user,
-                )
+            notify_if_published(realisation, old_status, request.user)
 
             return redirect(
                 reverse(
@@ -234,6 +238,39 @@ class RealisationUpdateView(RealisationWriteMixin, ProjectDetailBaseView):
 
         context = self.get_context_data(form=form)
         return self.render_to_response(context)
+
+
+class RealisationPublishView(RealisationWriteMixin, ProjectDetailBaseView):
+    """Two-click publication of a draft from the realisation list with a confirmation modal."""
+
+    http_method_names = ["get", "post"]
+
+    # LA PARTIE GET EST UNE COPIE DE LA CLASSE DELETEVIEW CI_DESSOUS A CONFIRMER BY GLIB
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        self.check_permissions()
+        return render(
+            request,
+            "plugin_mi_depafi/fragments/realisation_publish_confirm.html",
+            {"realisation": self._get_realisation()},
+        )
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        self.check_permissions()
+        realisation = self._get_realisation()
+        old_status = realisation.status
+        if old_status != Realisation.PUBLISHED:
+            realisation.status = Realisation.PUBLISHED
+            realisation.save(update_fields=["status", "updated_at"])
+            notify_if_published(realisation, old_status, request.user)
+        return redirect(
+            reverse(
+                "plugin_mi_depafi:realisation-list",
+                kwargs={"project_id": self.object.pk},
+            )
+        )
 
 
 class RealisationDeleteView(RealisationWriteMixin, ProjectDetailBaseView):

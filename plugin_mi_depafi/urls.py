@@ -11,6 +11,7 @@ from .views import (
     RealisationLikeToggleView,
     RealisationListView,
     RealisationPickProjectView,
+    RealisationPublishView,
     RealisationUpdateView,
     RealisationsByResourceView,
 )
@@ -52,6 +53,11 @@ urlpatterns = [
         "project/<int:project_id>/realisations/<int:pk>/modifier/",
         RealisationUpdateView.as_view(),
         name="realisation-update",
+    ),
+    path(
+        "project/<int:project_id>/realisations/<int:pk>/publier/",
+        RealisationPublishView.as_view(),
+        name="realisation-publish",
     ),
     path(
         "project/<int:project_id>/realisations/<int:pk>/supprimer/",
