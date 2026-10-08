@@ -3,8 +3,8 @@ from django.urls import path
 from .views import (
     CrmRealisationCsvView,
     CrmRealisationListView,
-    RealisationBrowseView,
     DepafiProjectPerimeterUpdateView,
+    RealisationBrowseView,
     RealisationCreateView,
     RealisationDeleteView,
     RealisationDetailView,

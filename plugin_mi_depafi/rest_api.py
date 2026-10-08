@@ -1,26 +1,19 @@
+from django_filters import rest_framework as filters
 from rest_framework import serializers
-from rest_framework.filters import BaseFilterBackend
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 
 from recoco.rest_api.filters import WatsonSearchFilter
 
+from .filters import RealisationFilter
 from .models import Realisation
 
 
-class RealisationDepartmentsFilter(BaseFilterBackend):
-    def filter_queryset(self, request, queryset, _view):
-        departments = request.GET.getlist("departments")
-        if departments:
-            queryset = queryset.filter(
-                project__commune__department__code__in=departments
-            )
-        return queryset
+class LenientDjangoFilterBackend(filters.DjangoFilterBackend):
+    """Ignore invalid filter values (stale bookmark, unknown department code…)
+    instead of answering 400, as the map filters did before django-filter."""
 
-
-class RealisationStatusFilter(BaseFilterBackend):
-    def filter_queryset(self, _request, queryset, _view):
-        return queryset.filter(status=Realisation.PUBLISHED)
+    raise_exception = False
 
 
 class DepartmentMapSerializer(serializers.Serializer):
@@ -82,16 +75,16 @@ class RealisationMapSerializer(serializers.ModelSerializer):
 class RealisationsForMapAPIView(ListAPIView):
     serializer_class = RealisationMapSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [
-        RealisationStatusFilter,
-        WatsonSearchFilter,
-        RealisationDepartmentsFilter,
-    ]
+    filter_backends = [WatsonSearchFilter, LenientDjangoFilterBackend]
+    filterset_class = RealisationFilter
     pagination_class = None
 
     def get_queryset(self):
         return (
-            Realisation.objects.filter(project__project_sites__site=self.request.site)
+            Realisation.objects.filter(
+                project__project_sites__site=self.request.site,
+                status=Realisation.PUBLISHED,
+            )
             .select_related("project__commune__department", "resource")
             .prefetch_related("photos")
             .distinct()

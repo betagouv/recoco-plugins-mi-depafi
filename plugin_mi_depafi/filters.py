@@ -4,7 +4,7 @@ from django_filters import fields as filter_fields
 
 from recoco.apps.geomatics import models as geomatics_models
 
-from .models import Realisation
+from .models import DepafiProject, Realisation
 
 
 class StripEmptyValuesMixin:
@@ -54,6 +54,12 @@ class RealisationFilter(django_filters.FilterSet):
         queryset=geomatics_models.Department.objects.all(),
     )
 
+    perimeter = django_filters.ChoiceFilter(
+        label="Périmètre",
+        field_name="project__depafi__perimeter",
+        choices=DepafiProject.Perimeter.choices,
+    )
+
     class Meta:
         model = Realisation
-        fields = ["q", "status", "departments"]
+        fields = ["q", "status", "departments", "perimeter"]
