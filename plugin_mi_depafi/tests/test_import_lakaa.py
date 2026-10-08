@@ -12,16 +12,20 @@ from datetime import date
 import pytest
 from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
+from django.utils import timezone
 from model_bakery import baker
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.geomatics.models import Commune, Department
-from recoco.apps.projects.models import Project
+from recoco.apps.projects.models import Project, ProjectMember, ProjectSite
 from recoco.apps.resources.models import Category, Resource
 
+from plugin_mi_depafi.management.commands import import_lakaa
 from plugin_mi_depafi.management.commands.import_lakaa import (
     Command,
+    _html_to_text,
     _parse_date,
     _parse_dt,
+    _shorten,
     _strip_org,
     _val,
 )
@@ -91,6 +95,13 @@ def test_parse_dt_utc_string():
 
 
 @pytest.mark.django_db
+def test_parse_dt_day_month_year():
+    dt = _parse_dt("6/2/2024")
+    assert dt is not None
+    assert dt.date() == date(2024, 2, 6)
+
+
+@pytest.mark.django_db
 def test_val_sentinels_return_none():
     for sentinel in ("n.a", "-", "n.a.", "", None):
         assert _val(sentinel) is None
@@ -109,6 +120,29 @@ def test_strip_org_removes_suffix():
 @pytest.mark.django_db
 def test_strip_org_no_suffix_unchanged():
     assert _strip_org("GGD Meurthe") == "GGD Meurthe"
+
+
+@pytest.mark.django_db
+def test_html_to_text_separates_blocks_and_unescapes():
+    html = "<p>Trier les <strong>déchets</strong></p><ul><li>bac&nbsp;jaune</li></ul>"
+    assert _html_to_text(html) == "Trier les déchets bac jaune"
+
+
+@pytest.mark.django_db
+def test_shorten_keeps_short_text():
+    assert _shorten("court", 10) == "court"
+
+
+@pytest.mark.django_db
+def test_shorten_cuts_on_word_boundary():
+    result = _shorten("un deux trois, quatre", 17)
+    assert result == "un deux trois…"
+    assert len(result) <= 17
+
+
+@pytest.mark.django_db
+def test_shorten_single_long_word():
+    assert _shorten("abcdefghij", 5) == "abcd…"
 
 
 # ---------------------------------------------------------------------------
@@ -327,6 +361,70 @@ def test_import_resources_force_updates_existing(tmp_path, request):
 
 
 @pytest.mark.django_db
+def test_import_resources_long_description_kept_in_content(tmp_path, request):
+    site = _get_site(request)
+    long_desc = (
+        "<p>"
+        + " ".join(["**mot**"] * 10)
+        + " "
+        + "<strong>gras</strong> " * 200
+        + "fin.</p>"
+    )
+    path = _write_csv(
+        tmp_path,
+        "actions.csv",
+        [
+            {"Nom Forest": "X", "topic": "X", "description": "X", "body": "X"},
+            {
+                "Nom Forest": "Action longue",
+                "topic": "1. RH",
+                "description": long_desc,
+                "body": "<h1>Etape 1</h1>",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    resource_map = cmd._import_resources(path, site)
+
+    resource = Resource.objects.get(pk=resource_map["Action longue"])
+    assert len(resource.summary) <= 512
+    assert resource.summary.endswith("…")
+    assert "<strong>" not in resource.summary
+    # The full description is kept at the top of content, before the body.
+    assert resource.content.endswith("# Etape 1")
+    assert "fin." in resource.content
+    assert "**gras**" in resource.content
+    assert "Summary of 'Action longue' shortened" in cmd.stderr.getvalue()
+
+
+@pytest.mark.django_db
+def test_import_resources_long_description_without_body(tmp_path, request):
+    site = _get_site(request)
+    long_desc = "<p>" + "texte " * 200 + "fin.</p>"
+    path = _write_csv(
+        tmp_path,
+        "actions.csv",
+        [
+            {"Nom Forest": "X", "topic": "X", "description": "X", "body": "X"},
+            {
+                "Nom Forest": "Sans corps",
+                "topic": "1. RH",
+                "description": long_desc,
+                "body": "",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    resource_map = cmd._import_resources(path, site)
+
+    resource = Resource.objects.get(pk=resource_map["Sans corps"])
+    assert resource.summary.endswith("…")
+    assert resource.content.endswith("fin.")
+
+
+@pytest.mark.django_db
 def test_import_resources_category_scoped_per_site(tmp_path, request):
     site_a = _get_site(request)
     site_b = baker.make(Site, domain="other-site.example.com")
@@ -443,8 +541,8 @@ def test_import_projects_sets_coordinates(tmp_path, request):
     project_map = cmd._import_projects(path, site)
 
     project = Project.objects.get(pk=project_map["Site GPS"])
-    assert project.location_x == pytest.approx(48.6921)
-    assert project.location_y == pytest.approx(6.1844)
+    assert project.location_y == pytest.approx(48.6921)
+    assert project.location_x == pytest.approx(6.1844)
 
 
 @pytest.mark.django_db
@@ -506,6 +604,73 @@ def test_import_projects_force_updates_org_group(tmp_path, request):
 
     org.refresh_from_db()
     assert org.group.name == "Nouveau groupe"
+
+
+@pytest.mark.django_db
+def test_import_projects_force_updates_org_group_of_existing_project(tmp_path, request):
+    existing = make_project_on_site(request)
+    existing.name = "Mon site"
+    existing.save()
+    site = existing.project_sites.first().site
+    old_group = baker.make(OrganizationGroup, name="Ancien groupe")
+    org = baker.make(Organization, name="GGD Meurthe", group=old_group)
+
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1",
+                "name": "Mon site",
+                "external id": "EXT-1",
+                "organisation": "GGD Meurthe",
+                "address": "",
+                "coordinates": "",
+                "created at": "",
+                "group": "Nouveau groupe",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_projects(path, site, force_orgs=True)
+
+    org.refresh_from_db()
+    assert org.group.name == "Nouveau groupe"
+    assert site in org.sites.all()
+
+
+@pytest.mark.django_db
+def test_import_projects_force_updates_tags_of_existing_project(tmp_path, request):
+    existing = make_project_on_site(request)
+    existing.name = "Mon site"
+    existing.save()
+    site = existing.project_sites.first().site
+
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1",
+                "name": "Mon site",
+                "external id": "EXT-1",
+                "organisation": "",
+                "address": "",
+                "coordinates": "",
+                "created at": "",
+                "group": "Mon groupe",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_projects(path, site, force_projects=True)
+
+    tags = set(existing.tags.names())
+    assert {"lakaa_id:EXT-1", "Mon groupe"} <= tags
 
 
 @pytest.mark.django_db
@@ -571,8 +736,8 @@ def test_import_projects_force_updates_location(tmp_path, request):
 
     existing.refresh_from_db()
     assert existing.location == "Nouvelle adresse"
-    assert existing.location_x == pytest.approx(48.6921)
-    assert existing.location_y == pytest.approx(6.1844)
+    assert existing.location_y == pytest.approx(48.6921)
+    assert existing.location_x == pytest.approx(6.1844)
 
 
 @pytest.mark.django_db
@@ -679,6 +844,99 @@ def test_import_projects_matches_commune_by_postal_code_and_city(tmp_path, reque
 
 
 @pytest.mark.django_db
+def test_import_projects_homonym_communes_resolved_by_coordinates(tmp_path, request):
+    site = _get_site(request)
+    department = baker.make(Department)
+    saint_denis_93 = baker.make(
+        Commune,
+        department=department,
+        name="Saint-Denis",
+        postal="93200",
+        insee="93066",
+        latitude=48.936,
+        longitude=2.357,
+    )
+    saint_denis_974 = baker.make(
+        Commune,
+        department=department,
+        name="Saint-Denis",
+        postal="97400",
+        insee="97411",
+        latitude=-20.879,
+        longitude=55.448,
+    )
+
+    def _row(name, coordinates):
+        return {
+            "id": name,
+            "name": name,
+            "external id": name,
+            "organisation": "",
+            "coordinates": coordinates,
+            "created at": "",
+            "group": "",
+            "address": "Saint-Denis",
+        }
+
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            _row("Site 93", "48.94,2.36"),
+            _row("Site Réunion", "-20.88,55.45"),
+        ],
+    )
+
+    project_map = _make_command()._import_projects(path, site)
+
+    assert Project.objects.get(pk=project_map["Site 93"]).commune == saint_denis_93
+    assert (
+        Project.objects.get(pk=project_map["Site Réunion"]).commune == saint_denis_974
+    )
+
+
+@pytest.mark.django_db
+def test_match_commune_postal_fallback_uses_coordinates():
+    department = baker.make(Department)
+    baker.make(
+        Commune,
+        department=department,
+        name="Autre",
+        postal="12345",
+        insee="12001",
+        latitude=44.0,
+        longitude=2.0,
+    )
+    near = baker.make(
+        Commune,
+        department=department,
+        name="Voisine",
+        postal="12345",
+        insee="12002",
+        latitude=45.0,
+        longitude=3.0,
+    )
+
+    commune = import_lakaa._match_commune("1 rue X 12345 Inconnue", 45.01, 3.01)
+
+    assert commune == near
+
+
+@pytest.mark.django_db
+def test_match_commune_without_coordinates_is_deterministic():
+    department = baker.make(Department)
+    first = baker.make(
+        Commune, department=department, name="Doublon", postal="11111", insee="11001"
+    )
+    baker.make(
+        Commune, department=department, name="Doublon", postal="22222", insee="22002"
+    )
+
+    assert import_lakaa._match_commune("Doublon") == first
+
+
+@pytest.mark.django_db
 def test_import_projects_no_commune_match_leaves_commune_none(tmp_path, request):
     site = _get_site(request)
     path = _write_csv(
@@ -740,8 +998,8 @@ def test_import_projects_reads_coordinates_forest_column(tmp_path, request):
     project_map = cmd._import_projects(path, site)
 
     project = Project.objects.get(pk=project_map["Site GPS forest"])
-    assert project.location_x == pytest.approx(48.6921)
-    assert project.location_y == pytest.approx(6.1844)
+    assert project.location_y == pytest.approx(48.6921)
+    assert project.location_x == pytest.approx(6.1844)
 
 
 @pytest.mark.django_db
@@ -884,6 +1142,88 @@ def test_import_users_force_updates_organisation(tmp_path, current_site):
 
 
 @pytest.mark.django_db
+def test_import_users_reuses_account_with_different_username_case(
+    tmp_path, current_site
+):
+    existing = baker.make(
+        User, username="Alice@Interieur.gouv.fr", email="Alice@Interieur.gouv.fr"
+    )
+    users_path, reports_path = _setup_user_import(
+        tmp_path, [_user_row()], [_decl_for_user_row()]
+    )
+
+    _make_command()._import_users(users_path, {}, reports_path, current_site)
+
+    assert User.objects.filter(email__iexact="alice@interieur.gouv.fr").count() == 1
+    assert current_site in existing.profile.sites.all()
+
+
+@pytest.mark.django_db
+def test_import_users_reuses_account_whose_username_is_not_the_email(
+    tmp_path, current_site
+):
+    existing = baker.make(User, username="alice.d", email="alice@interieur.gouv.fr")
+    users_path, reports_path = _setup_user_import(
+        tmp_path, [_user_row()], [_decl_for_user_row()]
+    )
+
+    _make_command()._import_users(users_path, {}, reports_path, current_site)
+
+    assert User.objects.filter(email="alice@interieur.gouv.fr").count() == 1
+    assert current_site in existing.profile.sites.all()
+
+
+@pytest.mark.django_db
+def test_import_users_matches_organisation_case_insensitively(tmp_path, current_site):
+    org = baker.make(Organization, name="ggd meurthe")
+    users_path, reports_path = _setup_user_import(
+        tmp_path, [_user_row(organisation="GGD Meurthe")], [_decl_for_user_row()]
+    )
+
+    _make_command()._import_users(users_path, {}, reports_path, current_site)
+
+    assert Organization.objects.filter(name__iexact="ggd meurthe").count() == 1
+    assert current_site in org.sites.all()
+
+
+@pytest.mark.django_db
+def test_import_projects_force_does_not_regroup_organisation_shared_with_other_site(
+    tmp_path, request
+):
+    site = _get_site(request)
+    other_site = baker.make(Site)
+    old_group = baker.make(OrganizationGroup, name="Ancien groupe")
+    org = baker.make(Organization, name="GGD Meurthe", group=old_group)
+    org.sites.add(other_site)
+
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1",
+                "name": "Mon site",
+                "external id": "EXT-1",
+                "organisation": "GGD Meurthe",
+                "address": "",
+                "coordinates": "",
+                "created at": "",
+                "group": "Nouveau groupe",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_projects(path, site, force_orgs=True)
+
+    org.refresh_from_db()
+    assert org.group == old_group
+    assert "shared with other sites" in cmd.stderr.getvalue()
+    assert site in org.sites.all()
+
+
+@pytest.mark.django_db
 def test_import_users_skips_organisation_update_without_force(tmp_path, current_site):
     old_org = baker.make(Organization, name="Organisation originale")
     user = baker.make(
@@ -967,6 +1307,52 @@ def test_import_realisations_incomplete_creates_draft(tmp_path, request):
 
 
 @pytest.mark.django_db
+def test_import_realisations_resolves_misspelled_action_name(tmp_path, request):
+    project, _, _ = _setup_realisation_prereqs(request)
+    resource = baker.make(Resource, title="Diagnostique du gaspillage alimentaire")
+    resource.sites.add(project.project_sites.first().site)
+
+    row = _decl_row(**{"Nom de l'action": "Diagnostic du gaspillage alimentaire"})
+    path = _write_csv(tmp_path, "decl.csv", [row, row])
+
+    cmd = _make_command()
+    cmd._import_realisations(
+        path,
+        {project.name: project.pk},
+        {resource.title: resource.pk},
+    )
+
+    assert Realisation.objects.filter(project=project, resource=resource).exists()
+
+
+@pytest.mark.django_db
+def test_import_realisations_failed_download_is_left_out_then_retried(
+    tmp_path, request, settings, monkeypatch
+):
+    settings.MEDIA_ROOT = str(tmp_path / "media")
+    project, resource, _ = _setup_realisation_prereqs(request)
+    row = _decl_row(Images="https://example.test/a.png")
+    path = _write_csv(tmp_path, "decl.csv", [row, row])
+    args = (path, {project.name: project.pk}, {resource.title: resource.pk})
+
+    def _fail(url):
+        raise OSError("boom")
+
+    monkeypatch.setattr(import_lakaa, "_download", _fail)
+    cmd = _make_command()
+    cmd._import_realisations(*args)
+
+    assert not Realisation.objects.filter(project=project).exists()
+    assert "will retry on the next run" in cmd.stderr.getvalue()
+
+    monkeypatch.setattr(import_lakaa, "_download", lambda url: b"png-bytes")
+    _make_command()._import_realisations(*args)
+
+    realisation = Realisation.objects.get(project=project, resource=resource)
+    assert realisation.photos.count() == 1
+
+
+@pytest.mark.django_db
 def test_import_realisations_complet_creates_published(tmp_path, request):
     project, resource, _ = _setup_realisation_prereqs(request)
 
@@ -1022,6 +1408,36 @@ def test_import_realisations_maps_site_field(tmp_path, request):
 
 
 @pytest.mark.django_db
+def test_import_realisations_long_site_field_kept_in_description(tmp_path, request):
+    project, resource, _ = _setup_realisation_prereqs(request)
+    sites = "\n".join(f"Brigade de gendarmerie numéro {i}" for i in range(20))
+
+    path = _write_csv(
+        tmp_path,
+        "decl.csv",
+        [
+            _decl_row(),
+            _decl_row("Description de votre action", "Tri des déchets"),
+            _decl_row("Sites concernés", sites),
+        ],
+    )
+
+    cmd = _make_command()
+    cmd._import_realisations(
+        path, {project.name: project.pk}, {resource.title: resource.pk}
+    )
+
+    r = Realisation.objects.get(project=project)
+    assert len(r.site) <= 255
+    assert r.site.endswith("…")
+    assert "Tri des déchets" in r.description
+    assert "**Sites concernés :**" in r.description
+    assert "Brigade de gendarmerie numéro 19" in r.description
+    assert "numéro 0  \nBrigade" in r.description
+    assert "'Sites concernés' shortened" in cmd.stderr.getvalue()
+
+
+@pytest.mark.django_db
 def test_import_realisations_maps_date(tmp_path, request):
     project, resource, _ = _setup_realisation_prereqs(request)
 
@@ -1037,6 +1453,21 @@ def test_import_realisations_maps_date(tmp_path, request):
     )
 
     assert Realisation.objects.get(project=project).date == date(2022, 11, 15)
+
+
+@pytest.mark.django_db
+def test_import_realisations_applies_declaration_date(tmp_path, request):
+    project, resource, _ = _setup_realisation_prereqs(request)
+
+    path = _write_csv(tmp_path, "decl.csv", [_decl_row(), _decl_row()])
+
+    cmd = _make_command()
+    cmd._import_realisations(
+        path, {project.name: project.pk}, {resource.title: resource.pk}
+    )
+
+    created_at = Realisation.objects.get(project=project).created_at
+    assert timezone.localtime(created_at).date() == date(2024, 2, 6)
 
 
 @pytest.mark.django_db
@@ -1091,8 +1522,12 @@ def test_import_realisations_maps_description_indicator_to_description(
 
 
 @pytest.mark.django_db
-def test_import_realisations_consolidates_multi_row_declaration(tmp_path, request):
+def test_import_realisations_consolidates_multi_row_declaration(
+    tmp_path, request, settings, monkeypatch
+):
     """A declaration spread across several CSV rows must become a single Realisation."""
+    settings.MEDIA_ROOT = str(tmp_path / "media")
+    monkeypatch.setattr(import_lakaa, "_download", lambda url: b"%PDF-1.4")
     project, resource, user = _setup_realisation_prereqs(request)
 
     path = _write_csv(
@@ -1120,6 +1555,7 @@ def test_import_realisations_consolidates_multi_row_declaration(tmp_path, reques
     assert r.site == "Caserne Roux, Lexy"
     assert r.key_figures == "Nombre d'agents bénéficiaires: 120"
     assert r.created_by == user
+    assert r.documents.count() == 1
 
 
 @pytest.mark.django_db
@@ -1178,3 +1614,85 @@ def test_import_realisations_warns_on_unknown_resource(tmp_path, request):
 
     assert "WARN" in cmd.stderr.getvalue()
     assert Realisation.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_import_projects_falls_back_to_commune_centre(tmp_path, request):
+    site = _get_site(request)
+    department = baker.make(Department)
+    baker.make(
+        Commune,
+        department=department,
+        name="Melun",
+        postal="77000",
+        insee="77288",
+        latitude=48.54,
+        longitude=2.66,
+    )
+    path = _write_csv(
+        tmp_path,
+        "sites.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "1",
+                "name": "Site sans GPS",
+                "external id": "EXT-1",
+                "organisation": "",
+                "address": "Melun",
+                "coordinates": ",",
+                "created at": "",
+                "group": "",
+            },
+        ],
+    )
+
+    cmd = _make_command()
+    project_map = cmd._import_projects(path, site)
+
+    project = Project.objects.get(pk=project_map["Site sans GPS"])
+    assert project.location_y == pytest.approx(48.54)
+    assert project.location_x == pytest.approx(2.66)
+
+
+@pytest.mark.django_db
+def test_import_users_grants_project_permissions(tmp_path, current_site):
+    project = baker.make(Project, name="GGD Meurthe")
+    ProjectSite.objects.create(
+        project=project, site=current_site, is_origin=True, status="TO_PROCESS"
+    )
+    users_path, reports_path = _setup_user_import(
+        tmp_path, [_user_row()], [_decl_for_user_row()]
+    )
+
+    _make_command()._import_users(
+        users_path, {"GGD Meurthe": project.pk}, reports_path, current_site
+    )
+
+    user = User.objects.get(username="alice@interieur.gouv.fr")
+    assert ProjectMember.objects.get(member=user, project=project).is_owner
+    assert user.has_perm("projects.view_project", project)
+    assert user.has_perm("projects.use_tasks", project)
+
+
+@pytest.mark.django_db
+def test_import_users_only_first_manager_is_owner(tmp_path, current_site):
+    project = baker.make(Project, name="GGD Meurthe")
+    ProjectSite.objects.create(
+        project=project, site=current_site, is_origin=True, status="TO_PROCESS"
+    )
+    bob = "bob@interieur.gouv.fr"
+    users_path, reports_path = _setup_user_import(
+        tmp_path,
+        [_user_row(), _user_row(email=bob)],
+        [_decl_for_user_row(), _decl_for_user_row(**{"Email du déclarant": bob})],
+    )
+
+    _make_command()._import_users(
+        users_path, {"GGD Meurthe": project.pk}, reports_path, current_site
+    )
+
+    owners = ProjectMember.objects.filter(project=project, is_owner=True)
+    assert owners.count() == 1
+    assert ProjectMember.objects.filter(project=project).count() == 2
+    assert User.objects.get(username=bob).has_perm("projects.view_project", project)

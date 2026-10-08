@@ -6,16 +6,22 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('plugin_mi_depafi', '0004_alter_realisationnode_options'),
+        ("plugin_mi_depafi", "0004_alter_realisationnode_options"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='realisation',
-            name='created_by',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='realisations_created', to=settings.AUTH_USER_MODEL, verbose_name='Créateur'),
+            model_name="realisation",
+            name="created_by",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="realisations_created",
+                to=settings.AUTH_USER_MODEL,
+                verbose_name="Créateur",
+            ),
         ),
     ]

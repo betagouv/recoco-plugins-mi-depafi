@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('plugin_mi_depafi', '0007_realisation_date'),
+        ("plugin_mi_depafi", "0007_realisation_date"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='realisation',
-            name='key_figures',
-            field=models.TextField(blank=True, verbose_name='Chiffres clés'),
+            model_name="realisation",
+            name="key_figures",
+            field=models.TextField(blank=True, verbose_name="Chiffres clés"),
         ),
     ]

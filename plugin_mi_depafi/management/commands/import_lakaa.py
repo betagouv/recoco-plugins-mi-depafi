@@ -12,24 +12,30 @@ The command is idempotent: re-running it skips already-imported objects.
 """
 
 import csv
+import math
 import os
 import re
 import urllib.request
 from datetime import datetime
+from html import unescape
 
 import html2text
 from tqdm import tqdm
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.core.management.base import CommandError
+from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.geomatics.models import Commune
 from recoco.apps.home.models import SiteConfiguration, UserProfile
 from recoco.apps.plugins.management.base import TenantCommand
-from recoco.apps.projects.models import Project, ProjectMember, ProjectSite
+from recoco.apps.projects.models import Project, ProjectSite
+from recoco.apps.projects.utils import assign_collaborator
 from recoco.apps.resources.models import Category, Resource
 
 from plugin_mi_depafi.models import Realisation, RealisationDocument, RealisationPhoto
@@ -40,11 +46,22 @@ _EMPTY = {"n.a", "-", "n.a.", "", None}
 # Organisation suffix appended to all names in the Lakaa export
 _ORG_SUFFIX = " - Ministère de l'Intérieur"
 
+# Declarations sometimes spell an action differently from the actions export.
+_ACTION_ALIASES = {
+    "Diagnostic du gaspillage alimentaire": "Diagnostique du gaspillage alimentaire",
+}
+
 # Mapping from Lakaa "status" column to Resource.status
 _RESOURCE_STATUS = {
     "published": Resource.PUBLISHED,
     "draft": Resource.DRAFT,
 }
+
+
+# Column limits: longer Lakaa values are shortened (with a warning) instead of
+# failing the insert, and their full text is kept in a free-text field.
+_SUMMARY_MAX_LENGTH = Resource._meta.get_field("summary").max_length
+_SITE_MAX_LENGTH = Realisation._meta.get_field("site").max_length
 
 
 def _resource_status(value):
@@ -130,11 +147,12 @@ def _aware(dt):
 
 
 def _parse_dt(s):
-    """Parse Lakaa CSV datetime strings: '2024-05-16 07:13:20 UTC' or '2022-11-15'."""
+    """Parse Lakaa CSV datetime strings: '2024-05-16 07:13:20 UTC', '2022-11-15'
+    or '6/2/2024' (d/m/Y, used by the declarations export)."""
     if not _val(s):
         return None
     s = s.strip().removesuffix(" UTC")
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%d/%m/%Y"):
         try:
             return _aware(datetime.strptime(s, fmt))
         except ValueError:
@@ -168,6 +186,48 @@ def _html_to_markdown(html):
     return converter.handle(html).strip()
 
 
+def _html_to_text(html):
+    """Convert Lakaa's HTML fields to a single line of plain text."""
+    if not html:
+        return ""
+    # Replace tags with spaces so block elements don't glue words together.
+    text = unescape(re.sub(r"<[^>]+>", " ", html))
+    return " ".join(text.split())
+
+
+def _find_user(email):
+    """Existing account for an email, whatever the case of its username.
+
+    Falls back to the email field for accounts whose username isn't the email.
+    """
+    users = User.objects.filter(Q(username__iexact=email) | Q(email__iexact=email))
+    return users.order_by("id").first()
+
+
+def _get_or_create_organization(name, group=None):
+    """Organization by case-insensitive name (names are unique across sites)."""
+    org = Organization.objects.filter(name__iexact=name).first()
+    if org is not None:
+        return org, False
+    return Organization.objects.create(name=name, group=group), True
+
+
+def _download(url):
+    """Return the content of a remote file; raises on any failure."""
+    with urllib.request.urlopen(url, timeout=10) as resp:
+        return resp.read()
+
+
+def _shorten(text, max_length):
+    """Cut text to at most max_length chars on a word boundary, ending with '…'."""
+    if len(text) <= max_length:
+        return text
+    cut = text[: max_length - 1]
+    if " " in cut:
+        cut = cut.rsplit(" ", 1)[0]
+    return cut.rstrip(" ,;:.-") + "…"
+
+
 def _theme_style(theme_name):
     for prefix, style in _THEME_STYLE.items():
         if (theme_name or "").startswith(prefix):
@@ -181,8 +241,25 @@ def _theme_style(theme_name):
 _POSTAL_CITY_RE = re.compile(r"(\d{5})\s+(.+)$")
 
 
-def _match_commune(address):
-    """Best-effort lookup of the Commune referenced by a Lakaa address string."""
+def _pick_commune(candidates, lat, lng):
+    """Choose among communes: the closest to (lat, lng) if known, else the
+    first by INSEE code."""
+    candidates = list(candidates.order_by("insee"))
+    if len(candidates) <= 1 or lat is None or lng is None:
+        return candidates[0] if candidates else None
+    cos_lat = math.cos(math.radians(lat))
+    return min(
+        candidates,
+        key=lambda c: (c.latitude - lat) ** 2 + ((c.longitude - lng) * cos_lat) ** 2,
+    )
+
+
+def _match_commune(address, lat=None, lng=None):
+    """Best-effort lookup of the Commune referenced by a Lakaa address string.
+
+    Several communes can share a postal code or a name ("Saint-Denis"); when
+    the site coordinates are known they pick the closest candidate.
+    """
     address = _val(address)
     if not address:
         return None
@@ -190,15 +267,17 @@ def _match_commune(address):
     m = _POSTAL_CITY_RE.search(address)
     if m:
         postal, city = m.group(1), m.group(2).strip()
-        commune = Commune.objects.filter(postal=postal, name__iexact=city).first()
+        commune = _pick_commune(
+            Commune.objects.filter(postal=postal, name__iexact=city), lat, lng
+        )
         if commune:
             return commune
-        commune = Commune.objects.filter(postal=postal).first()
+        commune = _pick_commune(Commune.objects.filter(postal=postal), lat, lng)
         if commune:
             return commune
         address = city
 
-    return Commune.objects.filter(name__iexact=address).first()
+    return _pick_commune(Commune.objects.filter(name__iexact=address), lat, lng)
 
 
 class Command(TenantCommand):
@@ -329,7 +408,7 @@ class Command(TenantCommand):
     def _import_resources(self, actions_path, site, *, force=False):
         rows = _load_csv(actions_path)
         resource_map = {}  # action name (stripped) => Resource pk
-        created_cat = created_res = updated_res = skipped_res = 0
+        created_cat = created_res = updated_res = skipped_res = shortened_summaries = 0
 
         for row in tqdm(rows, desc="Actions", unit="action", file=self.stdout._out):
             name = _strip_org(_val(row.get("Nom Forest")) or "")
@@ -348,8 +427,24 @@ class Command(TenantCommand):
                 created_cat += 1
 
             # description = short intro HTML => summary; body = full how-to HTML => content.
-            summary = _html_to_markdown(_val(row.get("description")) or "")[:512]
-            content = _html_to_markdown(_val(row.get("body")) or "") or summary or name
+            # The summary is displayed as plain text and capped by the core model:
+            # when the description doesn't fit, keep its full text at the top of
+            # content so nothing is lost.
+            description_html = _val(row.get("description")) or ""
+            description_md = _html_to_markdown(description_html)
+            summary_text = _html_to_text(description_html)
+            summary = _shorten(summary_text, _SUMMARY_MAX_LENGTH)
+            body_md = _html_to_markdown(_val(row.get("body")) or "")
+            if summary != summary_text:
+                self.stderr.write(
+                    f"  [WARN] Summary of '{name}' shortened to {_SUMMARY_MAX_LENGTH} chars, "
+                    "full description kept in content"
+                )
+                shortened_summaries += 1
+            if body_md and summary != summary_text:
+                content = f"{description_md}\n\n{body_md}"
+            else:
+                content = body_md or description_md or name
 
             time_indication = _val(row.get("time indication"))
             if time_indication:
@@ -359,7 +454,11 @@ class Command(TenantCommand):
             if cost_indication:
                 content = f"{content}\n\n## Evaluation des coûts\n\n{cost_indication}"
 
-            subtitle = _val(row.get("impact indication")) or _val(row.get("external name")) or ""
+            subtitle = (
+                _val(row.get("impact indication"))
+                or _val(row.get("external name"))
+                or ""
+            )
             status = _resource_status(row.get("status"))
 
             resource = Resource.objects.filter(title=name, sites=site).first()
@@ -382,7 +481,13 @@ class Command(TenantCommand):
                 resource.summary = summary
                 resource.status = status
                 resource.save(
-                    update_fields=["subtitle", "category", "content", "summary", "status"]
+                    update_fields=[
+                        "subtitle",
+                        "category",
+                        "content",
+                        "summary",
+                        "status",
+                    ]
                 )
                 updated_res += 1
             else:
@@ -392,7 +497,8 @@ class Command(TenantCommand):
 
         self.stdout.write(
             f"  Categories: {created_cat} created  |  "
-            f"Resources: {created_res} created, {updated_res} updated, {skipped_res} skipped"
+            f"Resources: {created_res} created, {updated_res} updated, {skipped_res} skipped, "
+            f"{shortened_summaries} summaries shortened"
         )
         return resource_map
 
@@ -400,7 +506,34 @@ class Command(TenantCommand):
     # Phase 2 - Projects (Lakaa "sites")
     # ------------------------------------------------------------------
 
-    def _import_projects(self, sites_path, site, *, force_projects=False, force_orgs=False):
+    def _sync_organisation(self, org_name, group_name, site, force_orgs):
+        """Get or create the organisation (and group) of a Lakaa site."""
+        org_group = None
+        if group_name:
+            org_group, _ = OrganizationGroup.objects.get_or_create(name=group_name)
+        if not org_name:
+            return
+        org, _ = _get_or_create_organization(org_name, org_group)
+        if org_group and org.group_id != org_group.pk:
+            if org.group_id is None:
+                org.group = org_group
+                org.save(update_fields=["group"])
+            elif force_orgs:
+                # Organization names are unique across sites: never regroup
+                # an organisation that another site also uses.
+                if org.sites.exclude(pk=site.pk).exists():
+                    self.stderr.write(
+                        f"  [WARN] Organisation '{org.name}' is shared with other "
+                        f"sites, its group was left unchanged"
+                    )
+                else:
+                    org.group = org_group
+                    org.save(update_fields=["group"])
+        org.sites.add(site)
+
+    def _import_projects(
+        self, sites_path, site, *, force_projects=False, force_orgs=False
+    ):
         rows = _load_csv(sites_path)
         project_map = {}  # site name => Project pk
         created = updated = skipped = 0
@@ -412,7 +545,6 @@ class Command(TenantCommand):
             ext_id = _val(row.get("external id")) or name
 
             address = _val(row.get("address"))
-            commune = _match_commune(address)
             location_x = location_y = None
             coords_raw = _val(row.get("coordinates")) or _val(
                 row.get("coordinates forest")
@@ -421,16 +553,42 @@ class Command(TenantCommand):
                 parts = coords_raw.split(",", 1)
                 if len(parts) == 2:
                     try:
-                        location_x = float(parts[0].strip())
-                        location_y = float(parts[1].strip())
+                        # Lakaa exports "lat,lng"; the core stores lng in
+                        # location_x and lat in location_y.
+                        location_y = float(parts[0].strip())
+                        location_x = float(parts[1].strip())
                     except ValueError:
                         pass
+
+            commune = _match_commune(address, location_y, location_x)
+
+            if (
+                location_x is None
+                and commune
+                and (commune.latitude or commune.longitude)
+            ):
+                # Some Lakaa sites have no coordinates (",") so they would be
+                # missing from the map: fall back to the commune's centre.
+                location_y, location_x = commune.latitude, commune.longitude
+                self.stderr.write(
+                    f"  [WARN] No coordinates for site '{name}', "
+                    f"using the centre of {commune.name}"
+                )
+
+            group_name = _strip_org(_val(row.get("group")) or "")
+            org_name = _strip_org(_val(row.get("organisation")) or "")
+            tags = [f"lakaa_id:{ext_id}"]
+            if group_name:
+                tags.append(group_name)
 
             existing = Project.objects.filter(
                 name=name, project_sites__site=site
             ).first()
             if existing is not None:
                 project_map[name] = existing.pk
+                # Organisations are synced on every run, not only for new
+                # projects, otherwise --force-update-orgs never takes effect.
+                self._sync_organisation(org_name, group_name, site, force_orgs)
                 if force_projects:
                     Project.objects.filter(pk=existing.pk).update(
                         location=address,
@@ -438,6 +596,7 @@ class Command(TenantCommand):
                         location_y=location_y,
                         commune=commune,
                     )
+                    existing.tags.add(*tags)
                     updated += 1
                 else:
                     skipped += 1
@@ -458,32 +617,15 @@ class Command(TenantCommand):
             )
             project.sites.add(site)
 
-            group_name = _strip_org(_val(row.get("group")) or "")
-            org_name = _strip_org(_val(row.get("organisation")) or "")
-
-            org_group = None
-            if group_name:
-                org_group, _ = OrganizationGroup.objects.get_or_create(name=group_name)
-
-            if org_name:
-                org, _ = Organization.objects.get_or_create(
-                    name=org_name,
-                    defaults={"group": org_group},
-                )
-                if org_group and (org.group_id is None or force_orgs):
-                    org.group = org_group
-                    org.save(update_fields=["group"])
-                org.sites.add(site)
-
-            tags = [f"lakaa_id:{ext_id}"]
-            if group_name:
-                tags.append(group_name)
+            self._sync_organisation(org_name, group_name, site, force_orgs)
             project.tags.add(*tags)
 
             project_map[name] = project.pk
             created += 1
 
-        self.stdout.write(f"  Projects: {created} created, {updated} updated, {skipped} skipped")
+        self.stdout.write(
+            f"  Projects: {created} created, {updated} updated, {skipped} skipped"
+        )
         return project_map
 
     # ------------------------------------------------------------------
@@ -512,14 +654,17 @@ class Command(TenantCommand):
             first_name = row.get("first name") or ""
             last_name = row.get("last name") or ""
 
-            user, user_new = User.objects.get_or_create(
-                username=email,
-                defaults={
-                    "email": email,
-                    "first_name": first_name,
-                    "last_name": last_name,
-                },
-            )
+            user = _find_user(email)
+            if user is None:
+                user = User.objects.create(
+                    username=email,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                )
+                user_new = True
+            else:
+                user_new = False
             if user_new:
                 user.set_unusable_password()
                 user.save(update_fields=["password"])
@@ -537,7 +682,7 @@ class Command(TenantCommand):
 
             org_name = _strip_org(_val(row.get("organisation")) or "")
             if org_name:
-                org, _ = Organization.objects.get_or_create(name=org_name)
+                org, _ = _get_or_create_organization(org_name)
                 org.sites.add(site)
                 if profile.organization_id is None or force:
                     profile.organization = org
@@ -550,18 +695,12 @@ class Command(TenantCommand):
                 project_pk = project_map.get(site_name)
                 if project_pk is None:
                     continue
-                if force:
-                    ProjectMember.objects.update_or_create(
-                        member=user,
-                        project_id=project_pk,
-                        defaults={"is_owner": is_owner},
-                    )
-                else:
-                    ProjectMember.objects.get_or_create(
-                        member=user,
-                        project_id=project_pk,
-                        defaults={"is_owner": is_owner},
-                    )
+                project = Project.objects.get(pk=project_pk)
+
+                # Use assign_collaborator so permissions are actually
+                # matching.
+                with settings.SITE_ID.override(site.pk):
+                    assign_collaborator(user, project, is_owner=is_owner)
 
         self.stdout.write(
             f"  Users: {created} created, {updated} updated, {skipped} skipped"
@@ -574,14 +713,18 @@ class Command(TenantCommand):
     def _import_realisations(self, reports_path, project_map, resource_map):
         rows = _load_csv(reports_path)
         declarations = _group_by_declaration(rows)
-        created = skipped = warn = 0
+        created = skipped = warn = shortened_sites = failed_downloads = 0
 
         for lakaa_id, group_rows in tqdm(
-            declarations.items(), desc="Réalisations", unit="décl", file=self.stdout._out
+            declarations.items(),
+            desc="Réalisations",
+            unit="décl",
+            file=self.stdout._out,
         ):
             base_row = group_rows[0]
             site_name = _strip_org(base_row.get("Nom de l'établissement") or "")
             action_name = _strip_org(base_row.get("Nom de l'action") or "")
+            action_name = _ACTION_ALIASES.get(action_name, action_name)
 
             project_pk = project_map.get(site_name)
             resource_pk = resource_map.get(action_name)
@@ -622,54 +765,70 @@ class Command(TenantCommand):
             if description_body:
                 description = f"{sentinel}\n\n{description_body}"
 
+            site = _shorten(site_field, _SITE_MAX_LENGTH)
+            if site != site_field:
+                # Keep the full list in the (Markdown) description, one line each.
+                sites_md = "  \n".join(
+                    line.strip() for line in site_field.splitlines() if line.strip()
+                )
+                description = f"{description}\n\n**Sites concernés :**  \n{sites_md}"
+                self.stderr.write(
+                    f"  [WARN] 'Sites concernés' shortened to {_SITE_MAX_LENGTH} chars "
+                    f"(decl {lakaa_id}), full text kept in description"
+                )
+                shortened_sites += 1
+
             creator_email = (_val(base_row.get("Email du déclarant")) or "").lower()
-            creator = User.objects.filter(username=creator_email).first()
+            creator = _find_user(creator_email) if creator_email else None
 
-            realisation = Realisation.objects.create(
-                project_id=project_pk,
-                resource_id=resource_pk,
-                created_by=creator,
-                partners=_val(base_row.get("Partenaires")) or "",
-                site=site_field[:255],
-                date=_parse_date(base_row.get("Date de début")),
-                description=description,
-                key_figures=key_figures,
-                status=status,
-            )
+            # Download every file before creating anything: if one fails, the
+            # declaration is left out entirely so the next run retries it.
+            images_raw = _val(base_row.get("Images")) or ""
+            image_urls = [u.strip() for u in images_raw.split(",") if u.strip()]
+            try:
+                images = [(url, _download(url)) for url in image_urls]
+                documents = [(url, _download(url)) for url in pdf_urls]
+            except Exception as exc:
+                self.stderr.write(
+                    f"  [WARN] Could not download a file for decl {lakaa_id}, "
+                    f"will retry on the next run: {exc}"
+                )
+                failed_downloads += 1
+                continue
 
-            declared_on = _parse_dt(base_row.get("Déclaré le"))
-            if declared_on:
-                Realisation.objects.filter(pk=realisation.pk).update(
-                    created_at=declared_on
+            with transaction.atomic():
+                realisation = Realisation.objects.create(
+                    project_id=project_pk,
+                    resource_id=resource_pk,
+                    created_by=creator,
+                    partners=_val(base_row.get("Partenaires")) or "",
+                    site=site,
+                    date=_parse_date(base_row.get("Date de début")),
+                    description=description,
+                    key_figures=key_figures,
+                    status=status,
                 )
 
-            images_raw = _val(base_row.get("Images")) or ""
-            for order, url in enumerate(
-                u.strip() for u in images_raw.split(",") if u.strip()
-            ):
-                try:
-                    with urllib.request.urlopen(url, timeout=10) as resp:
-                        data = resp.read()
-                    filename = url.rsplit("/", 1)[-1]
-                    photo = RealisationPhoto(realisation=realisation, order=order)
-                    photo.image.save(filename, ContentFile(data), save=True)
-                except Exception as exc:
-                    self.stderr.write(f"  [WARN] Could not download image {url}: {exc}")
-
-            for order, url in enumerate(pdf_urls):
-                try:
-                    with urllib.request.urlopen(url, timeout=10) as resp:
-                        data = resp.read()
-                    filename = url.rsplit("/", 1)[-1]
-                    doc = RealisationDocument(realisation=realisation, order=order)
-                    doc.file.save(filename, ContentFile(data), save=True)
-                except Exception as exc:
-                    self.stderr.write(
-                        f"  [WARN] Could not download document {url}: {exc}"
+                declared_on = _parse_dt(base_row.get("Déclaré le"))
+                if declared_on:
+                    Realisation.objects.filter(pk=realisation.pk).update(
+                        created_at=declared_on
                     )
+
+                for order, (url, data) in enumerate(images):
+                    photo = RealisationPhoto(realisation=realisation, order=order)
+                    photo.image.save(
+                        url.rsplit("/", 1)[-1], ContentFile(data), save=True
+                    )
+
+                for order, (url, data) in enumerate(documents):
+                    doc = RealisationDocument(realisation=realisation, order=order)
+                    doc.file.save(url.rsplit("/", 1)[-1], ContentFile(data), save=True)
 
             created += 1
 
         self.stdout.write(
-            f"  Réalisations: {created} created, {skipped} skipped, {warn} warnings"
+            f"  Réalisations: {created} created, {skipped} skipped, {warn} warnings, "
+            f"{shortened_sites} site lists shortened, "
+            f"{failed_downloads} left out after a failed download"
         )

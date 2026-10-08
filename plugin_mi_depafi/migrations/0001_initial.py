@@ -4,7 +4,6 @@ import plugin_mi_depafi.models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -16,10 +15,36 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="Realisation",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("partners", models.CharField(blank=True, max_length=500, verbose_name="Partenaires")),
-                ("description", models.TextField(blank=True, verbose_name="Description de l'action")),
-                ("status", models.CharField(choices=[("draft", "Brouillon"), ("published", "Publié")], default="draft", max_length=20, verbose_name="État")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "partners",
+                    models.CharField(
+                        blank=True, max_length=500, verbose_name="Partenaires"
+                    ),
+                ),
+                (
+                    "description",
+                    models.TextField(
+                        blank=True, verbose_name="Description de l'action"
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[("draft", "Brouillon"), ("published", "Publié")],
+                        default="draft",
+                        max_length=20,
+                        verbose_name="État",
+                    ),
+                ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 (
@@ -50,8 +75,21 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="RealisationPhoto",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("image", models.ImageField(upload_to=plugin_mi_depafi.models._realisation_photo_upload_path)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "image",
+                    models.ImageField(
+                        upload_to=plugin_mi_depafi.models._realisation_photo_upload_path
+                    ),
+                ),
                 ("order", models.PositiveSmallIntegerField(default=0)),
                 (
                     "realisation",
