@@ -1,0 +1,24 @@
+{% load i18n %}
+<h1 id="realisation-modal-title" class="fr-modal__title">
+    <span class="fr-icon-warning-line fr-mr-1w" aria-hidden="true"></span>
+    Confirmer la publication
+</h1>
+<p>
+    Voulez-vous vraiment publier la réalisation
+    <strong>{{ realisation.resource.title }}</strong> ?
+    Cette action rendra la réalisation visible par tous les utilisateurs de la plateforme.
+</p>
+<div class="d-flex gap-2 fr-mt-4w">
+    <button type="button"
+            class="fr-btn fr-btn--secondary"
+            aria-controls="realisation-modal">
+        Annuler
+    </button>
+    <form method="post"
+          action="{% url 'plugin_mi_depafi:realisation-publish' project_id=realisation.project_id pk=realisation.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="fr-btn fr-btn--warning">
+            Publier
+        </button>
+    </form>
+</div>

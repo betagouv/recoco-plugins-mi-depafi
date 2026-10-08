@@ -67,11 +67,11 @@
                     <a href="{% url 'plugin_mi_depafi:realisation-update' project_id=realisation.project_id pk=realisation.pk %}"
                        class="fr-btn fr-btn--secondary-grey fr-btn--sm">Modifier</a>
                     {% if realisation.status == 'draft' %}
-                        <form method="post"
-                              action="{% url 'plugin_mi_depafi:realisation-publish' project_id=realisation.project_id pk=realisation.pk %}">
-                            {% csrf_token %}
-                            <button type="submit" class="fr-btn fr-btn--sm">Publier</button>
-                        </form>
+                        <button type="submit"
+                                class="fr-btn fr-btn--sm"
+                                hx-get="{% url 'plugin_mi_depafi:realisation-publish' project_id=realisation.project_id pk=realisation.pk %}"
+                                hx-target="#realisation-modal-content"
+                                hx-swap="innerHTML">Publier</button>
                     {% endif %}
                 {% endif %}
                 {% switch "MI_futur" %}

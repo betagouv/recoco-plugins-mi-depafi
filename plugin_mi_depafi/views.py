@@ -241,9 +241,20 @@ class RealisationUpdateView(RealisationWriteMixin, ProjectDetailBaseView):
 
 
 class RealisationPublishView(RealisationWriteMixin, ProjectDetailBaseView):
-    """One-click publication of a draft from the realisation list."""
+    """Two-click publication of a draft from the realisation list with a confirmation modal."""
 
-    http_method_names = ["post"]
+    http_method_names = ["get", "post"]
+
+    # LA PARTIE GET EST UNE COPIE DE LA CLASSE DELETEVIEW CI_DESSOUS A CONFIRMER BY GLIB
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        self.check_permissions()
+        return render(
+            request,
+            "plugin_mi_depafi/fragments/realisation_publish_confirm.html",
+            {"realisation": self._get_realisation()},
+        )
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
