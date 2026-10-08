@@ -75,8 +75,6 @@
 }
 .realisation-card--draft {
   border-radius: 2px;
-  border-top: 1px solid var(--light-decisions-border-border-plain-grey, #3A3A3A);
-  border-right: 1px solid var(--light-decisions-border-border-plain-grey, #3A3A3A);
-  border-bottom: 1px solid var(--light-decisions-border-border-plain-grey, #3A3A3A);
-  border-left: 4px solid var(--light-decisions-border-border-plain-grey, #3A3A3A);
+  border: 1px solid var(--light-decisions-border-border-plain-grey, #3A3A3A);
+  border-left-width: 4px;
 }
