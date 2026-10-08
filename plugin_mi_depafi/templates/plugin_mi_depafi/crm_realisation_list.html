@@ -12,7 +12,7 @@
     <div x-data="{ breadcrumbs: { links: [{url: '{% url 'crm-site-dashboard' %}', title: 'Admin'}], current: 'Réalisations' } }"
          class="fr-p-0">{% include "tools/breadcrumb.html" %}</div>
     <div x-data="Crm" class="d-flex fr-px-0 crm">
-        <div class="w-100 d-flex flex-column justify-content-start project-list-crm">
+        <div class="w-100 d-flex flex-column justify-content-start project-list-crm crm-list-scroll">
             <form method="get"
                   action="{% url 'plugin_mi_depafi:crm-realisation-list' %}"
                   class="w-100">
@@ -75,8 +75,8 @@
                             <th scope="col">Catégorie</th>
                             <th scope="col">Nom du site</th>
                             <th scope="col">Localisation</th>
-                            <th x-tooltip="`Date à laquelle l'action a été réalisée`" scope="col">Date de la réalisation</th>
-                            <th x-tooltip="`Date de déclaration de la réalisation`" scope="col">Date de création</th>
+                            <th scope="col">Date de la réalisation <span class="fr-icon-information-line fr-icon--sm fr-text-mention--grey" aria-hidden="true" x-tooltip="`Date à laquelle l'action a été réalisée`"></span></th>
+                            <th scope="col">Date de création <span class="fr-icon-information-line fr-icon--sm fr-text-mention--grey" aria-hidden="true" x-tooltip="`Date de déclaration de la réalisation`"></span></th>
                             <th scope="col">Statut</th>
                             <th scope="col">Likes</th>
                             <th scope="col">Actions</th>
