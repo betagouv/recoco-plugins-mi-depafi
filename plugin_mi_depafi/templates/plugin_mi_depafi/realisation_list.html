@@ -115,7 +115,7 @@
                 <div class="realisations-list col-9 fr-py-4w fr-px-3w">
                     <!-- Header -->
                     <div class="d-flex justify-content-between align-items-center fr-mb-4w">
-                        <h2 class="fr-h4 fr-mb-0">{{ realisations|length }} réalisation{{ realisations|length|pluralize }} {% if draft_realisations %} et {{ draft_realisations|length }} brouillon{{ draft_realisations|length|pluralize }} {% endif %}</h2>
+                        <h2 class="fr-h4 fr-mb-0">{{ published_realisations|length }} réalisation{{ published_realisations|length|pluralize }} {% if draft_realisations %} et {{ draft_realisations|length }} brouillon{{ draft_realisations|length|pluralize }} {% endif %}</h2>
                         <a href="{% url 'plugin_mi_depafi:realisation-create' project_id=project.pk %}"
                            class="fr-btn fr-btn--primary fr-btn--sm">+ Déclarer une réalisation</a>
                     </div>
