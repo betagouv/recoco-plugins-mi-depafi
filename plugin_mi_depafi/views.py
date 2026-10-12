@@ -391,6 +391,7 @@ class RealisationBrowseView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         regions = Region.objects.prefetch_related("departments").order_by("name")
+        ctx["perimeter"] = DepafiProject.Perimeter.choices
         ctx["regions"] = list(RegionSerializer(regions, many=True).data)
         return ctx
 
@@ -434,6 +435,7 @@ class CrmRealisationListView(CrmRealisationMixin, FilterView):
             departments = self.filterset.form.cleaned_data.get("departments") or []
             selected_departments = [department.code for department in departments]
         context["selected_departments"] = selected_departments
+        context["perimeter"] = DepafiProject.Perimeter.choices
         return context
 
 

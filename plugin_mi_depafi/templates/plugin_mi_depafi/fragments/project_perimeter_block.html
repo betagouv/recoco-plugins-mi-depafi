@@ -7,15 +7,13 @@
             {% else %}
                 Non renseigné
             {% endif %}
-        </p>
-        {% if can_update %}
-            <div>
+            {% if can_update %}
                 <a href="{% url 'plugin_mi_depafi:depafi-project-perimeter-update' project_id=project.pk %}"
-                   class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-pencil-line"
-                   data-cy="update-project-perimeter">
+                    class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-pencil-line btn-tag-specific-size"
+                    data-cy="update-project-perimeter">
                     Modifier
                 </a>
-            </div>
-        {% endif %}
+            {% endif %}
+        </p>
     </div>
 </div>
