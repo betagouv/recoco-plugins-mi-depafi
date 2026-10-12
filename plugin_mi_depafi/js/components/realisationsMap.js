@@ -41,7 +41,7 @@ function RealisationsMap() {
         }
         realisationsByProject[r.project.id].count++;
       });
-
+      
       return realisationsByProject;
     },
 
@@ -49,8 +49,12 @@ function RealisationsMap() {
       return Object.keys(this.realisationsByProject).length;
     },
 
-    sidebarRealisationsForProject(projectId) {
-      return this.realisations.filter((r) => r.project.id === projectId);
+    additionalRealisationsLabel(project) {
+      const projectCount = project.count;
+      return `+ ${projectCount} réalisation${isPlural('', 's', projectCount)}`
+    },
+    previewRealisationsForProject(projectId) {
+      return this.realisations.filter((r) => r.project.id === projectId).slice(0,2);
     },
 
     init() {
