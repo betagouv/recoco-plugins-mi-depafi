@@ -88,6 +88,13 @@ class MiDepafiPlugin:
                 request=request,
             )
         )
+    
+    @hookimpl
+    def crm_project_list_filter_lookups(self, request):
+        perimeter = request.GET.get("perimeter")
+        if perimeter in DepafiProject.Perimeter.values:
+            return {"depafi__perimeter": perimeter}
+        return None
 
     @hookimpl
     def conversation_message_node_html(self, request, project):
