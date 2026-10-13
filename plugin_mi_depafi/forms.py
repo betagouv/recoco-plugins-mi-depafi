@@ -26,6 +26,7 @@ class RealisationForm(forms.ModelForm):
     description = MarkdownxFormField(
         required=False,
         label="Description de l'action",
+        help_text="Comment vous l'avez mise en oeuvre, les éventuelles difficultés rencontrées et solutions trouvées, etc.",
     )
     # Not rendered in the template: status is submitted through the
     # "Sauvegarder en brouillon" / "Sauvegarder et publier" buttons. The
@@ -54,8 +55,8 @@ class RealisationForm(forms.ModelForm):
             "key_figures": forms.Textarea(attrs={"class": "fr-input", "rows": 4}),
         }
         labels = {
-            "resource": "Nom de la réalisation",
-            "site": "Site ou bâtiment concerné",
+            "resource": "Action concernée",
+            "site": "Site(s) ou bâtiment(s) concerné(s)",
             "date": "Date de la réalisation",
             "partners": "Partenaire(s)",
             "key_figures": "Chiffres clés",
