@@ -7,6 +7,8 @@
         - rounded_version: boolean
         - perimeter: list of values
         - js_activate: to activate js event
+        - x_model: to bind on parent model
+        - on_change: event to trigger
 
 {% endcomment %}
 
@@ -14,7 +16,7 @@
     <label class="fr-label text-nowrap fr-mr-1w" for="perimeter-filter">
         Périmètre :
     </label>
-    <select class="fr-select fr-mt-0" aria-describedby="perimeter-filter-messages" id="perimeter-filter" name="perimeter" {% if js_activate %}x-model="{{ x_model|default:'selectedPerimeter' }}" @change="onPerimeterSelected" {% else %}onchange="this.form.submit()"{% endif %}>
+    <select class="fr-select fr-mt-0" aria-describedby="perimeter-filter-messages" id="perimeter-filter" name="perimeter" {% if js_activate %}x-model="{{ x_model|default:'selectedPerimeter' }}" @change="{{ on_change|default:'onPerimeterSelected' }}" {% else %}onchange="this.form.submit()"{% endif %}>
         <option value="">Tous les périmètres</option>
         {% for value, label in perimeter %}
             <option value="{{ value }}" {% if request.GET.perimeter == value %}selected{% endif %}>{{ label }}</option>
