@@ -3,7 +3,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("conversations", "0001_initial"),
         ("plugin_mi_depafi", "0002_realisationlike"),

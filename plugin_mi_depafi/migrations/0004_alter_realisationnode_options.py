@@ -4,14 +4,13 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('plugin_mi_depafi', '0003_realisationnode'),
+        ("plugin_mi_depafi", "0003_realisationnode"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='realisationnode',
-            options={'verbose_name': 'Nœud réalisation'},
+            name="realisationnode",
+            options={"verbose_name": "Nœud réalisation"},
         ),
     ]

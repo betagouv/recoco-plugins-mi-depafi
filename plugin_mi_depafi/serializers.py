@@ -65,7 +65,8 @@ class RealisationNodeSerializer(serializers.ModelSerializer):
 
     def get_like_toggle_url(self, obj):
         return reverse(
-            "plugin_mi_depafi:realisation-like-toggle", kwargs={"pk": obj.realisation_id}
+            "plugin_mi_depafi:realisation-like-toggle",
+            kwargs={"pk": obj.realisation_id},
         )
 
     def get_detail_url(self, obj):
