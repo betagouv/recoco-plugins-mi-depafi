@@ -30,14 +30,35 @@ class PluginMiDepafiConfig(AppConfig):
         )
 
         class RealisationSearchAdapter(watson.SearchAdapter):
+            fields = (
+                "project__name",
+                "project_tags_as_list",
+                "project__commune__name",
+                "project__commune__department__name",
+                "project__commune__department__code",
+                "project__commune__department__region__name",
+                "project__commune__department__region__code",
+                "project__commune__insee",
+                "project__commune__postal",
+                "project__owner__profile__organization__name",
+                "resource__title",
+                "resource__subtitle",
+                "resource__summary",
+                "resource__content",
+                "resource__tags",
+                "resource__category__name",
+                "partners",
+                "description",
+            )
+
+            def project_tags_as_list(self, obj):
+                return list(obj.project.tags.names())
+
             def get_title(self, obj):
                 return str(obj.resource)
 
             def get_description(self, obj):
                 return obj.description
-
-            def get_content(self, obj):
-                return f"{obj.project.name} {obj.partners} {obj.resource.title}"
 
         watson.register(Realisation, adapter_cls=RealisationSearchAdapter)
 
