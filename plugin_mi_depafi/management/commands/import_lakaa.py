@@ -598,6 +598,7 @@ class Command(BaseCommand):
 
             sentinel = f"<!-- lakaa:{lakaa_id} -->"
             if Realisation.objects.filter(
+                site=site,
                 project_id=project_pk,
                 resource_id=resource_pk,
                 description__startswith=sentinel,

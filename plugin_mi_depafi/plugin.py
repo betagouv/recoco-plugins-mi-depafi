@@ -1,6 +1,6 @@
 import pluggy
 import waffle
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
 
@@ -62,7 +62,13 @@ class MiDepafiPlugin:
 
     @hookimpl
     def crm_project_list_annotations(self, request):
-        return {"realisations_count": Count("realisations", distinct=True)}
+        return {
+            "realisations_count": Count(
+                "realisations",
+                filter=Q(realisations__site=request.site),
+                distinct=True,
+            )
+        }
 
     @hookimpl
     def crm_project_list_extra_serializer_fields(self, request):
@@ -127,13 +133,13 @@ class MiDepafiPlugin:
     @hookimpl
     def resource_sidebar_panels(self, resource, request):
         realisations = (
-            Realisation.objects.filter(resource=resource, status=Realisation.PUBLISHED)
+            Realisation.on_site.filter(resource=resource, status=Realisation.PUBLISHED)
             .select_related("project__commune__department")
             .prefetch_related("photos")
             .annotate(like_count=Count("likes"))
             .order_by("-created_at")[:3]
         )
-        count = Realisation.objects.filter(
+        count = Realisation.on_site.filter(
             resource=resource, status=Realisation.PUBLISHED
         ).count()
         user_projects = []

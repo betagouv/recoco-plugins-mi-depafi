@@ -57,7 +57,9 @@ class RealisationWriteMixin:
         has_perm_or_403(self.request.user, "projects.manage_documents", self.object)
 
     def _get_realisation(self):
-        return get_object_or_404(Realisation, pk=self.kwargs["pk"], project=self.object)
+        return get_object_or_404(
+            Realisation.on_site, pk=self.kwargs["pk"], project=self.object
+        )
 
 
 class DepafiProjectPerimeterUpdateView(ProjectDetailBaseView):
@@ -108,7 +110,7 @@ class RealisationListView(ProjectDetailBaseView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         base_qs = (
-            Realisation.objects.filter(project=self.object)
+            Realisation.on_site.filter(project=self.object)
             .select_related("resource")
             .prefetch_related("photos")
             .annotate(
@@ -321,7 +323,7 @@ class RealisationDeleteView(RealisationWriteMixin, ProjectDetailBaseView):
 class RealisationLikeToggleView(LoginRequiredMixin, View):
     def post(self, request, pk):
         realisation = get_object_or_404(
-            Realisation,
+            Realisation.on_site,
             pk=pk,
             status=Realisation.PUBLISHED,
             project__project_sites__site=request.site,
@@ -354,9 +356,7 @@ class RealisationDetailView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return (
-            super()
-            .get_queryset()
-            .select_related("resource", "project")
+            Realisation.on_site.select_related("resource", "project")
             .prefetch_related("photos", "documents")
             .filter(project__project_sites__site=self.request.site)
             .distinct()
@@ -428,7 +428,7 @@ class CrmRealisationMixin(UserPassesTestMixin):
 
     def get_queryset(self):
         return (
-            Realisation.objects.filter(project__project_sites__site=self.request.site)
+            Realisation.on_site.filter(project__project_sites__site=self.request.site)
             .select_related("resource__category", "project__commune")
             .order_by("-created_at")
             .distinct()
@@ -498,7 +498,7 @@ class RealisationsByResourceView(LoginRequiredMixin, ListView):
         )
 
         return (
-            Realisation.objects.filter(
+            Realisation.on_site.filter(
                 resource=self.resource,
                 status=Realisation.PUBLISHED,
                 project__project_sites__site=self.request.site,

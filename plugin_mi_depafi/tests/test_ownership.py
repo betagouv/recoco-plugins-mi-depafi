@@ -1,4 +1,5 @@
 import pytest
+from django.contrib.sites.models import Site
 from django.contrib.sites.shortcuts import get_current_site
 from model_bakery import baker
 
@@ -20,7 +21,11 @@ def test_realisation_update_staff_can_access_published(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     with login(client) as user:
         assign_site_staff(get_current_site(request), user)
@@ -35,7 +40,11 @@ def test_realisation_update_staff_can_save_published(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     with login(client) as user:
         assign_site_staff(get_current_site(request), user)
@@ -58,7 +67,11 @@ def test_realisation_update_non_staff_member_cannot_access_published(request, cl
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
@@ -72,7 +85,11 @@ def test_realisation_delete_staff_can_access_published(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request, title="Action publiée")
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     with login(client) as user:
         assign_site_staff(get_current_site(request), user)
@@ -87,7 +104,11 @@ def test_realisation_delete_staff_can_delete_published(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     with login(client) as user:
         assign_site_staff(get_current_site(request), user)
@@ -102,7 +123,11 @@ def test_realisation_update_draft_requires_project_membership(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.DRAFT
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
     )
     with login(client):
         response = client.get(update_url(project, realisation))
@@ -118,6 +143,7 @@ def test_realisation_update_draft_accessible_for_project_member(request, client)
         project_utils.assign_collaborator(user, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -133,7 +159,11 @@ def test_realisation_update_draft_accessible_for_staff(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.DRAFT
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
     )
     with login(client) as user:
         assign_site_staff(get_current_site(request), user)
@@ -175,6 +205,7 @@ def test_realisation_update_forbidden_for_non_owner_project_member(request, clie
         project_utils.assign_collaborator(creator, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -195,6 +226,7 @@ def test_realisation_update_allowed_for_owner(request, client):
         project_utils.assign_collaborator(user, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -213,6 +245,7 @@ def test_realisation_update_allowed_for_staff_even_if_not_creator(request, clien
         project_utils.assign_collaborator(creator, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -233,6 +266,7 @@ def test_realisation_delete_forbidden_for_non_owner_project_member(request, clie
         project_utils.assign_collaborator(creator, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -253,6 +287,7 @@ def test_realisation_delete_allowed_for_owner(request, client):
         project_utils.assign_collaborator(user, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -272,6 +307,7 @@ def test_realisation_delete_allowed_for_staff_even_if_not_creator(request, clien
         project_utils.assign_collaborator(creator, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,

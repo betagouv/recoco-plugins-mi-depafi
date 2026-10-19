@@ -1,4 +1,5 @@
 import pytest
+from django.contrib.sites.models import Site
 from model_bakery import baker
 
 from recoco.apps.conversations.models import Message
@@ -69,6 +70,7 @@ def test_update_draft_to_published_creates_conversation_node(request, client):
         project_utils.assign_collaborator(user, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -97,6 +99,7 @@ def test_update_already_published_realisation_does_not_duplicate_node(request, c
         project_utils.assign_collaborator(user, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
