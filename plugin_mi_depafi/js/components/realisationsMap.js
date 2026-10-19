@@ -50,7 +50,7 @@ function RealisationsMap() {
     },
 
     additionalRealisationsLabel(project) {
-      const projectCount = project.count;
+      const projectCount = project.count - 2;
       return `+ ${projectCount} réalisation${isPlural('', 's', projectCount)}`
     },
     previewRealisationsForProject(projectId) {
