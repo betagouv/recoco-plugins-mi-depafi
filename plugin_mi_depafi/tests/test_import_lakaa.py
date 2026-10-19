@@ -1,8 +1,8 @@
 """
 Tests for the import_lakaa management command.
 
-Tests call the private _import_* methods directly to bypass the
-TenantCommand.execute() search_path setup, which requires a live tenant schema.
+Most tests call the private _import_* methods directly with an explicit site;
+the command entry point (site selection) is covered separately.
 """
 
 import csv
@@ -11,6 +11,8 @@ from datetime import date
 
 import pytest
 from django.contrib.auth.models import User
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.contrib.sites.models import Site
 from model_bakery import baker
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
@@ -1193,3 +1195,30 @@ def test_import_realisations_warns_on_unknown_resource(tmp_path, request):
 
     assert "WARN" in cmd.stderr.getvalue()
     assert Realisation.objects.count() == 0
+
+
+# ---------------------------------------------------------------------------
+# Command entry point
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_command_requires_site_domain(tmp_path):
+    with pytest.raises(CommandError, match="--site-domain"):
+        call_command("import_lakaa", data_dir=str(tmp_path))
+
+
+@pytest.mark.django_db
+def test_command_rejects_unknown_site_domain(tmp_path):
+    with pytest.raises(CommandError, match="unknown.example.com"):
+        call_command(
+            "import_lakaa", site_domain="unknown.example.com", data_dir=str(tmp_path)
+        )
+
+
+@pytest.mark.django_db
+def test_command_resolves_site_before_reading_files(tmp_path, current_site):
+    with pytest.raises(CommandError, match="File not found"):
+        call_command(
+            "import_lakaa", site_domain=current_site.domain, data_dir=str(tmp_path)
+        )
