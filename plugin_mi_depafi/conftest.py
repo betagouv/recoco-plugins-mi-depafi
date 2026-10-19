@@ -49,10 +49,7 @@ def make_project_on_site(request):
     site = get_current_site(request)
     home_models.SiteConfiguration.objects.get_or_create(
         site=site,
-        defaults={
-            "schema_name": "test_plugin_mi_depafi",
-            "enabled_plugins": [PLUGIN_NAME],
-        },
+        defaults={"enabled_plugins": [PLUGIN_NAME]},
     )
     project = baker.make(Project)
     project.project_sites.create(site=site, status="READY", is_origin=True)
