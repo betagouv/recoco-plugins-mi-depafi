@@ -59,12 +59,14 @@ def make_project_on_site(request):
 
 
 def set_project_perimeter(project, perimeter):
-    """Store `perimeter` on the project's DepafiProject profile.
+    """Store `perimeter` on the project's DepafiProject profile for the current site.
 
     The profile is normally auto-created by the plugin signal on Project
     creation; it is created here if missing (legacy projects).
     """
-    profile, _ = DepafiProject.objects.get_or_create(project=project)
+    profile, _ = DepafiProject.objects.get_or_create(
+        project=project, site=Site.objects.get_current()
+    )
     profile.perimeter = perimeter
     profile.save()
     return profile

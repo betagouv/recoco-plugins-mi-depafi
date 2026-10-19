@@ -318,7 +318,7 @@ class Command(TenantCommand):
         )
 
         self.stdout.write("\n[4/4] Importing réalisations (declarations)…")
-        self._import_realisations(reports_path, project_map, resource_map)
+        self._import_realisations(reports_path, project_map, resource_map, site)
 
         self.stdout.write(self.style.SUCCESS("\nImport complete."))
 
@@ -571,7 +571,7 @@ class Command(TenantCommand):
     # Phase 4 - Réalisations (declarations)
     # ------------------------------------------------------------------
 
-    def _import_realisations(self, reports_path, project_map, resource_map):
+    def _import_realisations(self, reports_path, project_map, resource_map, site):
         rows = _load_csv(reports_path)
         declarations = _group_by_declaration(rows)
         created = skipped = warn = 0
@@ -615,7 +615,7 @@ class Command(TenantCommand):
                 else Realisation.PUBLISHED
             )
 
-            description_body, site_field, pdf_urls, key_figures = (
+            description_body, location, pdf_urls, key_figures = (
                 _consolidate_indicators(group_rows)
             )
             description = sentinel
@@ -630,7 +630,8 @@ class Command(TenantCommand):
                 resource_id=resource_pk,
                 created_by=creator,
                 partners=_val(base_row.get("Partenaires")) or "",
-                site=site_field[:255],
+                site=site,
+                location=location[:255],
                 date=_parse_date(base_row.get("Date de début")),
                 description=description,
                 key_figures=key_figures,
@@ -651,7 +652,9 @@ class Command(TenantCommand):
                     with urllib.request.urlopen(url, timeout=10) as resp:
                         data = resp.read()
                     filename = url.rsplit("/", 1)[-1]
-                    photo = RealisationPhoto(realisation=realisation, order=order)
+                    photo = RealisationPhoto(
+                        site=site, realisation=realisation, order=order
+                    )
                     photo.image.save(filename, ContentFile(data), save=True)
                 except Exception as exc:
                     self.stderr.write(f"  [WARN] Could not download image {url}: {exc}")
@@ -661,7 +664,9 @@ class Command(TenantCommand):
                     with urllib.request.urlopen(url, timeout=10) as resp:
                         data = resp.read()
                     filename = url.rsplit("/", 1)[-1]
-                    doc = RealisationDocument(realisation=realisation, order=order)
+                    doc = RealisationDocument(
+                        site=site, realisation=realisation, order=order
+                    )
                     doc.file.save(filename, ContentFile(data), save=True)
                 except Exception as exc:
                     self.stderr.write(

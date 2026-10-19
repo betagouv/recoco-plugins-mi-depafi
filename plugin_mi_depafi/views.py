@@ -70,7 +70,9 @@ class DepafiProjectPerimeterUpdateView(ProjectDetailBaseView):
         # The profile row is normally auto-created with the project (see
         # signals.create_depafi_project_on_project_created); get_or_create
         # covers projects predating the plugin activation.
-        profile, _ = DepafiProject.objects.get_or_create(project=self.object)
+        profile, _ = DepafiProject.objects.get_or_create(
+            project=self.object, site=self.request.site
+        )
         return profile
 
     def check_permissions(self):
@@ -146,6 +148,7 @@ class RealisationCreateView(RealisationWriteMixin, ProjectDetailBaseView):
         if form.is_valid():
             realisation = form.save(commit=False)
             realisation.project = self.object
+            realisation.site = request.site
             realisation.created_by = request.user
             new_status = form.cleaned_data.get("status") or Realisation.DRAFT
             realisation.status = new_status
@@ -153,12 +156,18 @@ class RealisationCreateView(RealisationWriteMixin, ProjectDetailBaseView):
 
             for order, image in enumerate(request.FILES.getlist("photos")):
                 RealisationPhoto.objects.create(
-                    realisation=realisation, image=image, order=order
+                    site=realisation.site,
+                    realisation=realisation,
+                    image=image,
+                    order=order,
                 )
 
             for order, document in enumerate(request.FILES.getlist("documents")):
                 RealisationDocument.objects.create(
-                    realisation=realisation, file=document, order=order
+                    site=realisation.site,
+                    realisation=realisation,
+                    file=document,
+                    order=order,
                 )
 
             notify_if_published(realisation, None, request.user)
@@ -210,7 +219,10 @@ class RealisationUpdateView(RealisationWriteMixin, ProjectDetailBaseView):
                 request.FILES.getlist("photos"), start=existing_count
             ):
                 RealisationPhoto.objects.create(
-                    realisation=realisation, image=image, order=order
+                    site=realisation.site,
+                    realisation=realisation,
+                    image=image,
+                    order=order,
                 )
 
             delete_doc_ids = request.POST.getlist("delete_documents")
@@ -224,7 +236,10 @@ class RealisationUpdateView(RealisationWriteMixin, ProjectDetailBaseView):
                 request.FILES.getlist("documents"), start=existing_doc_count
             ):
                 RealisationDocument.objects.create(
-                    realisation=realisation, file=document, order=order
+                    site=realisation.site,
+                    realisation=realisation,
+                    file=document,
+                    order=order,
                 )
 
             notify_if_published(realisation, old_status, request.user)
@@ -312,7 +327,9 @@ class RealisationLikeToggleView(LoginRequiredMixin, View):
             project__project_sites__site=request.site,
         )
         like, created = RealisationLike.objects.get_or_create(
-            realisation=realisation, user=request.user
+            realisation=realisation,
+            user=request.user,
+            defaults={"site": realisation.site},
         )
         if not created:
             like.delete()

@@ -7,7 +7,7 @@ from django.utils.safestring import mark_safe
 from recoco.apps.projects.models import Project
 
 from .digests import send_new_realisations_digest
-from .models import Realisation
+from .models import DepafiProject, Realisation
 from .verbs import Realisation as RealisationVerbs
 
 hookimpl = pluggy.HookimplMarker("recoco")
@@ -103,8 +103,8 @@ class MiDepafiPlugin:
     @hookimpl
     def project_overview_sidebar_blocks(self, request, project):
         # Legacy projects (created before the plugin was enabled) may lack their
-        # profile row; getattr swallows the related DoesNotExist gracefully.
-        profile = getattr(project, "depafi", None)
+        # profile row for this site.
+        profile = DepafiProject.on_site.filter(project=project).first()
         can_update = request.user.has_perm("projects.change_project", project)
         return mark_safe(
             render_to_string(
