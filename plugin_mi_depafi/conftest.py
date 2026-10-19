@@ -1,6 +1,7 @@
 import pytest
 from django.contrib.sites.models import Site
 from django.contrib.sites.shortcuts import get_current_site
+from django.core.management import call_command
 from model_bakery import baker
 from multisite.models import Alias
 from waffle.testutils import override_switch
@@ -74,20 +75,10 @@ def set_project_perimeter(project, perimeter):
 
 @pytest.fixture(scope="session", autouse=True)
 def migrate_plugin_tables(django_db_setup, django_db_blocker):
-    """Create plugin_mi_depafi tables directly in the public schema for testing.
+    """Create the plugin tables in the plugin_mi_depafi schema, like in production.
 
-    We bypass the migration system entirely (which would normally route these
-    to a tenant schema) and use Django's schema editor directly so the tables
-    are created in the default public schema accessible to all test connections.
+    The schema is on every connection's search_path, so tests need nothing else.
+    migrate_plugins is safe to re-run, which keeps --reuse-db working.
     """
     with django_db_blocker.unblock():
-        from django.apps import apps
-        from django.db import connection
-
-        app_config = apps.get_app_config("plugin_mi_depafi")
-        with connection.schema_editor() as editor:
-            for model in app_config.get_models():
-                try:
-                    editor.create_model(model)
-                except Exception:
-                    pass  # Table may already exist from a previous reuse-db run
+        call_command("migrate_plugins", PLUGIN_NAME, verbosity=0)
