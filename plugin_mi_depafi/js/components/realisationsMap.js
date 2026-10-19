@@ -75,6 +75,7 @@ function RealisationsMap() {
 
       this.map.on('click', () => {
         this.setMarkerFocus(null);
+        this.closePanel();
       });
     },
 
