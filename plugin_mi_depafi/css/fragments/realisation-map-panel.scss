@@ -1,5 +1,5 @@
 #realisations-map {
-  height: calc(100vh - 264px);
+  height: calc(100vh - 337px);
   min-height: 400px;
   z-index: 1;
 }
@@ -17,7 +17,7 @@
   padding: 1.5rem;
   padding-top: 0.5rem;
   border-top: 1px solid var(--light-decisions-border-border-default-grey, #DDD);
-  height: calc(100vh - 264px);
+  height: calc(100vh - 337px);
   overflow-y: scroll;
 
   &__close-btn {
