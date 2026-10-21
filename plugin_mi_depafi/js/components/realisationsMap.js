@@ -46,6 +46,7 @@ function RealisationsMap() {
     },
 
     get projectLength() {
+      if(!this.realisationsByProject) return;
       return Object.keys(this.realisationsByProject).length;
     },
 

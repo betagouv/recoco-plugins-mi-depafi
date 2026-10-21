@@ -15,18 +15,18 @@ Alpine.data('RealisationBrowse', (regionsData) => ({
   searchQuery: '',
   labelSelectedDepartment: '',
   selectedDepartments: [],
+  isDepartmentSelectorReset: true,
   selectedPerimeter: '',
   loading: true,
 
   get hasActiveFilters() {
-    return this.searchQuery !== '' || this.selectedDepartments.length > 0 || this.selectedPerimeter !== '';
+    return this.searchQuery !== '' || !this.isDepartmentSelectorReset || this.selectedPerimeter !== '';
   },
 
   async init() {
     this.urlParamInit();
     await this.fetchData();
   },
-
   urlParamInit() {
     const urlParams = new URLSearchParams(window.location.search);
     const view = urlParams.get('view');
@@ -59,6 +59,7 @@ Alpine.data('RealisationBrowse', (regionsData) => ({
 
   async onDepartmentsSelected(event) {
     this.selectedDepartments = event.detail || [];
+    this.isDepartmentSelectorReset = false;
     await this.fetchData();
   },
 
@@ -72,5 +73,6 @@ Alpine.data('RealisationBrowse', (regionsData) => ({
     // reset emits `selected-departments`, which triggers the fetch.
     this.selectedPerimeter = '';
     this.$dispatch('reset-departments-selector');
+    this.isDepartmentSelectorReset = true;
   },
 }));
