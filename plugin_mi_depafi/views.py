@@ -57,7 +57,9 @@ class RealisationWriteMixin:
         has_perm_or_403(self.request.user, "projects.manage_documents", self.object)
 
     def _get_realisation(self):
-        return get_object_or_404(Realisation, pk=self.kwargs["pk"], project=self.object)
+        return get_object_or_404(
+            Realisation.on_site, pk=self.kwargs["pk"], project=self.object
+        )
 
 
 class DepafiProjectPerimeterUpdateView(ProjectDetailBaseView):
@@ -70,7 +72,9 @@ class DepafiProjectPerimeterUpdateView(ProjectDetailBaseView):
         # The profile row is normally auto-created with the project (see
         # signals.create_depafi_project_on_project_created); get_or_create
         # covers projects predating the plugin activation.
-        profile, _ = DepafiProject.objects.get_or_create(project=self.object)
+        profile, _ = DepafiProject.objects.get_or_create(
+            project=self.object, site=self.request.site
+        )
         return profile
 
     def check_permissions(self):
@@ -106,7 +110,7 @@ class RealisationListView(ProjectDetailBaseView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         base_qs = (
-            Realisation.objects.filter(project=self.object)
+            Realisation.on_site.filter(project=self.object)
             .select_related("resource")
             .prefetch_related("photos")
             .annotate(
@@ -146,6 +150,7 @@ class RealisationCreateView(RealisationWriteMixin, ProjectDetailBaseView):
         if form.is_valid():
             realisation = form.save(commit=False)
             realisation.project = self.object
+            realisation.site = request.site
             realisation.created_by = request.user
             new_status = form.cleaned_data.get("status") or Realisation.DRAFT
             realisation.status = new_status
@@ -153,12 +158,18 @@ class RealisationCreateView(RealisationWriteMixin, ProjectDetailBaseView):
 
             for order, image in enumerate(request.FILES.getlist("photos")):
                 RealisationPhoto.objects.create(
-                    realisation=realisation, image=image, order=order
+                    site=realisation.site,
+                    realisation=realisation,
+                    image=image,
+                    order=order,
                 )
 
             for order, document in enumerate(request.FILES.getlist("documents")):
                 RealisationDocument.objects.create(
-                    realisation=realisation, file=document, order=order
+                    site=realisation.site,
+                    realisation=realisation,
+                    file=document,
+                    order=order,
                 )
 
             notify_if_published(realisation, None, request.user)
@@ -210,7 +221,10 @@ class RealisationUpdateView(RealisationWriteMixin, ProjectDetailBaseView):
                 request.FILES.getlist("photos"), start=existing_count
             ):
                 RealisationPhoto.objects.create(
-                    realisation=realisation, image=image, order=order
+                    site=realisation.site,
+                    realisation=realisation,
+                    image=image,
+                    order=order,
                 )
 
             delete_doc_ids = request.POST.getlist("delete_documents")
@@ -224,7 +238,10 @@ class RealisationUpdateView(RealisationWriteMixin, ProjectDetailBaseView):
                 request.FILES.getlist("documents"), start=existing_doc_count
             ):
                 RealisationDocument.objects.create(
-                    realisation=realisation, file=document, order=order
+                    site=realisation.site,
+                    realisation=realisation,
+                    file=document,
+                    order=order,
                 )
 
             notify_if_published(realisation, old_status, request.user)
@@ -306,13 +323,15 @@ class RealisationDeleteView(RealisationWriteMixin, ProjectDetailBaseView):
 class RealisationLikeToggleView(LoginRequiredMixin, View):
     def post(self, request, pk):
         realisation = get_object_or_404(
-            Realisation,
+            Realisation.on_site,
             pk=pk,
             status=Realisation.PUBLISHED,
             project__project_sites__site=request.site,
         )
         like, created = RealisationLike.objects.get_or_create(
-            realisation=realisation, user=request.user
+            realisation=realisation,
+            user=request.user,
+            defaults={"site": realisation.site},
         )
         if not created:
             like.delete()
@@ -337,9 +356,7 @@ class RealisationDetailView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return (
-            super()
-            .get_queryset()
-            .select_related("resource", "project")
+            Realisation.on_site.select_related("resource", "project")
             .prefetch_related("photos", "documents")
             .filter(project__project_sites__site=self.request.site)
             .distinct()
@@ -411,7 +428,7 @@ class CrmRealisationMixin(UserPassesTestMixin):
 
     def get_queryset(self):
         return (
-            Realisation.objects.filter(project__project_sites__site=self.request.site)
+            Realisation.on_site.filter(project__project_sites__site=self.request.site)
             .select_related("resource__category", "project__commune")
             .order_by("-created_at")
             .distinct()
@@ -481,7 +498,7 @@ class RealisationsByResourceView(LoginRequiredMixin, ListView):
         )
 
         return (
-            Realisation.objects.filter(
+            Realisation.on_site.filter(
                 resource=self.resource,
                 status=Realisation.PUBLISHED,
                 project__project_sites__site=self.request.site,

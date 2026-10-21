@@ -17,10 +17,10 @@
                 <span class="fr-icon-calendar-event-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
                 Date de la réalisation : {{ realisation.created_at|date:"d/m/Y" }}
             </li>
-            {% if realisation.site %}
+            {% if realisation.location %}
             <li class="fr-pb-0 realisation-modal__subtitle">
                 <span class="fr-icon-building-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
-                Bâtiment(s) : {{ realisation.site }}
+                Bâtiment(s) : {{ realisation.location }}
             </li>
             {% endif %}
             <li class="fr-pb-0 realisation-modal__subtitle">

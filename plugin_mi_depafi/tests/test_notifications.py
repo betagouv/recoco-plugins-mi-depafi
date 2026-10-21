@@ -1,4 +1,5 @@
 import pytest
+from django.contrib.sites.models import Site
 from actstream.models import Action
 from django.contrib.auth.models import User
 from django.contrib.sites.shortcuts import get_current_site
@@ -52,6 +53,7 @@ def test_realisation_delete_logs_actstream_action(request, client):
         project_utils.assign_collaborator(user, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -70,7 +72,11 @@ def test_notify_staff_on_realisation_published(request):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     publisher = baker.make(User)
     staff_member = baker.make(User)

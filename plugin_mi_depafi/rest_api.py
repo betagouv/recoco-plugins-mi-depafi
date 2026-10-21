@@ -81,7 +81,7 @@ class RealisationsForMapAPIView(ListAPIView):
 
     def get_queryset(self):
         return (
-            Realisation.objects.filter(
+            Realisation.on_site.filter(
                 project__project_sites__site=self.request.site,
                 status=Realisation.PUBLISHED,
             )
