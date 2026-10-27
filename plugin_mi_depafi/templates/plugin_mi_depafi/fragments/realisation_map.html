@@ -1,4 +1,4 @@
-<div x-data="RealisationsMap">
+<div x-data="RealisationsMap" class="container-fluid">
     
     <div class="row">
         <div :class="{'col-8 col-xl-9': panelConfig.isOpen, 'col-12': !panelConfig.isOpen }" class="fr-p-0 position-relative">
@@ -33,9 +33,14 @@
                             <span class="fr-icon-hammer-line" aria-hidden="true"></span>
                             Réalisations : <span x-text="selectedProject.realisationsCount"></span>
                         </p>
-    
+
                         <!--Realisations list-->
-                        <h2 class="map-panel__subtitle">Réalisations</h2>
+                        <div class="map-panel__subtitle-container">
+                            <h2 class="map-panel__subtitle">Réalisations (<span x-text="selectedProject.realisationsCount"></span>)</h2>
+                            <a class="fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', selectedProject.id)">Voir le dossier
+                                <span class="fr-icon-arrow-right-line fr-icon--sm" aria-hidden="true"></span>
+                            </a>
+                        </div>
     
                         <div x-show="loading" class="text-center fr-py-4w text-muted">
                             Chargement…
@@ -50,7 +55,7 @@
                         <template x-for="realisation in sidebarRealisations" :key="realisation.id">
                             {% include "plugin_mi_depafi/fragments/realisation_map_card.html" %}
                         </template>
-                        <div class="map-panel__link-container">
+                        <div class="map-panel__bottom-info map-panel__bottom-info--align-right">
                             <a class="fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', selectedProject.id)">Voir le dossier
                                 <span class="fr-icon-arrow-right-line fr-icon--sm" aria-hidden="true"></span>
                             </a>
@@ -76,7 +81,7 @@
                             <div>
                                 <hr class="map-panel__separator fr-pb-1w">
                                 <!--Site name-->
-                                <p class="map-panel__subtitle fr-mt-0 fr-mb-3v"><span x-text="project.name"></span></p>
+                                <p class="map-panel__subtitle fr-mt-0 fr-mb-3v"><a class="fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', project.id)" x-text="project.name"></a></p>
     
                                 <!--Location-->
                                 <p class="map-panel__info fr-mb-3v">
@@ -84,13 +89,22 @@
                                     <span x-text="project.commune?.name"></span>
                                     (<span x-text="project.commune?.department?.code"></span>)
                                 </p>
+
+                                <!--Realisation number-->
+                                <p class="map-panel__info fr-mb-3v">
+                                    <span class="fr-icon-hammer-line" aria-hidden="true"></span>
+                                    Réalisations : <span x-text="project.count"></span>
+                                </p>
                                 <!--Realisation list-->
-                                <template x-for="realisation in sidebarRealisationsForProject(project.id)" :key="realisation.id">
+                                <template x-for="realisation in previewRealisationsForProject(project.id)" :key="realisation.id">
                                     {% include "plugin_mi_depafi/fragments/realisation_map_card.html" %}
                                 </template>
     
                                 <!--Button see project-->
-                                <div class="map-panel__link-container fr-mb-3w">
+                                <div class="map-panel__bottom-info fr-mb-3w">
+                                    <template x-if="project.count > 2">
+                                        <p class="map-panel__additional-realisation fr-mb-0" x-text="additionalRealisationsLabel(project)"></p>
+                                    </template>
                                     <a class="fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', project.id)">Voir le dossier
                                         <span class="fr-icon-arrow-right-line fr-icon--sm" aria-hidden="true"></span>
                                     </a>
