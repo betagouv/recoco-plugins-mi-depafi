@@ -32,11 +32,9 @@
 .realisations__section:last-child {
   margin-bottom: 0;
 }
-/* Référent : nom du user (fragment project_owner.html) -> fr-mb-1v */
 .realisations__section--referent > .fr-mb-2v {
   margin-bottom: 0.25rem !important;
 }
-/* Référent : bloc mail (fragment owner-details.html) -> fr-mb-0 */
 .realisations__section--referent .fr-mb-2v:has(a[href^='mailto:']) {
   margin-bottom: 0 !important;
 }
@@ -53,4 +51,30 @@
   border-top: 1px solid #e5e5e5;
   border-left: 1px solid #e5e5e5;
   background: #fafafa;
+}
+.realisations-list__sub-header {
+  color: var(--light-neutral-grey-200, #3A3A3A);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 28px; /* 155.556% */
+}
+.realisation-card__draft-header {
+  display: flex;
+  padding: 4px 8px;
+  align-items: center;
+  gap: 8px;
+  align-self: stretch;
+  background: var(--light-decisions-background-background-flat-grey, #3A3A3A);
+  &__text {
+    color: var(--light-decisions-text-text-inverted-grey, #FFF);
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 24px; /* 171.429% */
+  }
+}
+.realisation-card--draft {
+  border-radius: 2px;
+  border: 1px solid var(--light-decisions-border-border-plain-grey, #3A3A3A);
+  border-left-width: 4px;
 }

@@ -1,11 +1,12 @@
 import csv
 
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models import Count, Exists, OuterRef
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import DetailView, ListView, TemplateView, View
+from django_filters.views import BaseFilterView, FilterView
 
 from recoco.apps.geomatics.models import Region
 from recoco.apps.geomatics.serializers import RegionSerializer
@@ -14,6 +15,7 @@ from recoco.apps.projects.views.detail import ProjectDetailBaseView
 from recoco.apps.resources.models import Resource
 from recoco.utils import has_perm, has_perm_or_403
 
+from .filters import RealisationFilter
 from .forms import DepafiProjectPerimeterForm, RealisationForm
 from .models import (
     DepafiProject,
@@ -23,6 +25,23 @@ from .models import (
     RealisationPhoto,
 )
 from .signals import realisation_deleted, realisation_published
+
+
+def notify_if_published(realisation, old_status, user):
+    """Send realisation_published if the realisation just became PUBLISHED.
+
+    Single source of truth for the draft -> published transition, shared by
+    the create/update forms and the one-click publish action.
+    """
+    if (
+        old_status != Realisation.PUBLISHED
+        and realisation.status == Realisation.PUBLISHED
+    ):
+        realisation_published.send(
+            sender=Realisation,
+            realisation=realisation,
+            published_by=user,
+        )
 
 
 class RealisationWriteMixin:
@@ -38,7 +57,9 @@ class RealisationWriteMixin:
         has_perm_or_403(self.request.user, "projects.manage_documents", self.object)
 
     def _get_realisation(self):
-        return get_object_or_404(Realisation, pk=self.kwargs["pk"], project=self.object)
+        return get_object_or_404(
+            Realisation.on_site, pk=self.kwargs["pk"], project=self.object
+        )
 
 
 class DepafiProjectPerimeterUpdateView(ProjectDetailBaseView):
@@ -51,7 +72,9 @@ class DepafiProjectPerimeterUpdateView(ProjectDetailBaseView):
         # The profile row is normally auto-created with the project (see
         # signals.create_depafi_project_on_project_created); get_or_create
         # covers projects predating the plugin activation.
-        profile, _ = DepafiProject.objects.get_or_create(project=self.object)
+        profile, _ = DepafiProject.objects.get_or_create(
+            project=self.object, site=self.request.site
+        )
         return profile
 
     def check_permissions(self):
@@ -87,7 +110,7 @@ class RealisationListView(ProjectDetailBaseView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         base_qs = (
-            Realisation.objects.filter(project=self.object)
+            Realisation.on_site.filter(project=self.object)
             .select_related("resource")
             .prefetch_related("photos")
             .annotate(
@@ -127,6 +150,7 @@ class RealisationCreateView(RealisationWriteMixin, ProjectDetailBaseView):
         if form.is_valid():
             realisation = form.save(commit=False)
             realisation.project = self.object
+            realisation.site = request.site
             realisation.created_by = request.user
             new_status = form.cleaned_data.get("status") or Realisation.DRAFT
             realisation.status = new_status
@@ -134,20 +158,19 @@ class RealisationCreateView(RealisationWriteMixin, ProjectDetailBaseView):
 
             for order, image in enumerate(request.FILES.getlist("photos")):
                 RealisationPhoto.objects.create(
-                    realisation=realisation, image=image, order=order
+                    realisation=realisation,
+                    image=image,
+                    order=order,
                 )
 
             for order, document in enumerate(request.FILES.getlist("documents")):
                 RealisationDocument.objects.create(
-                    realisation=realisation, file=document, order=order
+                    realisation=realisation,
+                    file=document,
+                    order=order,
                 )
 
-            if new_status == Realisation.PUBLISHED:
-                realisation_published.send(
-                    sender=Realisation,
-                    realisation=realisation,
-                    published_by=request.user,
-                )
+            notify_if_published(realisation, None, request.user)
 
             return redirect(
                 reverse(
@@ -196,7 +219,9 @@ class RealisationUpdateView(RealisationWriteMixin, ProjectDetailBaseView):
                 request.FILES.getlist("photos"), start=existing_count
             ):
                 RealisationPhoto.objects.create(
-                    realisation=realisation, image=image, order=order
+                    realisation=realisation,
+                    image=image,
+                    order=order,
                 )
 
             delete_doc_ids = request.POST.getlist("delete_documents")
@@ -210,18 +235,12 @@ class RealisationUpdateView(RealisationWriteMixin, ProjectDetailBaseView):
                 request.FILES.getlist("documents"), start=existing_doc_count
             ):
                 RealisationDocument.objects.create(
-                    realisation=realisation, file=document, order=order
+                    realisation=realisation,
+                    file=document,
+                    order=order,
                 )
 
-            if (
-                old_status != Realisation.PUBLISHED
-                and new_status == Realisation.PUBLISHED
-            ):
-                realisation_published.send(
-                    sender=Realisation,
-                    realisation=realisation,
-                    published_by=request.user,
-                )
+            notify_if_published(realisation, old_status, request.user)
 
             return redirect(
                 reverse(
@@ -232,6 +251,39 @@ class RealisationUpdateView(RealisationWriteMixin, ProjectDetailBaseView):
 
         context = self.get_context_data(form=form)
         return self.render_to_response(context)
+
+
+class RealisationPublishView(RealisationWriteMixin, ProjectDetailBaseView):
+    """Two-click publication of a draft from the realisation list with a confirmation modal."""
+
+    http_method_names = ["get", "post"]
+
+    # LA PARTIE GET EST UNE COPIE DE LA CLASSE DELETEVIEW CI_DESSOUS A CONFIRMER BY GLIB
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        self.check_permissions()
+        return render(
+            request,
+            "plugin_mi_depafi/fragments/realisation_publish_confirm.html",
+            {"realisation": self._get_realisation()},
+        )
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        self.check_permissions()
+        realisation = self._get_realisation()
+        old_status = realisation.status
+        if old_status != Realisation.PUBLISHED:
+            realisation.status = Realisation.PUBLISHED
+            realisation.save(update_fields=["status", "updated_at"])
+            notify_if_published(realisation, old_status, request.user)
+        return redirect(
+            reverse(
+                "plugin_mi_depafi:realisation-list",
+                kwargs={"project_id": self.object.pk},
+            )
+        )
 
 
 class RealisationDeleteView(RealisationWriteMixin, ProjectDetailBaseView):
@@ -266,8 +318,10 @@ class RealisationDeleteView(RealisationWriteMixin, ProjectDetailBaseView):
 
 class RealisationLikeToggleView(LoginRequiredMixin, View):
     def post(self, request, pk):
+        # Both filters are needed: on_site keeps the realisation's own site,
+        # project_sites keeps the project still shared with this site.
         realisation = get_object_or_404(
-            Realisation,
+            Realisation.on_site,
             pk=pk,
             status=Realisation.PUBLISHED,
             project__project_sites__site=request.site,
@@ -297,10 +351,10 @@ class RealisationDetailView(LoginRequiredMixin, DetailView):
     context_object_name = "realisation"
 
     def get_queryset(self):
+        # Same double scoping as RealisationLikeToggleView: realisation of this
+        # site, on a project still shared with this site.
         return (
-            super()
-            .get_queryset()
-            .select_related("resource", "project")
+            Realisation.on_site.select_related("resource", "project")
             .prefetch_related("photos", "documents")
             .filter(project__project_sites__site=self.request.site)
             .distinct()
@@ -352,40 +406,58 @@ class RealisationBrowseView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         regions = Region.objects.prefetch_related("departments").order_by("name")
+        ctx["perimeter"] = DepafiProject.Perimeter.choices
         ctx["regions"] = list(RegionSerializer(regions, many=True).data)
         return ctx
 
 
-class CrmRealisationListView(LoginRequiredMixin, View):
-    """CRM-side list of all Realisations across the site."""
+class CrmRealisationMixin(UserPassesTestMixin):
+    """Site scoping, CRM permission check and filtering shared by the CRM views.
 
-    template_name = "plugin_mi_depafi/crm_realisation_list.html"
+    Anonymous users are redirected to the login page, authenticated users
+    without the `use_crm` permission get a 403.
+    """
 
-    def get(self, request):
-        has_perm_or_403(request.user, "use_crm", request.site)
-        return render(request, self.template_name)
+    filterset_class = RealisationFilter
+    permission_denied_message = "L'information demandée n'est pas disponible"
 
+    def test_func(self):
+        return has_perm(self.request.user, "use_crm", self.request.site)
 
-class CrmRealisationCsvView(LoginRequiredMixin, View):
-    def get(self, request):
-        has_perm_or_403(request.user, "use_crm", request.site)
-
-        qs = (
-            Realisation.objects.filter(project__project_sites__site=request.site)
+    def get_queryset(self):
+        return (
+            Realisation.on_site.filter(project__project_sites__site=self.request.site)
             .select_related("resource__category", "project__commune")
             .order_by("-created_at")
             .distinct()
         )
 
-        if q := request.GET.get("q", "").strip():
-            qs = qs.filter(resource__title__icontains=q)
 
-        if statuses := request.GET.getlist("status"):
-            qs = qs.filter(status__in=statuses)
+class CrmRealisationListView(CrmRealisationMixin, FilterView):
+    """CRM-side list of all Realisations across the site."""
 
-        if departments := request.GET.getlist("departments"):
-            qs = qs.filter(project__commune__department__code__in=departments)
+    template_name = "plugin_mi_depafi/crm_realisation_list.html"
+    context_object_name = "realisations"
+    paginate_by = 25
 
+    def get_queryset(self):
+        return super().get_queryset().annotate(like_count=Count("likes", distinct=True))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        selected_departments = []
+        if self.filterset.is_valid():
+            departments = self.filterset.form.cleaned_data.get("departments") or []
+            selected_departments = [department.code for department in departments]
+        context["selected_departments"] = selected_departments
+        context["perimeter"] = DepafiProject.Perimeter.choices
+        return context
+
+
+class CrmRealisationCsvView(CrmRealisationMixin, BaseFilterView):
+    """CSV export of the CRM list, honouring the same filters."""
+
+    def render_to_response(self, context):
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = 'attachment; filename="realisations.csv"'
         response.write("﻿")  # BOM for Excel
@@ -396,7 +468,7 @@ class CrmRealisationCsvView(LoginRequiredMixin, View):
         )
 
         status_labels = dict(Realisation.STATUS_CHOICES)
-        for r in qs:
+        for r in self.object_list:
             commune = r.project.commune
             localisation = f"{commune.name} ({commune.postal})" if commune else ""
             writer.writerow(
@@ -424,7 +496,7 @@ class RealisationsByResourceView(LoginRequiredMixin, ListView):
         )
 
         return (
-            Realisation.objects.filter(
+            Realisation.on_site.filter(
                 resource=self.resource,
                 status=Realisation.PUBLISHED,
                 project__project_sites__site=self.request.site,

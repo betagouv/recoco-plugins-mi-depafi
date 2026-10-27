@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+from django.contrib.sites.models import Site
 from django.contrib.auth.models import User
 from django.contrib.sites.shortcuts import get_current_site
 from model_bakery import baker
@@ -37,7 +38,11 @@ def test_send_new_realisations_digest_sends_email_and_marks_sent(request):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     publisher = baker.make(User)
     staff_member = baker.make(User)
@@ -68,7 +73,11 @@ def test_send_new_realisations_digest_dry_run_does_not_send_or_mark(request):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     publisher = baker.make(User)
     staff_member = baker.make(User)
@@ -102,15 +111,27 @@ def test_send_new_realisations_digest_projects_context_includes_realisation_coun
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation_a = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     realisation_b = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     # A third, already-seen realisation on the same project: it must NOT be
     # counted, since its notification isn't part of this digest run.
     baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     publisher = baker.make(User)
     moderator = baker.make(User)
@@ -152,7 +173,11 @@ def test_send_new_realisations_digest_projects_populated_without_validated_by_no
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     publisher = baker.make(User)
     staff_member = baker.make(User)

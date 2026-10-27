@@ -30,7 +30,7 @@ uv pip install -e recoco-plugins-mi-depafi
 Ajouter `plugin_mi_depafi` à `INSTALLED_APPS` dans les paramètres du portail (ie: fichier `recoco/settings/development.py`), puis exécuter la migration :
 
 ```bash
-python manage.py migrate_tenant --schema=<schema_du_portail> plugin_mi_depafi
+python manage.py migrate_plugins plugin_mi_depafi
 ```
 
 Enfin, activer le plugin dans l'administration via la `SiteConfiguration` du portail concerné en ajoutant `"plugin_mi_depafi"` à la liste `enabled_plugins`.

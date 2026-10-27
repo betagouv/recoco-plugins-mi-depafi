@@ -1,13 +1,12 @@
 import pluggy
-import waffle
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
 
 from recoco.apps.projects.models import Project
 
 from .digests import send_new_realisations_digest
-from .models import Realisation
+from .models import DepafiProject, Realisation
 from .verbs import Realisation as RealisationVerbs
 
 hookimpl = pluggy.HookimplMarker("recoco")
@@ -62,7 +61,13 @@ class MiDepafiPlugin:
 
     @hookimpl
     def crm_project_list_annotations(self, request):
-        return {"realisations_count": Count("realisations", distinct=True)}
+        return {
+            "realisations_count": Count(
+                "realisations",
+                filter=Q(realisations__site=request.site),
+                distinct=True,
+            )
+        }
 
     @hookimpl
     def crm_project_list_extra_serializer_fields(self, request):
@@ -75,6 +80,31 @@ class MiDepafiPlugin:
             "cell_html": "<td x-text=\"project.realisations_count ?? '—'\" :class=\"project.realisations_count === 0 ? 'text-danger' : ''\"></td>",
             "col_class": "col--medium",
         }
+
+    @hookimpl
+    def crm_project_list_filters(self, request):
+        return mark_safe(  # noqa: S308
+            render_to_string(
+                "plugin_mi_depafi/fragments/crm_project_list_filter_perimeter.html",
+                {
+                    "perimeter": DepafiProject.Perimeter.choices,
+                    "rounded_version": True,
+                    "js_activate": True,
+                },
+                request=request,
+            )
+        )
+    
+    @hookimpl
+    def crm_project_list_filter_lookups(self, request):
+        perimeter = request.GET.get("perimeter")
+        if perimeter in DepafiProject.Perimeter.values:
+            # One filter() call in core: both lookups hit the same profile row
+            return {
+                "depafi_profiles__site": request.site,
+                "depafi_profiles__perimeter": perimeter,
+            }
+        return None
 
     @hookimpl
     def conversation_message_node_html(self, request, project):
@@ -103,8 +133,8 @@ class MiDepafiPlugin:
     @hookimpl
     def project_overview_sidebar_blocks(self, request, project):
         # Legacy projects (created before the plugin was enabled) may lack their
-        # profile row; getattr swallows the related DoesNotExist gracefully.
-        profile = getattr(project, "depafi", None)
+        # profile row for this site.
+        profile = DepafiProject.on_site.filter(project=project).first()
         can_update = request.user.has_perm("projects.change_project", project)
         return mark_safe(
             render_to_string(
@@ -127,13 +157,13 @@ class MiDepafiPlugin:
     @hookimpl
     def resource_sidebar_panels(self, resource, request):
         realisations = (
-            Realisation.objects.filter(resource=resource, status=Realisation.PUBLISHED)
+            Realisation.on_site.filter(resource=resource, status=Realisation.PUBLISHED)
             .select_related("project__commune__department")
             .prefetch_related("photos")
             .annotate(like_count=Count("likes"))
             .order_by("-created_at")[:3]
         )
-        count = Realisation.objects.filter(
+        count = Realisation.on_site.filter(
             resource=resource, status=Realisation.PUBLISHED
         ).count()
         user_projects = []

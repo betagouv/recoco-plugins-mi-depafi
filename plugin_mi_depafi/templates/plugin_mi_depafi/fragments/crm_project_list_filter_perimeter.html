@@ -1,0 +1,3 @@
+<div x-data="{ selectedPerimeter: '' }">
+    {% include "plugin_mi_depafi/fragments/filter_perimeter.html" with rounded_version=True js_activate=True on_change="$dispatch('plugin-filter-change', { perimeter: $event.target.value })" %}
+</div>

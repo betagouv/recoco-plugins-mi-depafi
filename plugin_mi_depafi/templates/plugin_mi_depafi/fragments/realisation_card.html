@@ -3,7 +3,15 @@
 {% load projects_extra %}
 {% is_staff_for_current_site request.user as is_staff %}
 {# Context: realisation #}
-<div id="realisation-{{ realisation.pk }}" class="fr-card fr-card--no-border fr-mb-3w realisation-card">
+<div id="realisation-{{ realisation.pk }}" class="fr-card fr-card--no-border fr-mb-3w realisation-card {% if realisation.status == 'draft' %}realisation-card--draft{% endif %}">
+    {% if realisation.status == 'draft' %}
+    <div class="realisation-card__draft-header">
+        <span class="realisation-card__draft-header__text">
+            <span class="fr-icon-draft-line fr-icon--sm"></span> 
+            Brouillon du {{ realisation.created_at|date:"d F Y" }}
+        </span>
+    </div>
+    {% endif %}
     <div class="fr-card__body fr-p-3w">
         <!-- Header: title + draft badge -->
         <div class="d-flex align-items-center gap-2 fr-mb-2w">
@@ -15,7 +23,6 @@
                 hx-swap="innerHTML"
                 hx-push-url="false">{{ realisation.resource.title }}</a>
             </h3>
-            {% if realisation.status == 'draft' %}<span class="fr-badge fr-badge--info fr-badge--sm">Brouillon</span>{% endif %}
         </div>
         <!-- Description -->
         {% if realisation.description %}
@@ -45,11 +52,8 @@
             {% endif %}
         {% endwith %}
         <!-- Footer: like + action -->
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex {% if realisation.status == 'draft' %}justify-content-end {% else %}justify-content-between {% endif %}align-items-center">
             {% if realisation.status == 'draft' %}
-                <button type="button"
-                        class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-thumb-up-line"
-                        disabled>0</button>
             {% else %}
                 {% include "plugin_mi_depafi/fragments/realisation_like_button.html" with realisation=realisation user_liked=realisation.user_liked like_count=realisation.like_count %}
             {% endif %}
@@ -62,6 +66,13 @@
                             hx-swap="innerHTML">Supprimer</button>
                     <a href="{% url 'plugin_mi_depafi:realisation-update' project_id=realisation.project_id pk=realisation.pk %}"
                        class="fr-btn fr-btn--secondary-grey fr-btn--sm">Modifier</a>
+                    {% if realisation.status == 'draft' %}
+                        <button type="submit"
+                                class="fr-btn fr-btn--sm"
+                                hx-get="{% url 'plugin_mi_depafi:realisation-publish' project_id=realisation.project_id pk=realisation.pk %}"
+                                hx-target="#realisation-modal-content"
+                                hx-swap="innerHTML">Publier</button>
+                    {% endif %}
                 {% endif %}
                 {% switch "MI_futur" %}
                     <button type="button"

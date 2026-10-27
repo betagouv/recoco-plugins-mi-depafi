@@ -4,6 +4,17 @@ from rest_framework import serializers
 from .models import Realisation, RealisationLike, RealisationNode
 
 
+class OnSiteRealisationField(serializers.PrimaryKeyRelatedField):
+    """Only accept realisations of the current site.
+
+    Built per request: a queryset given at class definition would resolve
+    SITE_ID once, at import time.
+    """
+
+    def get_queryset(self):
+        return Realisation.on_site.all()
+
+
 class RealisationNodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = RealisationNode
@@ -20,10 +31,7 @@ class RealisationNodeSerializer(serializers.ModelSerializer):
             "detail_url",
         )
 
-    realisation_id = serializers.PrimaryKeyRelatedField(
-        source="realisation",
-        queryset=Realisation.objects.all(),
-    )
+    realisation_id = OnSiteRealisationField(source="realisation")
     text = serializers.SerializerMethodField()
     title = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()

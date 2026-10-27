@@ -1,15 +1,17 @@
 import pytest
 from django.contrib.sites.models import Site
 from django.contrib.sites.shortcuts import get_current_site
+from django.core.management import call_command
 from model_bakery import baker
 from multisite.models import Alias
+from waffle.testutils import override_switch
+
 from recoco.apps.home import models as home_models
 from recoco.apps.plugins.resolvers import set_enabled_plugins
 from recoco.apps.projects.models import Project
-from waffle.testutils import override_switch
 
 from .apps import PLUGIN_NAME
-
+from .models import DepafiProject
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -47,32 +49,33 @@ def make_project_on_site(request):
     site = get_current_site(request)
     home_models.SiteConfiguration.objects.get_or_create(
         site=site,
-        defaults={
-            "schema_name": "test_plugin_mi_depafi",
-            "enabled_plugins": [PLUGIN_NAME],
-        },
+        defaults={"enabled_plugins": [PLUGIN_NAME]},
     )
     project = baker.make(Project)
     project.project_sites.create(site=site, status="READY", is_origin=True)
     return project
 
 
+def set_project_perimeter(project, perimeter):
+    """Store `perimeter` on the project's DepafiProject profile for the current site.
+
+    The profile is normally auto-created by the plugin signal on Project
+    creation; it is created here if missing (legacy projects).
+    """
+    profile, _ = DepafiProject.objects.get_or_create(
+        project=project, site=Site.objects.get_current()
+    )
+    profile.perimeter = perimeter
+    profile.save()
+    return profile
+
+
 @pytest.fixture(scope="session", autouse=True)
 def migrate_plugin_tables(django_db_setup, django_db_blocker):
-    """Create plugin_mi_depafi tables directly in the public schema for testing.
+    """Create the plugin tables in the plugin_mi_depafi schema, like in production.
 
-    We bypass the migration system entirely (which would normally route these
-    to a tenant schema) and use Django's schema editor directly so the tables
-    are created in the default public schema accessible to all test connections.
+    The schema is on every connection's search_path, so tests need nothing else.
+    migrate_plugins is safe to re-run, which keeps --reuse-db working.
     """
     with django_db_blocker.unblock():
-        from django.apps import apps
-        from django.db import connection
-
-        app_config = apps.get_app_config("plugin_mi_depafi")
-        with connection.schema_editor() as editor:
-            for model in app_config.get_models():
-                try:
-                    editor.create_model(model)
-                except Exception:
-                    pass  # Table may already exist from a previous reuse-db run
+        call_command("migrate_plugins", PLUGIN_NAME, verbosity=0)

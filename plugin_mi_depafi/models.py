@@ -6,12 +6,13 @@ from django.urls import reverse
 from markdownx.utils import markdownify
 
 from recoco.apps.conversations.models import Node
+from recoco.apps.plugins.models import PluginModel
 from recoco.utils import truncate_string
 
 FEED_LABEL_MAX_LENGTH = 50
 
 
-class Realisation(models.Model):
+class Realisation(PluginModel):
     """A Realisation is a Resource that has been realized in real life, by a given Project"""
 
     DRAFT = "draft"
@@ -42,7 +43,7 @@ class Realisation(models.Model):
         related_name="realisations",
         verbose_name="Action réalisée",
     )
-    site = models.CharField(
+    location = models.CharField(
         max_length=255,
         blank=True,
         verbose_name="Site ou bâtiment concerné",
@@ -97,9 +98,10 @@ class Realisation(models.Model):
         return str(self.resource)
 
 
-class DepafiProject(models.Model):
+class DepafiProject(PluginModel):
     """
-    Plugin-specific data attached to a core Project (OneToOne profile).
+    Plugin-specific data attached to a core Project, one profile per site
+    (a project can be shared by several sites).
     Example data: Lakaa import id, perimeter, ...
     """
 
@@ -115,16 +117,14 @@ class DepafiProject(models.Model):
             "Administration Centrale",
         )
 
-    project = models.OneToOneField(
+    project = models.ForeignKey(
         "projects.Project",
         on_delete=models.CASCADE,
-        related_name="depafi",
-        primary_key=True,
+        related_name="depafi_profiles",
         verbose_name="Projet",
     )
     lakaa_import_id = models.CharField(
         max_length=100,
-        unique=True,
         null=True,
         blank=True,
         verbose_name="Identifiant d'import Lakaa",
@@ -138,12 +138,25 @@ class DepafiProject(models.Model):
 
     class Meta:
         verbose_name = "Dossier Artemi"
+        unique_together = [("project", "site"), ("lakaa_import_id", "site")]
 
     def __str__(self):
         return f"Dossier Artemi {self.project_id}"
 
 
-class RealisationLike(models.Model):
+class RealisationChildModel(PluginModel):
+    """Plugin row hanging off a Realisation: it belongs to the realisation's site."""
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        if self.site_id is None:
+            self.site_id = self.realisation.site_id
+        super().save(*args, **kwargs)
+
+
+class RealisationLike(RealisationChildModel):
     realisation = models.ForeignKey(
         Realisation,
         on_delete=models.CASCADE,
@@ -184,7 +197,7 @@ def _realisation_photo_upload_path(instance, filename):
     )
 
 
-class RealisationPhoto(models.Model):
+class RealisationPhoto(RealisationChildModel):
     realisation = models.ForeignKey(
         Realisation,
         on_delete=models.CASCADE,
@@ -206,7 +219,7 @@ def _realisation_document_upload_path(instance, filename):
     )
 
 
-class RealisationDocument(models.Model):
+class RealisationDocument(RealisationChildModel):
     realisation = models.ForeignKey(
         Realisation,
         on_delete=models.CASCADE,

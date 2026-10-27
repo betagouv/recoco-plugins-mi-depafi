@@ -81,7 +81,9 @@ def create_depafi_project_on_project_created(sender, instance, created, **kwargs
     if not created or PLUGIN_NAME not in get_enabled_plugins():
         return
 
-    DepafiProject.objects.get_or_create(project=instance)
+    DepafiProject.objects.get_or_create(
+        project=instance, site=Site.objects.get_current()
+    )
 
 
 # XXX Disabled ATM

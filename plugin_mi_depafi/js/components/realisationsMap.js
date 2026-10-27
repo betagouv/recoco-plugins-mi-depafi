@@ -41,16 +41,21 @@ function RealisationsMap() {
         }
         realisationsByProject[r.project.id].count++;
       });
-
+      
       return realisationsByProject;
     },
 
     get projectLength() {
+      if(!this.realisationsByProject) return;
       return Object.keys(this.realisationsByProject).length;
     },
 
-    sidebarRealisationsForProject(projectId) {
-      return this.realisations.filter((r) => r.project.id === projectId);
+    additionalRealisationsLabel(project) {
+      const projectCount = project.count - 2;
+      return `+ ${projectCount} réalisation${isPlural('', 's', projectCount)}`
+    },
+    previewRealisationsForProject(projectId) {
+      return this.realisations.filter((r) => r.project.id === projectId).slice(0,2);
     },
 
     init() {
@@ -71,6 +76,7 @@ function RealisationsMap() {
 
       this.map.on('click', () => {
         this.setMarkerFocus(null);
+        this.closePanel();
       });
     },
 

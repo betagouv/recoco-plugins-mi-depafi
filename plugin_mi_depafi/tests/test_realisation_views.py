@@ -1,4 +1,5 @@
 import pytest
+from django.contrib.sites.models import Site
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.files.uploadedfile import SimpleUploadedFile
 from guardian.shortcuts import assign_perm
@@ -8,7 +9,7 @@ from recoco.apps.projects import utils as project_utils
 from recoco.utils import assign_site_staff, login
 
 from ..conftest import make_project_on_site
-from ..models import Realisation, RealisationLike, RealisationPhoto
+from ..models import Realisation, RealisationLike, RealisationNode, RealisationPhoto
 from .conftest import (
     create_url,
     delete_url,
@@ -16,6 +17,7 @@ from .conftest import (
     like_toggle_url,
     list_url,
     make_resource,
+    publish_url,
     update_url,
 )
 
@@ -56,10 +58,15 @@ def test_realisation_list_only_shows_project_realisations(request, client):
 
     resource = make_resource(request)
     own = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     baker.make(
         Realisation,
+        site=Site.objects.get_current(),
         project=other_project,
         resource=resource,
         status=Realisation.PUBLISHED,
@@ -79,10 +86,18 @@ def test_realisation_list_separates_drafts_from_published(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     draft = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.DRAFT
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
     )
     published = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
 
     with login(client) as user:
@@ -337,7 +352,11 @@ def test_realisation_update_redirects_unauthenticated(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.DRAFT
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
     )
     response = client.get(update_url(project, realisation))
     assert response.status_code == 302
@@ -349,7 +368,11 @@ def test_realisation_update_forbidden_for_unprivileged_user(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.DRAFT
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
     )
     with login(client):
         response = client.get(update_url(project, realisation))
@@ -361,7 +384,11 @@ def test_realisation_update_post_forbidden_for_unprivileged_user(request, client
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.DRAFT
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
     )
     with login(client):
         response = client.post(
@@ -386,6 +413,7 @@ def test_realisation_update_form_accessible_for_project_member(request, client):
         project_utils.assign_collaborator(user, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -401,7 +429,11 @@ def test_realisation_update_form_accessible_for_published(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
@@ -418,6 +450,7 @@ def test_realisation_update_saves_changes(request, client):
         project_utils.assign_collaborator(user, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -445,6 +478,7 @@ def test_realisation_update_rejects_invalid_status(request, client):
         project_utils.assign_collaborator(user, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -473,6 +507,7 @@ def test_realisation_update_can_publish_draft(request, client):
         project_utils.assign_collaborator(user, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -499,12 +534,15 @@ def test_realisation_update_deletes_marked_photos(request, client):
         project_utils.assign_collaborator(user, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
             created_by=user,
         )
-        photo = baker.make(RealisationPhoto, realisation=realisation)
+        photo = baker.make(
+            RealisationPhoto, site=Site.objects.get_current(), realisation=realisation
+        )
         client.post(
             update_url(project, realisation),
             {
@@ -526,6 +564,7 @@ def test_realisation_update_redirects_to_list_on_success(request, client):
         project_utils.assign_collaborator(user, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -546,6 +585,124 @@ def test_realisation_update_redirects_to_list_on_success(request, client):
 
 
 # ---------------------------------------------------------------------------
+# Realisation publish (one-click from the list)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_realisation_publish_redirects_unauthenticated(request, client):
+    project = make_project_on_site(request)
+    realisation = baker.make(
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=make_resource(request),
+        status=Realisation.DRAFT,
+    )
+    response = client.post(publish_url(project, realisation))
+    assert response.status_code == 302
+    assert "/login" in response["Location"] or "/accounts" in response["Location"]
+    realisation.refresh_from_db()
+    assert realisation.status == Realisation.DRAFT
+
+
+@pytest.mark.django_db
+def test_realisation_publish_forbidden_for_unprivileged_user(request, client):
+    project = make_project_on_site(request)
+    realisation = baker.make(
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=make_resource(request),
+        status=Realisation.DRAFT,
+    )
+    with login(client):
+        response = client.post(publish_url(project, realisation))
+    assert response.status_code == 403
+    realisation.refresh_from_db()
+    assert realisation.status == Realisation.DRAFT
+
+
+@pytest.mark.django_db
+def test_realisation_publish_rejects_get(request, client):
+    project = make_project_on_site(request)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(
+            Realisation,
+            site=Site.objects.get_current(),
+            project=project,
+            resource=make_resource(request),
+            status=Realisation.DRAFT,
+            created_by=user,
+        )
+        response = client.get(publish_url(project, realisation))
+    assert response.status_code == 405
+    realisation.refresh_from_db()
+    assert realisation.status == Realisation.DRAFT
+
+
+@pytest.mark.django_db
+def test_realisation_publish_publishes_draft_and_notifies(request, client):
+    project = make_project_on_site(request)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(
+            Realisation,
+            site=Site.objects.get_current(),
+            project=project,
+            resource=make_resource(request),
+            status=Realisation.DRAFT,
+            created_by=user,
+        )
+        expected_url = list_url(project)
+        response = client.post(publish_url(project, realisation))
+    assert response.status_code == 302
+    assert response["Location"] == expected_url
+    realisation.refresh_from_db()
+    assert realisation.status == Realisation.PUBLISHED
+    # realisation_published was sent (its receiver creates the conversation node)
+    assert RealisationNode.objects.filter(realisation=realisation).count() == 1
+
+
+@pytest.mark.django_db
+def test_realisation_publish_already_published_is_noop(request, client):
+    project = make_project_on_site(request)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(
+            Realisation,
+            site=Site.objects.get_current(),
+            project=project,
+            resource=make_resource(request),
+            status=Realisation.PUBLISHED,
+            created_by=user,
+        )
+        response = client.post(publish_url(project, realisation))
+    assert response.status_code == 302
+    assert not RealisationNode.objects.filter(realisation=realisation).exists()
+
+
+@pytest.mark.django_db
+def test_realisation_publish_404_for_other_project_realisation(request, client):
+    project = make_project_on_site(request)
+    other_project = make_project_on_site(request)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(
+            Realisation,
+            site=Site.objects.get_current(),
+            project=other_project,
+            resource=make_resource(request),
+            status=Realisation.DRAFT,
+        )
+        response = client.post(publish_url(project, realisation))
+    assert response.status_code == 404
+    realisation.refresh_from_db()
+    assert realisation.status == Realisation.DRAFT
+
+
+# ---------------------------------------------------------------------------
 # Realisation delete (GET = confirm fragment, POST = delete)
 # ---------------------------------------------------------------------------
 
@@ -555,7 +712,11 @@ def test_realisation_delete_get_redirects_unauthenticated(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.DRAFT
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
     )
     response = client.get(delete_url(project, realisation))
     assert response.status_code == 302
@@ -567,7 +728,11 @@ def test_realisation_delete_get_forbidden_for_unprivileged_user(request, client)
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.DRAFT
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
     )
     with login(client):
         response = client.get(delete_url(project, realisation))
@@ -582,6 +747,7 @@ def test_realisation_delete_get_shows_confirm_fragment(request, client):
         project_utils.assign_collaborator(user, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -597,7 +763,11 @@ def test_realisation_delete_get_shows_confirm_for_published(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
@@ -610,7 +780,11 @@ def test_realisation_delete_post_redirects_unauthenticated(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.DRAFT
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
     )
     response = client.post(delete_url(project, realisation))
     assert response.status_code == 302
@@ -622,7 +796,11 @@ def test_realisation_delete_post_forbidden_for_unprivileged_user(request, client
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.DRAFT
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
     )
     with login(client):
         response = client.post(delete_url(project, realisation))
@@ -637,6 +815,7 @@ def test_realisation_delete_post_removes_draft(request, client):
         project_utils.assign_collaborator(user, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -652,7 +831,11 @@ def test_realisation_delete_post_removes_published(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
@@ -669,6 +852,7 @@ def test_realisation_delete_post_redirects_to_list(request, client):
         project_utils.assign_collaborator(user, project, is_owner=True)
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -689,7 +873,11 @@ def test_realisation_like_toggle_redirects_unauthenticated(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     response = client.post(like_toggle_url(realisation))
     assert response.status_code == 302
@@ -700,7 +888,11 @@ def test_realisation_like_toggle_creates_like(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     with login(client) as user:
         response = client.post(like_toggle_url(realisation))
@@ -713,10 +905,19 @@ def test_realisation_like_toggle_removes_existing_like(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     with login(client) as user:
-        baker.make(RealisationLike, realisation=realisation, user=user)
+        baker.make(
+            RealisationLike,
+            site=Site.objects.get_current(),
+            realisation=realisation,
+            user=user,
+        )
         client.post(like_toggle_url(realisation))
     assert not RealisationLike.objects.filter(
         realisation=realisation, user=user
@@ -728,7 +929,11 @@ def test_realisation_like_toggle_returns_404_for_draft(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.DRAFT
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
     )
     with login(client):
         response = client.post(like_toggle_url(realisation))
@@ -740,7 +945,11 @@ def test_realisation_like_toggle_returns_button_fragment(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     with login(client):
         response = client.post(like_toggle_url(realisation))
@@ -757,7 +966,9 @@ def test_realisation_like_toggle_returns_button_fragment(request, client):
 def test_realisation_detail_redirects_unauthenticated(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
-    realisation = baker.make(Realisation, project=project, resource=resource)
+    realisation = baker.make(
+        Realisation, site=Site.objects.get_current(), project=project, resource=resource
+    )
     response = client.get(detail_url(realisation))
     assert response.status_code == 302
     assert "/login" in response["Location"] or "/accounts" in response["Location"]
@@ -768,7 +979,11 @@ def test_realisation_detail_accessible_for_any_logged_in_user(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     with login(client):
         response = client.get(detail_url(realisation))
@@ -780,7 +995,11 @@ def test_realisation_detail_shows_resource_title(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request, title="Mon action vélo")
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     with login(client):
         response = client.get(detail_url(realisation))
@@ -793,6 +1012,7 @@ def test_realisation_detail_shows_partners(request, client):
     resource = make_resource(request)
     realisation = baker.make(
         Realisation,
+        site=Site.objects.get_current(),
         project=project,
         resource=resource,
         partners="Fondation Jean-Moulin",
@@ -810,7 +1030,11 @@ def test_realisation_detail_shows_project_name(request, client):
     project.save()
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     with login(client):
         response = client.get(detail_url(realisation))
@@ -822,7 +1046,11 @@ def test_realisation_detail_context_has_realisation(request, client):
     project = make_project_on_site(request)
     resource = make_resource(request)
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     with login(client):
         response = client.get(detail_url(realisation))
@@ -836,6 +1064,7 @@ def test_realisation_detail_draft_hidden_from_other_users(request, client):
     resource = make_resource(request)
     realisation = baker.make(
         Realisation,
+        site=Site.objects.get_current(),
         project=project,
         resource=resource,
         status=Realisation.DRAFT,
@@ -853,6 +1082,7 @@ def test_realisation_detail_draft_accessible_to_creator(request, client):
     with login(client) as user:
         realisation = baker.make(
             Realisation,
+            site=Site.objects.get_current(),
             project=project,
             resource=resource,
             status=Realisation.DRAFT,
@@ -868,6 +1098,7 @@ def test_realisation_detail_draft_accessible_to_staff(request, client):
     resource = make_resource(request)
     realisation = baker.make(
         Realisation,
+        site=Site.objects.get_current(),
         project=project,
         resource=resource,
         status=Realisation.DRAFT,
@@ -945,6 +1176,7 @@ def test_realisation_update_allowed_on_other_collaborator_draft(request, client)
     resource = make_resource(request)
     realisation = baker.make(
         Realisation,
+        site=Site.objects.get_current(),
         project=project,
         resource=resource,
         status=Realisation.DRAFT,
@@ -966,6 +1198,7 @@ def test_realisation_update_allowed_for_staff_on_published(request, client):
     resource = make_resource(request)
     realisation = baker.make(
         Realisation,
+        site=Site.objects.get_current(),
         project=project,
         resource=resource,
         status=Realisation.PUBLISHED,
@@ -993,6 +1226,7 @@ def test_realisation_delete_allowed_for_staff_on_other_user_realisation(
     resource = make_resource(request)
     realisation = baker.make(
         Realisation,
+        site=Site.objects.get_current(),
         project=project,
         resource=resource,
         status=Realisation.PUBLISHED,
@@ -1012,6 +1246,7 @@ def test_realisation_detail_draft_accessible_to_project_advisor(request, client)
     resource = make_resource(request)
     realisation = baker.make(
         Realisation,
+        site=Site.objects.get_current(),
         project=project,
         resource=resource,
         status=Realisation.DRAFT,
@@ -1031,6 +1266,7 @@ def test_realisation_detail_draft_hidden_from_read_only_user(request, client):
     resource = make_resource(request)
     realisation = baker.make(
         Realisation,
+        site=Site.objects.get_current(),
         project=project,
         resource=resource,
         status=Realisation.DRAFT,

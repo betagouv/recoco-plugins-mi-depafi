@@ -26,6 +26,7 @@ class RealisationForm(forms.ModelForm):
     description = MarkdownxFormField(
         required=False,
         label="Description de l'action",
+        help_text="Comment vous l'avez mise en oeuvre, les éventuelles difficultés rencontrées et solutions trouvées, etc.",
     )
     # Not rendered in the template: status is submitted through the
     # "Sauvegarder en brouillon" / "Sauvegarder et publier" buttons. The
@@ -42,10 +43,17 @@ class RealisationForm(forms.ModelForm):
 
     class Meta:
         model = Realisation
-        fields = ["resource", "site", "date", "partners", "description", "key_figures"]
+        fields = [
+            "resource",
+            "location",
+            "date",
+            "partners",
+            "description",
+            "key_figures",
+        ]
         widgets = {
             "resource": forms.Select(attrs={"class": "fr-select"}),
-            "site": forms.TextInput(attrs={"class": "fr-input"}),
+            "location": forms.TextInput(attrs={"class": "fr-input"}),
             "date": forms.DateInput(
                 attrs={"class": "fr-input", "type": "date"},
                 format="%Y-%m-%d",
@@ -54,15 +62,15 @@ class RealisationForm(forms.ModelForm):
             "key_figures": forms.Textarea(attrs={"class": "fr-input", "rows": 4}),
         }
         labels = {
-            "resource": "Nom de la réalisation",
-            "site": "Site ou bâtiment concerné",
+            "resource": "Action concernée",
+            "location": "Site(s) ou bâtiment(s) concerné(s)",
             "date": "Date de la réalisation",
             "partners": "Partenaire(s)",
             "key_figures": "Chiffres clés",
         }
         help_texts = {
             "resource": "Tapez le nom de la ressource puis sélectionnez-la dans la liste",
-            "site": "Ex : Bâtiment sud",
+            "location": "Ex : Bâtiment sud",
             "partners": "Si vous renseignez plusieurs partenaires, veuillez séparer leur nom par une virgule.",
             "key_figures": "Partagez ici les éléments qui permettent de mesurer l’ampleur et l’impact du changement mis en place (ex. pour un plan vélo : 300 agents sensibilisés, Trajets à vélo passés de 3 à 15 /jour en moyenne etc.)",
         }
