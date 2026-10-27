@@ -19,7 +19,9 @@
                         </button>
                         <!--Project Name-->
                         <p class="map-panel__title fr-mb-0">
-                            <span x-text="selectedProject.name"></span>
+                            <a class="map-panel__title fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', selectedProject.id)">
+                                <span x-text="selectedProject.name"></span>
+                            </a>
                         </p>
     
                         <!--Location-->
@@ -37,9 +39,6 @@
                         <!--Realisations list-->
                         <div class="map-panel__subtitle-container">
                             <h2 class="map-panel__subtitle">Réalisations (<span x-text="selectedProject.realisationsCount"></span>)</h2>
-                            <a class="fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', selectedProject.id)">Voir le dossier
-                                <span class="fr-icon-arrow-right-line fr-icon--sm" aria-hidden="true"></span>
-                            </a>
                         </div>
     
                         <div x-show="loading" class="text-center fr-py-4w text-muted">
@@ -101,7 +100,7 @@
                                 </template>
     
                                 <!--Button see project-->
-                                <div class="map-panel__bottom-info fr-mb-3w">
+                                <div class="map-panel__bottom-info fr-mb-3w" :class="{'map-panel__bottom-info--align-right': project.count <= 2}">
                                     <template x-if="project.count > 2">
                                         <p class="map-panel__additional-realisation fr-mb-0" x-text="additionalRealisationsLabel(project)"></p>
                                     </template>
