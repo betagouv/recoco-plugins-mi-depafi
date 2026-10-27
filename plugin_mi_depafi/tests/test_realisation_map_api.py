@@ -1,4 +1,6 @@
 import pytest
+from django.contrib.sites.models import Site
+from model_bakery import baker
 
 from recoco.utils import login
 
@@ -22,6 +24,26 @@ def test_map_api_without_perimeter_returns_all_realisations(request, client):
     ids = {item["id"] for item in response.json()}
     assert sgami.pk in ids
     assert no_perimeter.pk in ids
+
+
+@pytest.mark.django_db
+def test_map_api_perimeter_ignores_other_site_profile(request, client):
+    """A project's perimeter on another site does not match on this site."""
+    realisation = make_published_realisation(request)
+    baker.make(
+        DepafiProject,
+        project=realisation.project,
+        site=baker.make(Site),
+        perimeter=DepafiProject.Perimeter.SGAMI,
+    )
+
+    with login(client):
+        response = client.get(
+            map_api_url(), {"perimeter": DepafiProject.Perimeter.SGAMI}
+        )
+
+    assert response.status_code == 200
+    assert realisation.pk not in {item["id"] for item in response.json()}
 
 
 @pytest.mark.django_db

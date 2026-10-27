@@ -21,14 +21,15 @@ import html2text
 from tqdm import tqdm
 
 from django.contrib.auth.models import User
+from django.contrib.sites.models import Site
 from django.core.files.base import ContentFile
-from django.core.management.base import CommandError
+from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.geomatics.models import Commune
-from recoco.apps.home.models import SiteConfiguration, UserProfile
-from recoco.apps.plugins.management.base import TenantCommand
+from recoco.apps.home.models import UserProfile
+from recoco.apps.plugins.context import tenant_context
 from recoco.apps.projects.models import Project, ProjectMember, ProjectSite
 from recoco.apps.resources.models import Category, Resource
 
@@ -201,30 +202,10 @@ def _match_commune(address):
     return Commune.objects.filter(name__iexact=address).first()
 
 
-class Command(TenantCommand):
+class Command(BaseCommand):
     help = "Import a Lakaa CSV data export (actions, sites, users, declarations) into the target site"
 
-    def get_schema(self, options):
-        domain = options["site_domain"]
-        try:
-            site_config = SiteConfiguration.objects.select_related("site").get(
-                site__domain=domain
-            )
-        except SiteConfiguration.DoesNotExist:
-            raise CommandError(f"No SiteConfiguration found for '{domain}'")
-        if not site_config.schema_name:
-            raise CommandError(
-                f"SiteConfiguration for '{domain}' has no schema_name — "
-                "enable at least one plugin to auto-generate it"
-            )
-        # Cache the Site object here, before TenantCommand.execute() changes
-        # search_path to the tenant schema — querying django_site afterwards
-        # could resolve to a shadowed table in the tenant schema.
-        self._site = site_config.site
-        return site_config.schema_name
-
     def add_arguments(self, parser):
-        super().add_arguments(parser)
         parser.add_argument(
             "--site-domain",
             required=True,
@@ -281,8 +262,13 @@ class Command(TenantCommand):
         )
 
     def handle(self, **options):
+        domain = options["site_domain"]
+        try:
+            site = Site.objects.get(domain=domain)
+        except Site.DoesNotExist as err:
+            raise CommandError(f"No Site found for domain '{domain}'") from err
+
         data_dir = options["data_dir"]
-        site = self._site  # fetched in get_schema(), before search_path changed
 
         actions_path = os.path.join(data_dir, options["actions_file"])
         sites_path = os.path.join(data_dir, options["sites_file"])
@@ -295,6 +281,19 @@ class Command(TenantCommand):
 
         self.stdout.write(f"Target site: {site.name} ({site.domain})")
 
+        # Act as the target tenant for the whole run: signal handlers (e.g. the
+        # DepafiProject profile created on project save) need the site's enabled
+        # plugins, and on_site managers rely on Site.objects.get_current()
+        with tenant_context(site):
+            self._import(
+                site, actions_path, sites_path, users_path, reports_path, options
+            )
+
+        self.stdout.write(self.style.SUCCESS("\nImport complete."))
+
+    def _import(
+        self, site, actions_path, sites_path, users_path, reports_path, options
+    ):
         self.stdout.write("\n[1/4] Importing categories and resources (actions)…")
         resource_map = self._import_resources(
             actions_path, site, force=options["force_update_resources"]
@@ -318,9 +317,7 @@ class Command(TenantCommand):
         )
 
         self.stdout.write("\n[4/4] Importing réalisations (declarations)…")
-        self._import_realisations(reports_path, project_map, resource_map)
-
-        self.stdout.write(self.style.SUCCESS("\nImport complete."))
+        self._import_realisations(reports_path, project_map, resource_map, site)
 
     # ------------------------------------------------------------------
     # Phase 1 - Resources (from dedicated Actions CSV)
@@ -571,7 +568,7 @@ class Command(TenantCommand):
     # Phase 4 - Réalisations (declarations)
     # ------------------------------------------------------------------
 
-    def _import_realisations(self, reports_path, project_map, resource_map):
+    def _import_realisations(self, reports_path, project_map, resource_map, site):
         rows = _load_csv(reports_path)
         declarations = _group_by_declaration(rows)
         created = skipped = warn = 0
@@ -601,6 +598,7 @@ class Command(TenantCommand):
 
             sentinel = f"<!-- lakaa:{lakaa_id} -->"
             if Realisation.objects.filter(
+                site=site,
                 project_id=project_pk,
                 resource_id=resource_pk,
                 description__startswith=sentinel,
@@ -615,7 +613,7 @@ class Command(TenantCommand):
                 else Realisation.PUBLISHED
             )
 
-            description_body, site_field, pdf_urls, key_figures = (
+            description_body, location, pdf_urls, key_figures = (
                 _consolidate_indicators(group_rows)
             )
             description = sentinel
@@ -630,7 +628,8 @@ class Command(TenantCommand):
                 resource_id=resource_pk,
                 created_by=creator,
                 partners=_val(base_row.get("Partenaires")) or "",
-                site=site_field[:255],
+                site=site,
+                location=location[:255],
                 date=_parse_date(base_row.get("Date de début")),
                 description=description,
                 key_figures=key_figures,

@@ -60,9 +60,18 @@ def test_crm_list_lists_realisations_for_crm_user(request, client):
     site = get_current_site(request)
     resource = make_resource(request, title="Action listée")
     realisation = baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
-    baker.make(RealisationLike, realisation=realisation, _quantity=2)
+    baker.make(
+        RealisationLike,
+        site=Site.objects.get_current(),
+        realisation=realisation,
+        _quantity=2,
+    )
 
     with login(client) as user:
         assign_perm("use_crm", user, site)
@@ -105,7 +114,11 @@ def test_crm_csv_contains_realisation_rows(request, client):
     category = baker.make("resources.Category", name="Energie")
     resource = make_resource(request, title="Mon action", category=category)
     baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
 
     with login(client) as user:
@@ -125,11 +138,19 @@ def test_crm_csv_filters_by_status(request, client):
     site = get_current_site(request)
     resource = make_resource(request, title="Published one")
     baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     resource2 = make_resource(request, title="Draft one")
     baker.make(
-        Realisation, project=project, resource=resource2, status=Realisation.DRAFT
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource2,
+        status=Realisation.DRAFT,
     )
 
     with login(client) as user:
@@ -147,11 +168,19 @@ def test_crm_csv_filters_by_search(request, client):
     site = get_current_site(request)
     resource = make_resource(request, title="Action vélo")
     baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
     resource2 = make_resource(request, title="Action eau")
     baker.make(
-        Realisation, project=project, resource=resource2, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource2,
+        status=Realisation.PUBLISHED,
     )
 
     with login(client) as user:
@@ -169,7 +198,11 @@ def test_crm_csv_is_empty_for_invalid_filter(request, client):
     site = get_current_site(request)
     resource = make_resource(request, title="Action visible")
     baker.make(
-        Realisation, project=project, resource=resource, status=Realisation.PUBLISHED
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
     )
 
     with login(client) as user:

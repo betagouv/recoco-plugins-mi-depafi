@@ -29,6 +29,7 @@ def make_published_realisation(request, project=None, perimeter=None):
         set_project_perimeter(project, perimeter)
     return baker.make(
         Realisation,
+        site=get_current_site(request),
         project=project,
         resource=make_resource(request),
         status=Realisation.PUBLISHED,

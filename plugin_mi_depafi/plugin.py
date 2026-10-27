@@ -1,5 +1,5 @@
 import pluggy
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
 
@@ -61,7 +61,13 @@ class MiDepafiPlugin:
 
     @hookimpl
     def crm_project_list_annotations(self, request):
-        return {"realisations_count": Count("realisations", distinct=True)}
+        return {
+            "realisations_count": Count(
+                "realisations",
+                filter=Q(realisations__site=request.site),
+                distinct=True,
+            )
+        }
 
     @hookimpl
     def crm_project_list_extra_serializer_fields(self, request):
@@ -93,7 +99,11 @@ class MiDepafiPlugin:
     def crm_project_list_filter_lookups(self, request):
         perimeter = request.GET.get("perimeter")
         if perimeter in DepafiProject.Perimeter.values:
-            return {"depafi__perimeter": perimeter}
+            # One filter() call in core: both lookups hit the same profile row
+            return {
+                "depafi_profiles__site": request.site,
+                "depafi_profiles__perimeter": perimeter,
+            }
         return None
 
     @hookimpl
@@ -123,8 +133,8 @@ class MiDepafiPlugin:
     @hookimpl
     def project_overview_sidebar_blocks(self, request, project):
         # Legacy projects (created before the plugin was enabled) may lack their
-        # profile row; getattr swallows the related DoesNotExist gracefully.
-        profile = getattr(project, "depafi", None)
+        # profile row for this site.
+        profile = DepafiProject.on_site.filter(project=project).first()
         can_update = request.user.has_perm("projects.change_project", project)
         return mark_safe(
             render_to_string(
@@ -147,13 +157,13 @@ class MiDepafiPlugin:
     @hookimpl
     def resource_sidebar_panels(self, resource, request):
         realisations = (
-            Realisation.objects.filter(resource=resource, status=Realisation.PUBLISHED)
+            Realisation.on_site.filter(resource=resource, status=Realisation.PUBLISHED)
             .select_related("project__commune__department")
             .prefetch_related("photos")
             .annotate(like_count=Count("likes"))
             .order_by("-created_at")[:3]
         )
-        count = Realisation.objects.filter(
+        count = Realisation.on_site.filter(
             resource=resource, status=Realisation.PUBLISHED
         ).count()
         user_projects = []

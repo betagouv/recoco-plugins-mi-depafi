@@ -1,5 +1,6 @@
 import pytest
 from django.urls import reverse
+from django.contrib.sites.models import Site
 from guardian.shortcuts import assign_perm
 from model_bakery import baker
 
@@ -22,7 +23,8 @@ from .conftest import perimeter_update_url
 def test_depafi_project_created_when_project_created():
     """A Project creation in a tenant with the plugin enabled creates its profile."""
     project = baker.make(Project)
-    assert DepafiProject.objects.filter(pk=project.pk).exists()
+    profile = DepafiProject.objects.get(project=project)
+    assert profile.site == Site.objects.get_current()
 
 
 @pytest.mark.django_db
@@ -42,7 +44,7 @@ def test_no_depafi_project_when_plugin_disabled():
         project = baker.make(Project)
     finally:
         set_enabled_plugins(["plugin_mi_depafi"])
-    assert not DepafiProject.objects.filter(pk=project.pk).exists()
+    assert not DepafiProject.objects.filter(project=project).exists()
 
 
 # ---------------------------------------------------------------------------
@@ -83,7 +85,7 @@ def test_perimeter_update_saves_perimeter(request, client):
         )
 
     assert response.status_code == 302
-    profile = DepafiProject.objects.get(pk=project.pk)
+    profile = DepafiProject.objects.get(project=project)
     assert profile.perimeter == DepafiProject.Perimeter.SGAMI
 
 
@@ -91,7 +93,7 @@ def test_perimeter_update_saves_perimeter(request, client):
 def test_perimeter_update_creates_missing_profile(request, client):
     """Saving works even if the profile row did not exist yet (legacy projects)."""
     project = make_project_on_site(request)
-    DepafiProject.objects.filter(pk=project.pk).delete()
+    DepafiProject.objects.filter(project=project).delete()
 
     with login(client) as user:
         _grant_change_project(user, project)
@@ -101,7 +103,7 @@ def test_perimeter_update_creates_missing_profile(request, client):
         )
 
     assert response.status_code == 302
-    profile = DepafiProject.objects.get(pk=project.pk)
+    profile = DepafiProject.objects.get(project=project)
     assert profile.perimeter == DepafiProject.Perimeter.OPERATEUR
 
 
@@ -118,7 +120,7 @@ def test_perimeter_update_forbidden_for_plain_collaborator(request, client):
         )
 
     assert response.status_code == 403
-    profile = DepafiProject.objects.get(pk=project.pk)
+    profile = DepafiProject.objects.get(project=project)
     assert profile.perimeter == ""
 
 
@@ -134,7 +136,7 @@ def test_perimeter_update_forbidden_without_permission(request, client):
         )
 
     assert response.status_code == 403
-    profile = DepafiProject.objects.get(pk=project.pk)
+    profile = DepafiProject.objects.get(project=project)
     assert profile.perimeter == ""
 
 
@@ -153,7 +155,7 @@ def overview_url(project):
 def test_perimeter_block_visible_on_project_overview(request, client):
     """The overview page shows the perimeter block with the current value."""
     project = make_project_on_site(request)
-    DepafiProject.objects.filter(pk=project.pk).update(
+    DepafiProject.objects.filter(project=project).update(
         perimeter=DepafiProject.Perimeter.SGAMI
     )
 

@@ -43,10 +43,17 @@ class RealisationForm(forms.ModelForm):
 
     class Meta:
         model = Realisation
-        fields = ["resource", "site", "date", "partners", "description", "key_figures"]
+        fields = [
+            "resource",
+            "location",
+            "date",
+            "partners",
+            "description",
+            "key_figures",
+        ]
         widgets = {
             "resource": forms.Select(attrs={"class": "fr-select"}),
-            "site": forms.TextInput(attrs={"class": "fr-input"}),
+            "location": forms.TextInput(attrs={"class": "fr-input"}),
             "date": forms.DateInput(
                 attrs={"class": "fr-input", "type": "date"},
                 format="%Y-%m-%d",
@@ -56,14 +63,14 @@ class RealisationForm(forms.ModelForm):
         }
         labels = {
             "resource": "Action concernée",
-            "site": "Site(s) ou bâtiment(s) concerné(s)",
+            "location": "Site(s) ou bâtiment(s) concerné(s)",
             "date": "Date de la réalisation",
             "partners": "Partenaire(s)",
             "key_figures": "Chiffres clés",
         }
         help_texts = {
             "resource": "Tapez le nom de la ressource puis sélectionnez-la dans la liste",
-            "site": "Ex : Bâtiment sud",
+            "location": "Ex : Bâtiment sud",
             "partners": "Si vous renseignez plusieurs partenaires, veuillez séparer leur nom par une virgule.",
             "key_figures": "Partagez ici les éléments qui permettent de mesurer l’ampleur et l’impact du changement mis en place (ex. pour un plan vélo : 300 agents sensibilisés, Trajets à vélo passés de 3 à 15 /jour en moyenne etc.)",
         }

@@ -59,13 +59,13 @@
 
                 <!-- Site ou bâtiment concerné -->
                 <div class="fr-fieldset__element">
-                    <div class="fr-input-group {% if form.site.errors %}fr-input-group--error{% endif %} fr-mb-3w">
-                        <label class="fr-label d-flex" for="{{ form.site.id_for_label }}">
-                            {{ form.site.label }} <span class="fr-hint-text fr-ml-1v">*</span>
+                    <div class="fr-input-group {% if form.location.errors %}fr-input-group--error{% endif %} fr-mb-3w">
+                        <label class="fr-label d-flex" for="{{ form.location.id_for_label }}">
+                            {{ form.location.label }} <span class="fr-hint-text fr-ml-1v">*</span>
                         </label>
-                        <span class="fr-hint-text fr-my-1w">{{ form.site.help_text }}</span>
-                        {{ form.site }}
-                        {% for error in form.site.errors %}
+                        <span class="fr-hint-text fr-my-1w">{{ form.location.help_text }}</span>
+                        {{ form.location }}
+                        {% for error in form.location.errors %}
                             <p class="fr-error-text">{{ error }}</p>
                         {% endfor %}
                     </div>

@@ -1,5 +1,6 @@
 import django_filters
 from django import forms
+from django.contrib.sites.models import Site
 from django_filters import fields as filter_fields
 
 from recoco.apps.geomatics import models as geomatics_models
@@ -56,10 +57,18 @@ class RealisationFilter(django_filters.FilterSet):
 
     perimeter = django_filters.ChoiceFilter(
         label="Périmètre",
-        field_name="project__depafi__perimeter",
         choices=DepafiProject.Perimeter.choices,
+        method="filter_perimeter",
     )
 
     class Meta:
         model = Realisation
         fields = ["q", "status", "departments", "perimeter"]
+
+    def filter_perimeter(self, queryset, name, value):
+        # A project has one profile per site: match the perimeter of the
+        # current site's profile only (single filter() call, single join).
+        return queryset.filter(
+            project__depafi_profiles__site=Site.objects.get_current(),
+            project__depafi_profiles__perimeter=value,
+        )

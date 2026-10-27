@@ -1,8 +1,8 @@
 """
 Tests for the import_lakaa management command.
 
-Tests call the private _import_* methods directly to bypass the
-TenantCommand.execute() search_path setup, which requires a live tenant schema.
+Most tests call the private _import_* methods directly with an explicit site;
+the command entry point (site selection) is covered separately.
 """
 
 import csv
@@ -11,10 +11,13 @@ from datetime import date
 
 import pytest
 from django.contrib.auth.models import User
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.contrib.sites.models import Site
 from model_bakery import baker
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.geomatics.models import Commune, Department
+from recoco.apps.plugins.resolvers import get_enabled_plugins, set_enabled_plugins
 from recoco.apps.projects.models import Project
 from recoco.apps.resources.models import Category, Resource
 
@@ -25,7 +28,8 @@ from plugin_mi_depafi.management.commands.import_lakaa import (
     _strip_org,
     _val,
 )
-from plugin_mi_depafi.models import Realisation
+from plugin_mi_depafi.apps import PLUGIN_NAME
+from plugin_mi_depafi.models import DepafiProject, Realisation
 
 from ..conftest import make_project_on_site
 
@@ -960,6 +964,7 @@ def test_import_realisations_incomplete_creates_draft(tmp_path, request):
         path,
         {project.name: project.pk},
         {resource.title: resource.pk},
+        Site.objects.get_current(),
     )
 
     r = Realisation.objects.get(project=project, resource=resource)
@@ -979,6 +984,7 @@ def test_import_realisations_complet_creates_published(tmp_path, request):
         path,
         {project.name: project.pk},
         {resource.title: resource.pk},
+        Site.objects.get_current(),
     )
 
     r = Realisation.objects.get(project=project, resource=resource)
@@ -997,14 +1003,15 @@ def test_import_realisations_maps_partners(tmp_path, request):
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk}
+        path, {project.name: project.pk}, {resource.title: resource.pk},
+        Site.objects.get_current(),
     )
 
     assert Realisation.objects.get(project=project).partners == "Metropole Grand Nancy"
 
 
 @pytest.mark.django_db
-def test_import_realisations_maps_site_field(tmp_path, request):
+def test_import_realisations_maps_location(tmp_path, request):
     project, resource, _ = _setup_realisation_prereqs(request)
 
     path = _write_csv(
@@ -1015,10 +1022,11 @@ def test_import_realisations_maps_site_field(tmp_path, request):
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk}
+        path, {project.name: project.pk}, {resource.title: resource.pk},
+        Site.objects.get_current(),
     )
 
-    assert Realisation.objects.get(project=project).site == "Caserne Roux, Lexy"
+    assert Realisation.objects.get(project=project).location == "Caserne Roux, Lexy"
 
 
 @pytest.mark.django_db
@@ -1033,7 +1041,8 @@ def test_import_realisations_maps_date(tmp_path, request):
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk}
+        path, {project.name: project.pk}, {resource.title: resource.pk},
+        Site.objects.get_current(),
     )
 
     assert Realisation.objects.get(project=project).date == date(2022, 11, 15)
@@ -1055,7 +1064,8 @@ def test_import_realisations_maps_key_figures(tmp_path, request):
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk}
+        path, {project.name: project.pk}, {resource.title: resource.pk},
+        Site.objects.get_current(),
     )
 
     assert Realisation.objects.get(project=project).key_figures == (
@@ -1082,7 +1092,8 @@ def test_import_realisations_maps_description_indicator_to_description(
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk}
+        path, {project.name: project.pk}, {resource.title: resource.pk},
+        Site.objects.get_current(),
     )
 
     r = Realisation.objects.get(project=project)
@@ -1111,13 +1122,14 @@ def test_import_realisations_consolidates_multi_row_declaration(tmp_path, reques
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk}
+        path, {project.name: project.pk}, {resource.title: resource.pk},
+        Site.objects.get_current(),
     )
 
     assert Realisation.objects.filter(project=project, resource=resource).count() == 1
     r = Realisation.objects.get(project=project, resource=resource)
     assert "Tri sélectif installé sur 3 sites" in r.description
-    assert r.site == "Caserne Roux, Lexy"
+    assert r.location == "Caserne Roux, Lexy"
     assert r.key_figures == "Nombre d'agents bénéficiaires: 120"
     assert r.created_by == user
 
@@ -1130,7 +1142,8 @@ def test_import_realisations_sets_created_by(tmp_path, request):
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk}
+        path, {project.name: project.pk}, {resource.title: resource.pk},
+        Site.objects.get_current(),
     )
 
     assert Realisation.objects.get(project=project).created_by == user
@@ -1144,10 +1157,12 @@ def test_import_realisations_idempotent(tmp_path, request):
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk}
+        path, {project.name: project.pk}, {resource.title: resource.pk},
+        Site.objects.get_current(),
     )
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk}
+        path, {project.name: project.pk}, {resource.title: resource.pk},
+        Site.objects.get_current(),
     )
 
     assert Realisation.objects.filter(project=project, resource=resource).count() == 1
@@ -1159,7 +1174,9 @@ def test_import_realisations_warns_on_unknown_project(tmp_path):
     path = _write_csv(tmp_path, "decl.csv", [_decl_row(), _decl_row()])
 
     cmd = _make_command()
-    cmd._import_realisations(path, {}, {resource.title: resource.pk})
+    cmd._import_realisations(
+        path, {}, {resource.title: resource.pk}, Site.objects.get_current()
+    )
 
     assert "WARN" in cmd.stderr.getvalue()
     assert Realisation.objects.count() == 0
@@ -1174,7 +1191,84 @@ def test_import_realisations_warns_on_unknown_resource(tmp_path, request):
     path = _write_csv(tmp_path, "decl.csv", [_decl_row(), _decl_row()])
 
     cmd = _make_command()
-    cmd._import_realisations(path, {project.name: project.pk}, {})
+    cmd._import_realisations(
+        path, {project.name: project.pk}, {}, Site.objects.get_current()
+    )
 
     assert "WARN" in cmd.stderr.getvalue()
     assert Realisation.objects.count() == 0
+
+
+# ---------------------------------------------------------------------------
+# Command entry point
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_command_requires_site_domain(tmp_path):
+    with pytest.raises(CommandError, match="--site-domain"):
+        call_command("import_lakaa", data_dir=str(tmp_path))
+
+
+@pytest.mark.django_db
+def test_command_rejects_unknown_site_domain(tmp_path):
+    with pytest.raises(CommandError, match="unknown.example.com"):
+        call_command(
+            "import_lakaa", site_domain="unknown.example.com", data_dir=str(tmp_path)
+        )
+
+
+@pytest.mark.django_db
+def test_command_resolves_site_before_reading_files(tmp_path, current_site):
+    with pytest.raises(CommandError, match="File not found"):
+        call_command(
+            "import_lakaa", site_domain=current_site.domain, data_dir=str(tmp_path)
+        )
+
+
+@pytest.mark.django_db
+def test_command_runs_as_target_tenant(tmp_path, request, monkeypatch):
+    """Outside a request, the command must enable the site's plugins itself,
+    or the signal creating the DepafiProject profile is skipped."""
+    site = _get_site(request)
+    sites_path = _write_csv(
+        tmp_path,
+        "Sites MI - CSV.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "42",
+                "name": f"GGD Meurthe{_ORG_SUFFIX}",
+                "external id": "EXT-42",
+                "organisation": "",
+                "address": "",
+                "coordinates": "",
+                "created at": "2022-11-15",
+                "group": "",
+            },
+        ],
+    )
+    for filename in (
+        "Actions MI - CSV.csv",
+        "Utilisateurs MI - CSV.csv",
+        "Déclarations MI - CSV.csv",
+    ):
+        (tmp_path / filename).touch()
+
+    seen = {}
+
+    def fake_import(self, site, *args):
+        seen["enabled_plugins"] = list(get_enabled_plugins())
+        seen["current_site"] = Site.objects.get_current()
+        seen["project_map"] = self._import_projects(sites_path, site)
+
+    monkeypatch.setattr(Command, "_import", fake_import)
+    # Like a real management command: no request, so no plugin enabled yet
+    set_enabled_plugins([])
+
+    call_command("import_lakaa", site_domain=site.domain, data_dir=str(tmp_path))
+
+    assert PLUGIN_NAME in seen["enabled_plugins"]
+    assert seen["current_site"] == site
+    project_pk = seen["project_map"]["GGD Meurthe"]
+    assert DepafiProject.objects.filter(project_id=project_pk, site=site).exists()
