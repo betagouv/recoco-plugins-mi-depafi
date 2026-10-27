@@ -158,7 +158,6 @@ class RealisationCreateView(RealisationWriteMixin, ProjectDetailBaseView):
 
             for order, image in enumerate(request.FILES.getlist("photos")):
                 RealisationPhoto.objects.create(
-                    site=realisation.site,
                     realisation=realisation,
                     image=image,
                     order=order,
@@ -166,7 +165,6 @@ class RealisationCreateView(RealisationWriteMixin, ProjectDetailBaseView):
 
             for order, document in enumerate(request.FILES.getlist("documents")):
                 RealisationDocument.objects.create(
-                    site=realisation.site,
                     realisation=realisation,
                     file=document,
                     order=order,
@@ -221,7 +219,6 @@ class RealisationUpdateView(RealisationWriteMixin, ProjectDetailBaseView):
                 request.FILES.getlist("photos"), start=existing_count
             ):
                 RealisationPhoto.objects.create(
-                    site=realisation.site,
                     realisation=realisation,
                     image=image,
                     order=order,
@@ -238,7 +235,6 @@ class RealisationUpdateView(RealisationWriteMixin, ProjectDetailBaseView):
                 request.FILES.getlist("documents"), start=existing_doc_count
             ):
                 RealisationDocument.objects.create(
-                    site=realisation.site,
                     realisation=realisation,
                     file=document,
                     order=order,
@@ -329,9 +325,7 @@ class RealisationLikeToggleView(LoginRequiredMixin, View):
             project__project_sites__site=request.site,
         )
         like, created = RealisationLike.objects.get_or_create(
-            realisation=realisation,
-            user=request.user,
-            defaults={"site": realisation.site},
+            realisation=realisation, user=request.user
         )
         if not created:
             like.delete()

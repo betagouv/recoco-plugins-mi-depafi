@@ -17,6 +17,7 @@ from django.contrib.sites.models import Site
 from model_bakery import baker
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.geomatics.models import Commune, Department
+from recoco.apps.plugins.resolvers import get_enabled_plugins, set_enabled_plugins
 from recoco.apps.projects.models import Project
 from recoco.apps.resources.models import Category, Resource
 
@@ -27,7 +28,8 @@ from plugin_mi_depafi.management.commands.import_lakaa import (
     _strip_org,
     _val,
 )
-from plugin_mi_depafi.models import Realisation
+from plugin_mi_depafi.apps import PLUGIN_NAME
+from plugin_mi_depafi.models import DepafiProject, Realisation
 
 from ..conftest import make_project_on_site
 
@@ -1222,3 +1224,51 @@ def test_command_resolves_site_before_reading_files(tmp_path, current_site):
         call_command(
             "import_lakaa", site_domain=current_site.domain, data_dir=str(tmp_path)
         )
+
+
+@pytest.mark.django_db
+def test_command_runs_as_target_tenant(tmp_path, request, monkeypatch):
+    """Outside a request, the command must enable the site's plugins itself,
+    or the signal creating the DepafiProject profile is skipped."""
+    site = _get_site(request)
+    sites_path = _write_csv(
+        tmp_path,
+        "Sites MI - CSV.csv",
+        [
+            _SITES_HEADER,
+            {
+                "id": "42",
+                "name": f"GGD Meurthe{_ORG_SUFFIX}",
+                "external id": "EXT-42",
+                "organisation": "",
+                "address": "",
+                "coordinates": "",
+                "created at": "2022-11-15",
+                "group": "",
+            },
+        ],
+    )
+    for filename in (
+        "Actions MI - CSV.csv",
+        "Utilisateurs MI - CSV.csv",
+        "Déclarations MI - CSV.csv",
+    ):
+        (tmp_path / filename).touch()
+
+    seen = {}
+
+    def fake_import(self, site, *args):
+        seen["enabled_plugins"] = list(get_enabled_plugins())
+        seen["current_site"] = Site.objects.get_current()
+        seen["project_map"] = self._import_projects(sites_path, site)
+
+    monkeypatch.setattr(Command, "_import", fake_import)
+    # Like a real management command: no request, so no plugin enabled yet
+    set_enabled_plugins([])
+
+    call_command("import_lakaa", site_domain=site.domain, data_dir=str(tmp_path))
+
+    assert PLUGIN_NAME in seen["enabled_plugins"]
+    assert seen["current_site"] == site
+    project_pk = seen["project_map"]["GGD Meurthe"]
+    assert DepafiProject.objects.filter(project_id=project_pk, site=site).exists()

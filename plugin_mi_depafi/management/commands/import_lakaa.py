@@ -20,7 +20,6 @@ from datetime import datetime
 import html2text
 from tqdm import tqdm
 
-from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
 from django.core.files.base import ContentFile
@@ -30,6 +29,7 @@ from django.utils import timezone
 from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.geomatics.models import Commune
 from recoco.apps.home.models import UserProfile
+from recoco.apps.plugins.context import tenant_context
 from recoco.apps.projects.models import Project, ProjectMember, ProjectSite
 from recoco.apps.resources.models import Category, Resource
 
@@ -281,10 +281,10 @@ class Command(BaseCommand):
 
         self.stdout.write(f"Target site: {site.name} ({site.domain})")
 
-        # Make the target site current for the whole run: signal handlers
-        # (e.g. the DepafiProject profile created on project save) and
-        # on_site managers rely on Site.objects.get_current()
-        with settings.SITE_ID.override(site.pk):
+        # Act as the target tenant for the whole run: signal handlers (e.g. the
+        # DepafiProject profile created on project save) need the site's enabled
+        # plugins, and on_site managers rely on Site.objects.get_current()
+        with tenant_context(site):
             self._import(
                 site, actions_path, sites_path, users_path, reports_path, options
             )
@@ -650,9 +650,7 @@ class Command(BaseCommand):
                     with urllib.request.urlopen(url, timeout=10) as resp:
                         data = resp.read()
                     filename = url.rsplit("/", 1)[-1]
-                    photo = RealisationPhoto(
-                        site=site, realisation=realisation, order=order
-                    )
+                    photo = RealisationPhoto(realisation=realisation, order=order)
                     photo.image.save(filename, ContentFile(data), save=True)
                 except Exception as exc:
                     self.stderr.write(f"  [WARN] Could not download image {url}: {exc}")
@@ -662,9 +660,7 @@ class Command(BaseCommand):
                     with urllib.request.urlopen(url, timeout=10) as resp:
                         data = resp.read()
                     filename = url.rsplit("/", 1)[-1]
-                    doc = RealisationDocument(
-                        site=site, realisation=realisation, order=order
-                    )
+                    doc = RealisationDocument(realisation=realisation, order=order)
                     doc.file.save(filename, ContentFile(data), save=True)
                 except Exception as exc:
                     self.stderr.write(

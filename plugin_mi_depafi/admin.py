@@ -21,11 +21,3 @@ class RealisationAdmin(admin.ModelAdmin):
     list_display = ["resource", "site", "status", "created_at"]
     list_filter = ["site", "status"]
     inlines = [RealisationPhotoInline]
-
-    def save_formset(self, request, form, formset, change):
-        # Inline photos belong to the realisation's site
-        for photo in formset.save(commit=False):
-            photo.site = form.instance.site
-            photo.save()
-        for photo in formset.deleted_objects:
-            photo.delete()

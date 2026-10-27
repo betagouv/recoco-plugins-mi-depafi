@@ -144,7 +144,19 @@ class DepafiProject(PluginModel):
         return f"Dossier Artemi {self.project_id}"
 
 
-class RealisationLike(PluginModel):
+class RealisationChildModel(PluginModel):
+    """Plugin row hanging off a Realisation: it belongs to the realisation's site."""
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        if self.site_id is None:
+            self.site_id = self.realisation.site_id
+        super().save(*args, **kwargs)
+
+
+class RealisationLike(RealisationChildModel):
     realisation = models.ForeignKey(
         Realisation,
         on_delete=models.CASCADE,
@@ -185,7 +197,7 @@ def _realisation_photo_upload_path(instance, filename):
     )
 
 
-class RealisationPhoto(PluginModel):
+class RealisationPhoto(RealisationChildModel):
     realisation = models.ForeignKey(
         Realisation,
         on_delete=models.CASCADE,
@@ -207,7 +219,7 @@ def _realisation_document_upload_path(instance, filename):
     )
 
 
-class RealisationDocument(PluginModel):
+class RealisationDocument(RealisationChildModel):
     realisation = models.ForeignKey(
         Realisation,
         on_delete=models.CASCADE,
