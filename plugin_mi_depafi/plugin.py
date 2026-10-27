@@ -1,5 +1,4 @@
 import pluggy
-import waffle
 from django.db.models import Count
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
@@ -7,7 +6,7 @@ from django.utils.safestring import mark_safe
 from recoco.apps.projects.models import Project
 
 from .digests import send_new_realisations_digest
-from .models import Realisation
+from .models import DepafiProject, Realisation
 from .verbs import Realisation as RealisationVerbs
 
 hookimpl = pluggy.HookimplMarker("recoco")
@@ -75,6 +74,27 @@ class MiDepafiPlugin:
             "cell_html": "<td x-text=\"project.realisations_count ?? '—'\" :class=\"project.realisations_count === 0 ? 'text-danger' : ''\"></td>",
             "col_class": "col--medium",
         }
+
+    @hookimpl
+    def crm_project_list_filters(self, request):
+        return mark_safe(  # noqa: S308
+            render_to_string(
+                "plugin_mi_depafi/fragments/crm_project_list_filter_perimeter.html",
+                {
+                    "perimeter": DepafiProject.Perimeter.choices,
+                    "rounded_version": True,
+                    "js_activate": True,
+                },
+                request=request,
+            )
+        )
+    
+    @hookimpl
+    def crm_project_list_filter_lookups(self, request):
+        perimeter = request.GET.get("perimeter")
+        if perimeter in DepafiProject.Perimeter.values:
+            return {"depafi__perimeter": perimeter}
+        return None
 
     @hookimpl
     def conversation_message_node_html(self, request, project):
