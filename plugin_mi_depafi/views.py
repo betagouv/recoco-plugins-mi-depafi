@@ -318,6 +318,8 @@ class RealisationDeleteView(RealisationWriteMixin, ProjectDetailBaseView):
 
 class RealisationLikeToggleView(LoginRequiredMixin, View):
     def post(self, request, pk):
+        # Both filters are needed: on_site keeps the realisation's own site,
+        # project_sites keeps the project still shared with this site.
         realisation = get_object_or_404(
             Realisation.on_site,
             pk=pk,
@@ -349,6 +351,8 @@ class RealisationDetailView(LoginRequiredMixin, DetailView):
     context_object_name = "realisation"
 
     def get_queryset(self):
+        # Same double scoping as RealisationLikeToggleView: realisation of this
+        # site, on a project still shared with this site.
         return (
             Realisation.on_site.select_related("resource", "project")
             .prefetch_related("photos", "documents")
