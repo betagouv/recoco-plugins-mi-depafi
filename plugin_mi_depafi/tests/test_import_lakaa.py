@@ -162,21 +162,19 @@ def test_import_resources_creates_category_and_resource(tmp_path, request):
         "actions.csv",
         [
             {
-                "Nom Forest": "X",
+                "name": "X",
                 "topic": "X",
                 "description": "X",
                 "body": "X",
-                "external name": "X",
                 "cost indication": "X",
                 "impact indication": "X",
                 "time indication": "X",
             },
             {
-                "Nom Forest": f"Mettre en place le tri{_ORG_SUFFIX}",
+                "name": f"Mettre en place le tri{_ORG_SUFFIX}",
                 "topic": "4. Ressources",
                 "description": "<p>Trier les déchets</p>",
                 "body": "<h1>Etape 1</h1><p>Installer un <strong>bac</strong></p>",
-                "external name": "Tri biodéchets",
                 "cost indication": "Environ 200€",
                 "impact indication": "Fort",
                 "time indication": "2 semaines",
@@ -208,8 +206,8 @@ def test_import_resources_honors_published_status(tmp_path, request):
         tmp_path,
         "actions.csv",
         [
-            {"Nom Forest": "X", "topic": "X", "status": "X"},
-            {"Nom Forest": "Action publiée", "topic": "1. RH", "status": "published"},
+            {"name": "X", "topic": "X", "status": "X"},
+            {"name": "Action publiée", "topic": "1. RH", "status": "published"},
         ],
     )
 
@@ -227,8 +225,8 @@ def test_import_resources_honors_draft_status(tmp_path, request):
         tmp_path,
         "actions.csv",
         [
-            {"Nom Forest": "X", "topic": "X", "status": "X"},
-            {"Nom Forest": "Action brouillon", "topic": "1. RH", "status": "draft"},
+            {"name": "X", "topic": "X", "status": "X"},
+            {"name": "Action brouillon", "topic": "1. RH", "status": "draft"},
         ],
     )
 
@@ -246,8 +244,8 @@ def test_import_resources_unknown_status_defaults_to_draft(tmp_path, request):
         tmp_path,
         "actions.csv",
         [
-            {"Nom Forest": "X", "topic": "X", "status": "X"},
-            {"Nom Forest": "Action sans statut", "topic": "1. RH", "status": ""},
+            {"name": "X", "topic": "X", "status": "X"},
+            {"name": "Action sans statut", "topic": "1. RH", "status": ""},
         ],
     )
 
@@ -273,8 +271,8 @@ def test_import_resources_force_updates_status(tmp_path, request):
         tmp_path,
         "actions.csv",
         [
-            {"Nom Forest": "X", "topic": "X", "status": "X"},
-            {"Nom Forest": "Mon action", "topic": "1. RH", "status": "draft"},
+            {"name": "X", "topic": "X", "status": "X"},
+            {"name": "Mon action", "topic": "1. RH", "status": "draft"},
         ],
     )
 
@@ -298,18 +296,16 @@ def test_import_resources_skips_duplicate(tmp_path, request):
         "actions.csv",
         [
             {
-                "Nom Forest": "X",
+                "name": "X",
                 "topic": "X",
                 "description": "X",
                 "body": "X",
-                "external name": "X",
             },
             {
-                "Nom Forest": "Mon action",
+                "name": "Mon action",
                 "topic": "1. RH",
                 "description": "desc",
                 "body": "",
-                "external name": "",
             },
         ],
     )
@@ -338,18 +334,18 @@ def test_import_resources_force_updates_existing(tmp_path, request):
         "actions.csv",
         [
             {
-                "Nom Forest": "X",
+                "name": "X",
                 "topic": "X",
                 "description": "X",
                 "body": "X",
-                "external name": "X",
+                "impact indication": "X",
             },
             {
-                "Nom Forest": "Mon action",
+                "name": "Mon action",
                 "topic": "1. RH",
                 "description": "<p>new summary</p>",
                 "body": "<p>new content</p>",
-                "external name": "new subtitle",
+                "impact indication": "new subtitle",
             },
         ],
     )
@@ -378,9 +374,9 @@ def test_import_resources_long_description_kept_in_content(tmp_path, request):
         tmp_path,
         "actions.csv",
         [
-            {"Nom Forest": "X", "topic": "X", "description": "X", "body": "X"},
+            {"name": "X", "topic": "X", "description": "X", "body": "X"},
             {
-                "Nom Forest": "Action longue",
+                "name": "Action longue",
                 "topic": "1. RH",
                 "description": long_desc,
                 "body": "<h1>Etape 1</h1>",
@@ -410,9 +406,9 @@ def test_import_resources_long_description_without_body(tmp_path, request):
         tmp_path,
         "actions.csv",
         [
-            {"Nom Forest": "X", "topic": "X", "description": "X", "body": "X"},
+            {"name": "X", "topic": "X", "description": "X", "body": "X"},
             {
-                "Nom Forest": "Sans corps",
+                "name": "Sans corps",
                 "topic": "1. RH",
                 "description": long_desc,
                 "body": "",
@@ -443,18 +439,16 @@ def test_import_resources_category_scoped_per_site(tmp_path, request):
         "actions.csv",
         [
             {
-                "Nom Forest": "X",
+                "name": "X",
                 "topic": "X",
                 "description": "X",
                 "body": "X",
-                "external name": "X",
             },
             {
-                "Nom Forest": "Mon action",
+                "name": "Mon action",
                 "topic": "4. Ressources",
                 "description": "",
                 "body": "",
-                "external name": "",
             },
         ],
     )
@@ -477,14 +471,14 @@ def test_import_resources_category_scoped_per_site(tmp_path, request):
 
 
 _SITES_HEADER = {
-    "id": "X",
-    "name": "X",
-    "external id": "X",
-    "organisation": "X",
-    "address": "X",
-    "coordinates": "X",
-    "created at": "X",
-    "group": "X",
+    "Id": "X",
+    "Nom": "X",
+    "Id externe": "X",
+    "Organisation": "X",
+    "Adresse": "X",
+    "Coordonnées": "X",
+    "Date de création": "X",
+    "Région": "X",
 }
 
 
@@ -497,20 +491,20 @@ def test_import_projects_creates_project(tmp_path, request):
         [
             _SITES_HEADER,
             {
-                "id": "42",
-                "name": f"GGD Meurthe{_ORG_SUFFIX}",
-                "external id": "EXT-42",
-                "organisation": "",
-                "address": "1 rue de la Paix",
-                "coordinates": "",
-                "created at": "2022-11-15",
-                "group": f"Zone Est{_ORG_SUFFIX}",
+                "Id": "42",
+                "Nom": f"GGD Meurthe{_ORG_SUFFIX}",
+                "Id externe": "EXT-42",
+                "Organisation": "",
+                "Adresse": "1 rue de la Paix",
+                "Coordonnées": "",
+                "Date de création": "2022-11-15",
+                "Région": f"Zone Est{_ORG_SUFFIX}",
             },
         ],
     )
 
     cmd = _make_command()
-    project_map = cmd._import_projects(path, site)
+    project_map, _ = cmd._import_projects(path, site)
 
     assert "GGD Meurthe" in project_map
     project = Project.objects.get(pk=project_map["GGD Meurthe"])
@@ -529,20 +523,20 @@ def test_import_projects_sets_coordinates(tmp_path, request):
         [
             _SITES_HEADER,
             {
-                "id": "1",
-                "name": "Site GPS",
-                "external id": "EXT-1",
-                "organisation": "",
-                "address": "",
-                "coordinates": "48.6921, 6.1844",
-                "created at": "",
-                "group": "",
+                "Id": "1",
+                "Nom": "Site GPS",
+                "Id externe": "EXT-1",
+                "Organisation": "",
+                "Adresse": "",
+                "Coordonnées": "48.6921, 6.1844",
+                "Date de création": "",
+                "Région": "",
             },
         ],
     )
 
     cmd = _make_command()
-    project_map = cmd._import_projects(path, site)
+    project_map, _ = cmd._import_projects(path, site)
 
     project = Project.objects.get(pk=project_map["Site GPS"])
     assert project.location_y == pytest.approx(48.6921)
@@ -558,14 +552,14 @@ def test_import_projects_creates_org_in_group(tmp_path, request):
         [
             _SITES_HEADER,
             {
-                "id": "1",
-                "name": "Mon site",
-                "external id": "EXT-1",
-                "organisation": f"GGD Meurthe{_ORG_SUFFIX}",
-                "address": "",
-                "coordinates": "",
-                "created at": "",
-                "group": f"Zone Est{_ORG_SUFFIX}",
+                "Id": "1",
+                "Nom": "Mon site",
+                "Id externe": "EXT-1",
+                "Organisation": f"GGD Meurthe{_ORG_SUFFIX}",
+                "Adresse": "",
+                "Coordonnées": "",
+                "Date de création": "",
+                "Région": f"Zone Est{_ORG_SUFFIX}",
             },
         ],
     )
@@ -591,14 +585,14 @@ def test_import_projects_force_updates_org_group(tmp_path, request):
         [
             _SITES_HEADER,
             {
-                "id": "1",
-                "name": "Mon site",
-                "external id": "EXT-1",
-                "organisation": "GGD Meurthe",
-                "address": "",
-                "coordinates": "",
-                "created at": "",
-                "group": "Nouveau groupe",
+                "Id": "1",
+                "Nom": "Mon site",
+                "Id externe": "EXT-1",
+                "Organisation": "GGD Meurthe",
+                "Adresse": "",
+                "Coordonnées": "",
+                "Date de création": "",
+                "Région": "Nouveau groupe",
             },
         ],
     )
@@ -625,14 +619,14 @@ def test_import_projects_force_updates_org_group_of_existing_project(tmp_path, r
         [
             _SITES_HEADER,
             {
-                "id": "1",
-                "name": "Mon site",
-                "external id": "EXT-1",
-                "organisation": "GGD Meurthe",
-                "address": "",
-                "coordinates": "",
-                "created at": "",
-                "group": "Nouveau groupe",
+                "Id": "1",
+                "Nom": "Mon site",
+                "Id externe": "EXT-1",
+                "Organisation": "GGD Meurthe",
+                "Adresse": "",
+                "Coordonnées": "",
+                "Date de création": "",
+                "Région": "Nouveau groupe",
             },
         ],
     )
@@ -658,14 +652,14 @@ def test_import_projects_force_updates_tags_of_existing_project(tmp_path, reques
         [
             _SITES_HEADER,
             {
-                "id": "1",
-                "name": "Mon site",
-                "external id": "EXT-1",
-                "organisation": "",
-                "address": "",
-                "coordinates": "",
-                "created at": "",
-                "group": "Mon groupe",
+                "Id": "1",
+                "Nom": "Mon site",
+                "Id externe": "EXT-1",
+                "Organisation": "",
+                "Adresse": "",
+                "Coordonnées": "",
+                "Date de création": "",
+                "Région": "Mon groupe",
             },
         ],
     )
@@ -690,14 +684,14 @@ def test_import_projects_does_not_overwrite_org_group_without_force(tmp_path, re
         [
             _SITES_HEADER,
             {
-                "id": "1",
-                "name": "Mon site",
-                "external id": "EXT-1",
-                "organisation": "GGD Meurthe",
-                "address": "",
-                "coordinates": "",
-                "created at": "",
-                "group": "Nouveau groupe",
+                "Id": "1",
+                "Nom": "Mon site",
+                "Id externe": "EXT-1",
+                "Organisation": "GGD Meurthe",
+                "Adresse": "",
+                "Coordonnées": "",
+                "Date de création": "",
+                "Région": "Nouveau groupe",
             },
         ],
     )
@@ -723,14 +717,14 @@ def test_import_projects_force_updates_location(tmp_path, request):
         [
             _SITES_HEADER,
             {
-                "id": "1",
-                "name": "Mon site",
-                "external id": "EXT-1",
-                "organisation": "",
-                "address": "Nouvelle adresse",
-                "coordinates": "48.6921, 6.1844",
-                "created at": "",
-                "group": "",
+                "Id": "1",
+                "Nom": "Mon site",
+                "Id externe": "EXT-1",
+                "Organisation": "",
+                "Adresse": "Nouvelle adresse",
+                "Coordonnées": "48.6921, 6.1844",
+                "Date de création": "",
+                "Région": "",
             },
         ],
     )
@@ -758,14 +752,14 @@ def test_import_projects_does_not_update_location_without_force(tmp_path, reques
         [
             _SITES_HEADER,
             {
-                "id": "1",
-                "name": "Mon site",
-                "external id": "EXT-1",
-                "organisation": "",
-                "address": "Nouvelle adresse",
-                "coordinates": "",
-                "created at": "",
-                "group": "",
+                "Id": "1",
+                "Nom": "Mon site",
+                "Id externe": "EXT-1",
+                "Organisation": "",
+                "Adresse": "Nouvelle adresse",
+                "Coordonnées": "",
+                "Date de création": "",
+                "Région": "",
             },
         ],
     )
@@ -791,20 +785,20 @@ def test_import_projects_matches_commune_by_city_name(tmp_path, request):
         [
             _SITES_HEADER,
             {
-                "id": "1",
-                "name": "ATE Seine-et-Marne",
-                "external id": "EXT-1",
-                "organisation": "",
-                "address": "Melun",
-                "coordinates": "",
-                "created at": "",
-                "group": "",
+                "Id": "1",
+                "Nom": "ATE Seine-et-Marne",
+                "Id externe": "EXT-1",
+                "Organisation": "",
+                "Adresse": "Melun",
+                "Coordonnées": "",
+                "Date de création": "",
+                "Région": "",
             },
         ],
     )
 
     cmd = _make_command()
-    project_map = cmd._import_projects(path, site)
+    project_map, _ = cmd._import_projects(path, site)
 
     project = Project.objects.get(pk=project_map["ATE Seine-et-Marne"])
     assert project.commune == commune
@@ -828,20 +822,20 @@ def test_import_projects_matches_commune_by_postal_code_and_city(tmp_path, reque
         [
             _SITES_HEADER,
             {
-                "id": "1",
-                "name": "Site Ardennes",
-                "external id": "EXT-1",
-                "organisation": "",
-                "coordinates": "",
-                "created at": "",
-                "group": "",
-                "address": "9 rue Bayard 08000 Charleville-Mézières",
+                "Id": "1",
+                "Nom": "Site Ardennes",
+                "Id externe": "EXT-1",
+                "Organisation": "",
+                "Coordonnées": "",
+                "Date de création": "",
+                "Région": "",
+                "Adresse": "9 rue Bayard 08000 Charleville-Mézières",
             },
         ],
     )
 
     cmd = _make_command()
-    project_map = cmd._import_projects(path, site)
+    project_map, _ = cmd._import_projects(path, site)
 
     project = Project.objects.get(pk=project_map["Site Ardennes"])
     assert project.commune == commune
@@ -872,14 +866,14 @@ def test_import_projects_homonym_communes_resolved_by_coordinates(tmp_path, requ
 
     def _row(name, coordinates):
         return {
-            "id": name,
-            "name": name,
-            "external id": name,
-            "organisation": "",
-            "coordinates": coordinates,
-            "created at": "",
-            "group": "",
-            "address": "Saint-Denis",
+            "Id": name,
+            "Nom": name,
+            "Id externe": name,
+            "Organisation": "",
+            "Coordonnées": coordinates,
+            "Date de création": "",
+            "Région": "",
+            "Adresse": "Saint-Denis",
         }
 
     path = _write_csv(
@@ -892,7 +886,7 @@ def test_import_projects_homonym_communes_resolved_by_coordinates(tmp_path, requ
         ],
     )
 
-    project_map = _make_command()._import_projects(path, site)
+    project_map, _ = _make_command()._import_projects(path, site)
 
     assert Project.objects.get(pk=project_map["Site 93"]).commune == saint_denis_93
     assert (
@@ -949,61 +943,52 @@ def test_import_projects_no_commune_match_leaves_commune_none(tmp_path, request)
         [
             _SITES_HEADER,
             {
-                "id": "1",
-                "name": "Site inconnu",
-                "external id": "EXT-1",
-                "organisation": "",
-                "address": "Ville introuvable",
-                "coordinates": "",
-                "created at": "",
-                "group": "",
+                "Id": "1",
+                "Nom": "Site inconnu",
+                "Id externe": "EXT-1",
+                "Organisation": "",
+                "Adresse": "Ville introuvable",
+                "Coordonnées": "",
+                "Date de création": "",
+                "Région": "",
             },
         ],
     )
 
     cmd = _make_command()
-    project_map = cmd._import_projects(path, site)
+    project_map, _ = cmd._import_projects(path, site)
 
     project = Project.objects.get(pk=project_map["Site inconnu"])
     assert project.commune is None
 
 
 @pytest.mark.django_db
-def test_import_projects_reads_coordinates_forest_column(tmp_path, request):
+def test_import_projects_reads_creation_date_and_maps_lakaa_ids(tmp_path, request):
     site = _get_site(request)
     path = _write_csv(
         tmp_path,
         "sites.csv",
         [
+            _SITES_HEADER,
             {
-                "id": "X",
-                "name": "X",
-                "external id": "X",
-                "organisation": "X",
-                "address": "X",
-                "coordinates forest": "X",
-                "created at": "X",
-                "group": "X",
-            },
-            {
-                "id": "1",
-                "name": "Site GPS forest",
-                "external id": "EXT-1",
-                "organisation": "",
-                "address": "",
-                "coordinates forest": "48.6921, 6.1844",
-                "created at": "",
-                "group": "",
+                "Id": "22680",
+                "Nom": "Académie de Police",
+                "Id externe": "Académie de Police",
+                "Organisation": "Ministère de l'Intérieur",
+                "Adresse": "",
+                "Coordonnées": "48.836571,2.632738",
+                "Date de création": "27/3/2025",
+                "Région": "Ile-de-France",
             },
         ],
     )
 
-    cmd = _make_command()
-    project_map = cmd._import_projects(path, site)
+    project_map, project_ids = _make_command()._import_projects(path, site)
 
-    project = Project.objects.get(pk=project_map["Site GPS forest"])
-    assert project.location_y == pytest.approx(48.6921)
-    assert project.location_x == pytest.approx(6.1844)
+    project = Project.objects.get(pk=project_map["Académie de Police"])
+    assert project_ids == {"22680": project.pk}
+    assert timezone.localtime(project.created_on).date() == date(2025, 3, 27)
+    assert "Ile-de-France" in project.tags.values_list("name", flat=True)
 
 
 @pytest.mark.django_db
@@ -1019,14 +1004,14 @@ def test_import_projects_idempotent(tmp_path, request):
         [
             _SITES_HEADER,
             {
-                "id": "1",
-                "name": "Mon site",
-                "external id": "EXT-1",
-                "organisation": "",
-                "address": "",
-                "coordinates": "",
-                "created at": "",
-                "group": "",
+                "Id": "1",
+                "Nom": "Mon site",
+                "Id externe": "EXT-1",
+                "Organisation": "",
+                "Adresse": "",
+                "Coordonnées": "",
+                "Date de création": "",
+                "Région": "",
             },
         ],
     )
@@ -1050,48 +1035,33 @@ def _user_row(**kwargs):
         "last name": "Dupont",
         "email": "alice@interieur.gouv.fr",
         "role": "store_manager",
-        "sign in count": "1",
-        "current sign in at": "",
-        "created at": "",
-        "first sign in at": "",
-        "lang": "fr",
-        "updated at": "",
+        "Dernière connexion": "",
+        "sites": "",
+        "ID des sites": "",
+        "ID externe des sites": "",
+        "Typologie d'utilisateurs": "",
     }
     base.update(kwargs)
     return base
 
 
-def _decl_for_user_row(**kwargs):
-    base = {
-        "Identifiant de la déclaration": "1",
-        "Nom de l'établissement": f"GGD Meurthe{_ORG_SUFFIX}",
-        "Nom de l'action": "Tri",
-        "Email du déclarant": "alice@interieur.gouv.fr",
-        "Déclaré le": "",
-        "Completion": "Complet",
-        "Partenaires": "",
-        "Sites concernés": "",
-        "Date de début": "",
-        "Indicateurs": "",
-        "Valeurs": "",
-    }
-    base.update(kwargs)
-    return base
+def _setup_user_import(tmp_path, user_rows):
+    return _write_csv(tmp_path, "users.csv", [_user_row()] + user_rows)
 
 
-def _setup_user_import(tmp_path, user_rows, decl_rows):
-    users_path = _write_csv(tmp_path, "users.csv", [_user_row()] + user_rows)
-    reports_path = _write_csv(tmp_path, "decl.csv", [_decl_for_user_row()] + decl_rows)
-    return users_path, reports_path
+def _make_site_project(site, name="GGD Meurthe"):
+    project = baker.make(Project, name=name)
+    ProjectSite.objects.create(
+        project=project, site=site, is_origin=True, status="TO_PROCESS"
+    )
+    return project
 
 
 @pytest.mark.django_db
 def test_import_users_sets_profile_site(tmp_path, current_site):
-    users_path, reports_path = _setup_user_import(
-        tmp_path, [_user_row()], [_decl_for_user_row()]
-    )
+    users_path = _setup_user_import(tmp_path, [_user_row()])
 
-    _make_command()._import_users(users_path, {}, reports_path, current_site)
+    _make_command()._import_users(users_path, {}, current_site)
 
     user = User.objects.get(username="alice@interieur.gouv.fr")
     assert current_site in user.profile.sites.all()
@@ -1099,11 +1069,9 @@ def test_import_users_sets_profile_site(tmp_path, current_site):
 
 @pytest.mark.django_db
 def test_import_users_creates_and_sets_organisation(tmp_path, current_site):
-    users_path, reports_path = _setup_user_import(
-        tmp_path, [_user_row()], [_decl_for_user_row()]
-    )
+    users_path = _setup_user_import(tmp_path, [_user_row()])
 
-    _make_command()._import_users(users_path, {}, reports_path, current_site)
+    _make_command()._import_users(users_path, {}, current_site)
 
     user = User.objects.get(username="alice@interieur.gouv.fr")
     assert user.profile.organization is not None
@@ -1112,11 +1080,9 @@ def test_import_users_creates_and_sets_organisation(tmp_path, current_site):
 
 @pytest.mark.django_db
 def test_import_users_links_organisation_to_site(tmp_path, current_site):
-    users_path, reports_path = _setup_user_import(
-        tmp_path, [_user_row()], [_decl_for_user_row()]
-    )
+    users_path = _setup_user_import(tmp_path, [_user_row()])
 
-    _make_command()._import_users(users_path, {}, reports_path, current_site)
+    _make_command()._import_users(users_path, {}, current_site)
 
     org = Organization.objects.get(name="Ministère de l'Intérieur")
     assert current_site in org.sites.all()
@@ -1133,13 +1099,9 @@ def test_import_users_force_updates_organisation(tmp_path, current_site):
     user.profile.save(update_fields=["organization"])
     user.profile.sites.add(current_site)
 
-    users_path, reports_path = _setup_user_import(
-        tmp_path, [_user_row()], [_decl_for_user_row()]
-    )
+    users_path = _setup_user_import(tmp_path, [_user_row()])
 
-    _make_command()._import_users(
-        users_path, {}, reports_path, current_site, force=True
-    )
+    _make_command()._import_users(users_path, {}, current_site, force=True)
 
     user.profile.refresh_from_db()
     assert user.profile.organization.name == "Ministère de l'Intérieur"
@@ -1152,11 +1114,9 @@ def test_import_users_reuses_account_with_different_username_case(
     existing = baker.make(
         User, username="Alice@Interieur.gouv.fr", email="Alice@Interieur.gouv.fr"
     )
-    users_path, reports_path = _setup_user_import(
-        tmp_path, [_user_row()], [_decl_for_user_row()]
-    )
+    users_path = _setup_user_import(tmp_path, [_user_row()])
 
-    _make_command()._import_users(users_path, {}, reports_path, current_site)
+    _make_command()._import_users(users_path, {}, current_site)
 
     assert User.objects.filter(email__iexact="alice@interieur.gouv.fr").count() == 1
     assert current_site in existing.profile.sites.all()
@@ -1167,11 +1127,9 @@ def test_import_users_reuses_account_whose_username_is_not_the_email(
     tmp_path, current_site
 ):
     existing = baker.make(User, username="alice.d", email="alice@interieur.gouv.fr")
-    users_path, reports_path = _setup_user_import(
-        tmp_path, [_user_row()], [_decl_for_user_row()]
-    )
+    users_path = _setup_user_import(tmp_path, [_user_row()])
 
-    _make_command()._import_users(users_path, {}, reports_path, current_site)
+    _make_command()._import_users(users_path, {}, current_site)
 
     assert User.objects.filter(email="alice@interieur.gouv.fr").count() == 1
     assert current_site in existing.profile.sites.all()
@@ -1180,11 +1138,9 @@ def test_import_users_reuses_account_whose_username_is_not_the_email(
 @pytest.mark.django_db
 def test_import_users_matches_organisation_case_insensitively(tmp_path, current_site):
     org = baker.make(Organization, name="ggd meurthe")
-    users_path, reports_path = _setup_user_import(
-        tmp_path, [_user_row(organisation="GGD Meurthe")], [_decl_for_user_row()]
-    )
+    users_path = _setup_user_import(tmp_path, [_user_row(organisation="GGD Meurthe")])
 
-    _make_command()._import_users(users_path, {}, reports_path, current_site)
+    _make_command()._import_users(users_path, {}, current_site)
 
     assert Organization.objects.filter(name__iexact="ggd meurthe").count() == 1
     assert current_site in org.sites.all()
@@ -1206,14 +1162,14 @@ def test_import_projects_force_does_not_regroup_organisation_shared_with_other_s
         [
             _SITES_HEADER,
             {
-                "id": "1",
-                "name": "Mon site",
-                "external id": "EXT-1",
-                "organisation": "GGD Meurthe",
-                "address": "",
-                "coordinates": "",
-                "created at": "",
-                "group": "Nouveau groupe",
+                "Id": "1",
+                "Nom": "Mon site",
+                "Id externe": "EXT-1",
+                "Organisation": "GGD Meurthe",
+                "Adresse": "",
+                "Coordonnées": "",
+                "Date de création": "",
+                "Région": "Nouveau groupe",
             },
         ],
     )
@@ -1238,11 +1194,9 @@ def test_import_users_skips_organisation_update_without_force(tmp_path, current_
     user.profile.save(update_fields=["organization"])
     user.profile.sites.add(current_site)
 
-    users_path, reports_path = _setup_user_import(
-        tmp_path, [_user_row()], [_decl_for_user_row()]
-    )
+    users_path = _setup_user_import(tmp_path, [_user_row()])
 
-    _make_command()._import_users(users_path, {}, reports_path, current_site)
+    _make_command()._import_users(users_path, {}, current_site)
 
     user.profile.refresh_from_db()
     assert user.profile.organization == old_org
@@ -1312,26 +1266,6 @@ def test_import_realisations_incomplete_creates_draft(tmp_path, request):
 
 
 @pytest.mark.django_db
-def test_import_realisations_resolves_misspelled_action_name(tmp_path, request):
-    project, _, _ = _setup_realisation_prereqs(request)
-    resource = baker.make(Resource, title="Diagnostique du gaspillage alimentaire")
-    resource.sites.add(project.project_sites.first().site)
-
-    row = _decl_row(**{"Nom de l'action": "Diagnostic du gaspillage alimentaire"})
-    path = _write_csv(tmp_path, "decl.csv", [row, row])
-
-    cmd = _make_command()
-    cmd._import_realisations(
-        path,
-        {project.name: project.pk},
-        {resource.title: resource.pk},
-        Site.objects.get_current(),
-    )
-
-    assert Realisation.objects.filter(project=project, resource=resource).exists()
-
-
-@pytest.mark.django_db
 def test_import_realisations_failed_download_is_left_out_then_retried(
     tmp_path, request, settings, monkeypatch
 ):
@@ -1395,7 +1329,9 @@ def test_import_realisations_maps_partners(tmp_path, request):
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk},
+        path,
+        {project.name: project.pk},
+        {resource.title: resource.pk},
         Site.objects.get_current(),
     )
 
@@ -1414,7 +1350,9 @@ def test_import_realisations_maps_location(tmp_path, request):
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk},
+        path,
+        {project.name: project.pk},
+        {resource.title: resource.pk},
         Site.objects.get_current(),
     )
 
@@ -1466,7 +1404,9 @@ def test_import_realisations_maps_date(tmp_path, request):
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk},
+        path,
+        {project.name: project.pk},
+        {resource.title: resource.pk},
         Site.objects.get_current(),
     )
 
@@ -1507,7 +1447,9 @@ def test_import_realisations_maps_key_figures(tmp_path, request):
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk},
+        path,
+        {project.name: project.pk},
+        {resource.title: resource.pk},
         Site.objects.get_current(),
     )
 
@@ -1535,7 +1477,9 @@ def test_import_realisations_maps_description_indicator_to_description(
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk},
+        path,
+        {project.name: project.pk},
+        {resource.title: resource.pk},
         Site.objects.get_current(),
     )
 
@@ -1569,7 +1513,9 @@ def test_import_realisations_consolidates_multi_row_declaration(
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk},
+        path,
+        {project.name: project.pk},
+        {resource.title: resource.pk},
         Site.objects.get_current(),
     )
 
@@ -1590,7 +1536,9 @@ def test_import_realisations_sets_created_by(tmp_path, request):
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk},
+        path,
+        {project.name: project.pk},
+        {resource.title: resource.pk},
         Site.objects.get_current(),
     )
 
@@ -1605,11 +1553,15 @@ def test_import_realisations_idempotent(tmp_path, request):
 
     cmd = _make_command()
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk},
+        path,
+        {project.name: project.pk},
+        {resource.title: resource.pk},
         Site.objects.get_current(),
     )
     cmd._import_realisations(
-        path, {project.name: project.pk}, {resource.title: resource.pk},
+        path,
+        {project.name: project.pk},
+        {resource.title: resource.pk},
         Site.objects.get_current(),
     )
 
@@ -1666,20 +1618,20 @@ def test_import_projects_falls_back_to_commune_centre(tmp_path, request):
         [
             _SITES_HEADER,
             {
-                "id": "1",
-                "name": "Site sans GPS",
-                "external id": "EXT-1",
-                "organisation": "",
-                "address": "Melun",
-                "coordinates": ",",
-                "created at": "",
-                "group": "",
+                "Id": "1",
+                "Nom": "Site sans GPS",
+                "Id externe": "EXT-1",
+                "Organisation": "",
+                "Adresse": "Melun",
+                "Coordonnées": ",",
+                "Date de création": "",
+                "Région": "",
             },
         ],
     )
 
     cmd = _make_command()
-    project_map = cmd._import_projects(path, site)
+    project_map, _ = cmd._import_projects(path, site)
 
     project = Project.objects.get(pk=project_map["Site sans GPS"])
     assert project.location_y == pytest.approx(48.54)
@@ -1688,17 +1640,10 @@ def test_import_projects_falls_back_to_commune_centre(tmp_path, request):
 
 @pytest.mark.django_db
 def test_import_users_grants_project_permissions(tmp_path, current_site):
-    project = baker.make(Project, name="GGD Meurthe")
-    ProjectSite.objects.create(
-        project=project, site=current_site, is_origin=True, status="TO_PROCESS"
-    )
-    users_path, reports_path = _setup_user_import(
-        tmp_path, [_user_row()], [_decl_for_user_row()]
-    )
+    project = _make_site_project(current_site)
+    users_path = _setup_user_import(tmp_path, [_user_row(**{"ID des sites": "42"})])
 
-    _make_command()._import_users(
-        users_path, {"GGD Meurthe": project.pk}, reports_path, current_site
-    )
+    _make_command()._import_users(users_path, {"42": project.pk}, current_site)
 
     user = User.objects.get(username="alice@interieur.gouv.fr")
     assert ProjectMember.objects.get(member=user, project=project).is_owner
@@ -1707,26 +1652,75 @@ def test_import_users_grants_project_permissions(tmp_path, current_site):
 
 
 @pytest.mark.django_db
-def test_import_users_only_first_manager_is_owner(tmp_path, current_site):
-    project = baker.make(Project, name="GGD Meurthe")
-    ProjectSite.objects.create(
-        project=project, site=current_site, is_origin=True, status="TO_PROCESS"
-    )
-    bob = "bob@interieur.gouv.fr"
-    users_path, reports_path = _setup_user_import(
-        tmp_path,
-        [_user_row(), _user_row(email=bob)],
-        [_decl_for_user_row(), _decl_for_user_row(**{"Email du déclarant": bob})],
-    )
+def test_import_users_links_every_listed_site(tmp_path, current_site):
+    p1 = _make_site_project(current_site, "Site A")
+    p2 = _make_site_project(current_site, "Site B")
+    other = _make_site_project(current_site, "Site C")
+    users_path = _setup_user_import(tmp_path, [_user_row(**{"ID des sites": "1, 2"})])
 
     _make_command()._import_users(
-        users_path, {"GGD Meurthe": project.pk}, reports_path, current_site
+        users_path, {"1": p1.pk, "2": p2.pk, "3": other.pk}, current_site
     )
+
+    user = User.objects.get(username="alice@interieur.gouv.fr")
+    linked = set(
+        ProjectMember.objects.filter(member=user).values_list("project", flat=True)
+    )
+    assert linked == {p1.pk, p2.pk}
+
+
+@pytest.mark.django_db
+def test_import_users_only_first_manager_is_owner(tmp_path, current_site):
+    project = _make_site_project(current_site)
+    bob = "bob@interieur.gouv.fr"
+    users_path = _setup_user_import(
+        tmp_path,
+        [
+            _user_row(**{"ID des sites": "42"}),
+            _user_row(email=bob, **{"ID des sites": "42"}),
+        ],
+    )
+
+    _make_command()._import_users(users_path, {"42": project.pk}, current_site)
 
     owners = ProjectMember.objects.filter(project=project, is_owner=True)
     assert owners.count() == 1
     assert ProjectMember.objects.filter(project=project).count() == 2
     assert User.objects.get(username=bob).has_perm("projects.view_project", project)
+
+
+@pytest.mark.parametrize(
+    "role,is_owner",
+    [
+        ("store_manager", True),
+        ("hq_manager", True),
+        ("hq-manager", True),
+        ("store_member", False),
+        ("hq_member", False),
+    ],
+)
+@pytest.mark.django_db
+def test_import_users_owner_roles(tmp_path, current_site, role, is_owner):
+    project = _make_site_project(current_site)
+    users_path = _setup_user_import(
+        tmp_path, [_user_row(role=role, **{"ID des sites": "42"})]
+    )
+
+    _make_command()._import_users(users_path, {"42": project.pk}, current_site)
+
+    member = ProjectMember.objects.get(project=project)
+    assert member.is_owner is is_owner
+
+
+@pytest.mark.django_db
+def test_import_users_warns_on_unknown_site_id(tmp_path, current_site):
+    users_path = _setup_user_import(tmp_path, [_user_row(**{"ID des sites": "999"})])
+
+    cmd = _make_command()
+    cmd._import_users(users_path, {}, current_site)
+
+    assert "Unknown site id '999'" in cmd.stderr.getvalue()
+    assert not ProjectMember.objects.exists()
 
 
 # ---------------------------------------------------------------------------
@@ -1763,25 +1757,25 @@ def test_command_runs_as_target_tenant(tmp_path, request, monkeypatch):
     site = _get_site(request)
     sites_path = _write_csv(
         tmp_path,
-        "Sites MI - CSV.csv",
+        "Sites MI - CSV - 05.11.26.csv",
         [
             _SITES_HEADER,
             {
-                "id": "42",
-                "name": f"GGD Meurthe{_ORG_SUFFIX}",
-                "external id": "EXT-42",
-                "organisation": "",
-                "address": "",
-                "coordinates": "",
-                "created at": "2022-11-15",
-                "group": "",
+                "Id": "42",
+                "Nom": f"GGD Meurthe{_ORG_SUFFIX}",
+                "Id externe": "EXT-42",
+                "Organisation": "",
+                "Adresse": "",
+                "Coordonnées": "",
+                "Date de création": "2022-11-15",
+                "Région": "",
             },
         ],
     )
     for filename in (
-        "Actions MI - CSV.csv",
-        "Utilisateurs MI - CSV.csv",
-        "Déclarations MI - CSV.csv",
+        "Actions MI - CSV - 05.11.2026.csv",
+        "Utilisateurs MI – CSV - 05.11.26.csv",
+        "Déclarations MI - CSV - 05.11.26.csv",
     ):
         (tmp_path / filename).touch()
 
@@ -1790,7 +1784,7 @@ def test_command_runs_as_target_tenant(tmp_path, request, monkeypatch):
     def fake_import(self, site, *args):
         seen["enabled_plugins"] = list(get_enabled_plugins())
         seen["current_site"] = Site.objects.get_current()
-        seen["project_map"] = self._import_projects(sites_path, site)
+        seen["project_map"], _ = self._import_projects(sites_path, site)
 
     monkeypatch.setattr(Command, "_import", fake_import)
     # Like a real management command: no request, so no plugin enabled yet

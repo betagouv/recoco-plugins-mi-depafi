@@ -2,10 +2,10 @@
 Import data from a Lakaa CSV export into Recommandations Collaboratives.
 
 Import order (respects FK dependencies):
-  1. Categories + Resources  (Actions MI - CSV.csv)
-  2. Projects                (Sites MI - CSV.csv)
-  3. Users                   (Utilisateurs MI - CSV.csv, site links derived from declarations)
-  4. Réalisations             (Déclarations MI - CSV.csv)
+  1. Categories + Resources  (Actions export)
+  2. Projects                (Sites export, French headers: "Id", "Nom"…)
+  3. Users                   (Utilisateurs export, site links from "ID des sites")
+  4. Réalisations             (Déclarations export, one indicator per row)
 
 All objects are scoped to the target Django Site given by --site-domain.
 The command is idempotent: re-running it skips already-imported objects.
@@ -46,12 +46,8 @@ _EMPTY = {"n.a", "-", "n.a.", "", None}
 # Organisation suffix appended to all names in the Lakaa export
 _ORG_SUFFIX = " - Ministère de l'Intérieur"
 
-# Declarations sometimes spell an action differently from the actions export.
-_ACTION_ALIASES = {
-    "Diagnostic du gaspillage alimentaire": "Diagnostique du gaspillage alimentaire",
-}
-
-# Mapping from Lakaa "status" column to Resource.status
+# Mapping from Lakaa "status" column to Resource.status. Anything else
+# ("archived", empty…) is imported as a draft.
 _RESOURCE_STATUS = {
     "published": Resource.PUBLISHED,
     "draft": Resource.DRAFT,
@@ -296,22 +292,22 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "--actions-file",
-            default="Actions MI - CSV.csv",
+            default="Actions MI - CSV - 05.11.2026.csv",
             help="Filename of the actions export inside --data-dir",
         )
         parser.add_argument(
             "--sites-file",
-            default="Sites MI - CSV.csv",
+            default="Sites MI - CSV - 05.11.26.csv",
             help="Filename of the sites export inside --data-dir",
         )
         parser.add_argument(
             "--users-file",
-            default="Utilisateurs MI - CSV.csv",
+            default="Utilisateurs MI – CSV - 05.11.26.csv",
             help="Filename of the users export inside --data-dir",
         )
         parser.add_argument(
             "--reports-file",
-            default="Déclarations MI - CSV.csv",
+            default="Déclarations MI - CSV - 05.11.26.csv",
             help="Filename of the declarations export inside --data-dir",
         )
         parser.add_argument(
@@ -324,7 +320,7 @@ class Command(BaseCommand):
             "--force-update-users",
             action="store_true",
             default=False,
-            help="Overwrite name, organisation, and project membership for existing users",
+            help="Overwrite name and organisation for existing users (project memberships are always added)",
         )
         parser.add_argument(
             "--force-update-orgs",
@@ -378,7 +374,7 @@ class Command(BaseCommand):
         )
 
         self.stdout.write("\n[2/4] Importing projects (sites)…")
-        project_map = self._import_projects(
+        project_map, project_ids = self._import_projects(
             sites_path,
             site,
             force_projects=options["force_update_projects"],
@@ -388,8 +384,7 @@ class Command(BaseCommand):
         self.stdout.write("\n[3/4] Importing users…")
         self._import_users(
             users_path,
-            project_map,
-            reports_path,
+            project_ids,
             site,
             force=options["force_update_users"],
         )
@@ -407,7 +402,7 @@ class Command(BaseCommand):
         created_cat = created_res = updated_res = skipped_res = shortened_summaries = 0
 
         for row in tqdm(rows, desc="Actions", unit="action", file=self.stdout._out):
-            name = _strip_org(_val(row.get("Nom Forest")) or "")
+            name = _strip_org(_val(row.get("name")) or "")
             topic = _strip_org(_val(row.get("topic")) or "")
             if not name:
                 continue
@@ -450,11 +445,7 @@ class Command(BaseCommand):
             if cost_indication:
                 content = f"{content}\n\n## Evaluation des coûts\n\n{cost_indication}"
 
-            subtitle = (
-                _val(row.get("impact indication"))
-                or _val(row.get("external name"))
-                or ""
-            )
+            subtitle = _val(row.get("impact indication")) or ""
             status = _resource_status(row.get("status"))
 
             resource = Resource.objects.filter(title=name, sites=site).first()
@@ -530,21 +521,24 @@ class Command(BaseCommand):
     def _import_projects(
         self, sites_path, site, *, force_projects=False, force_orgs=False
     ):
+        """Return (site name => Project pk, Lakaa site "Id" => Project pk)."""
         rows = _load_csv(sites_path)
         project_map = {}  # site name => Project pk
+        project_ids = {}  # Lakaa site "Id" => Project pk
         created = updated = skipped = 0
 
         for row in tqdm(rows, desc="Sites", unit="site", file=self.stdout._out):
+            lakaa_pk = _val(row.get("Id"))
             name = _strip_org(
-                _val(row.get("name")) or _val(row.get("external id")) or str(row["id"])
+                _val(row.get("Nom")) or _val(row.get("Id externe")) or lakaa_pk or ""
             )
-            ext_id = _val(row.get("external id")) or name
+            if not name:
+                continue
+            ext_id = _val(row.get("Id externe")) or name
 
-            address = _val(row.get("address"))
+            address = _val(row.get("Adresse"))
             location_x = location_y = None
-            coords_raw = _val(row.get("coordinates")) or _val(
-                row.get("coordinates forest")
-            )
+            coords_raw = _val(row.get("Coordonnées"))
             if coords_raw:
                 parts = coords_raw.split(",", 1)
                 if len(parts) == 2:
@@ -571,8 +565,8 @@ class Command(BaseCommand):
                     f"using the centre of {commune.name}"
                 )
 
-            group_name = _strip_org(_val(row.get("group")) or "")
-            org_name = _strip_org(_val(row.get("organisation")) or "")
+            group_name = _strip_org(_val(row.get("Région")) or "")
+            org_name = _strip_org(_val(row.get("Organisation")) or "")
             tags = [f"lakaa_id:{ext_id}"]
             if group_name:
                 tags.append(group_name)
@@ -582,6 +576,8 @@ class Command(BaseCommand):
             ).first()
             if existing is not None:
                 project_map[name] = existing.pk
+                if lakaa_pk:
+                    project_ids[lakaa_pk] = existing.pk
                 # Organisations are synced on every run, not only for new
                 # projects, otherwise --force-update-orgs never takes effect.
                 self._sync_organisation(org_name, group_name, site, force_orgs)
@@ -605,7 +601,7 @@ class Command(BaseCommand):
                 location_x=location_x,
                 location_y=location_y,
                 commune=commune,
-                created_on=_parse_dt(row.get("created at")) or timezone.now(),
+                created_on=_parse_dt(row.get("Date de création")) or timezone.now(),
                 updated_on=timezone.now(),
             )
             ProjectSite.objects.create(
@@ -617,30 +613,22 @@ class Command(BaseCommand):
             project.tags.add(*tags)
 
             project_map[name] = project.pk
+            if lakaa_pk:
+                project_ids[lakaa_pk] = project.pk
             created += 1
 
         self.stdout.write(
             f"  Projects: {created} created, {updated} updated, {skipped} skipped"
         )
-        return project_map
+        return project_map, project_ids
 
     # ------------------------------------------------------------------
     # Phase 3 - Users
     # ------------------------------------------------------------------
 
-    def _import_users(
-        self, users_path, project_map, reports_path, site, *, force=False
-    ):
-        # Derive user => site associations from declarations (creator email => store name)
-        user_sites: dict[str, set[str]] = {}
-        for row in _load_csv(reports_path):
-            email = (_val(row.get("Email du déclarant")) or "").lower()
-            site_name = _strip_org(row.get("Nom de l'établissement") or "")
-            if email and site_name:
-                user_sites.setdefault(email, set()).add(site_name)
-
+    def _import_users(self, users_path, project_ids, site, *, force=False):
         rows = _load_csv(users_path)
-        created = updated = skipped = 0
+        created = updated = skipped = links = unknown_sites = 0
 
         for row in tqdm(rows, desc="Utilisateurs", unit="user", file=self.stdout._out):
             email = (row.get("email") or "").strip().lower()
@@ -684,21 +672,31 @@ class Command(BaseCommand):
                     profile.organization = org
                     profile.save(update_fields=["organization"])
 
-            role = row.get("role") or ""
+            # Lakaa spells roles both ways ("hq_manager" / "hq-manager").
+            role = (row.get("role") or "").strip().replace("-", "_")
             is_owner = role in ("store_manager", "hq_manager")
 
-            for site_name in user_sites.get(email, set()):
-                project_pk = project_map.get(site_name)
+            # "ID des sites" lists the user's Lakaa sites, comma-separated,
+            # as ids of the Sites export ("Id" column).
+            site_ids = [i.strip() for i in (row.get("ID des sites") or "").split(",")]
+            for lakaa_pk in filter(None, site_ids):
+                project_pk = project_ids.get(lakaa_pk)
                 if project_pk is None:
+                    self.stderr.write(
+                        f"  [WARN] Unknown site id '{lakaa_pk}' for user {email}"
+                    )
+                    unknown_sites += 1
                     continue
                 project = Project.objects.get(pk=project_pk)
 
                 # Use assign_collaborator so permissions are actually
                 # matching (tenant_context already sets the current site).
                 assign_collaborator(user, project, is_owner=is_owner)
+                links += 1
 
         self.stdout.write(
-            f"  Users: {created} created, {updated} updated, {skipped} skipped"
+            f"  Users: {created} created, {updated} updated, {skipped} skipped  |  "
+            f"Memberships: {links} linked, {unknown_sites} unknown site ids"
         )
 
     # ------------------------------------------------------------------
@@ -719,7 +717,6 @@ class Command(BaseCommand):
             base_row = group_rows[0]
             site_name = _strip_org(base_row.get("Nom de l'établissement") or "")
             action_name = _strip_org(base_row.get("Nom de l'action") or "")
-            action_name = _ACTION_ALIASES.get(action_name, action_name)
 
             project_pk = project_map.get(site_name)
             resource_pk = resource_map.get(action_name)
@@ -754,8 +751,8 @@ class Command(BaseCommand):
                 else Realisation.PUBLISHED
             )
 
-            description_body, location, pdf_urls, key_figures = (
-                _consolidate_indicators(group_rows)
+            description_body, location, pdf_urls, key_figures = _consolidate_indicators(
+                group_rows
             )
             description = sentinel
             if description_body:
@@ -766,9 +763,7 @@ class Command(BaseCommand):
             if location != location_field:
                 # Keep the full list in the (Markdown) description, one line each.
                 sites_md = "  \n".join(
-                    line.strip()
-                    for line in location_field.splitlines()
-                    if line.strip()
+                    line.strip() for line in location_field.splitlines() if line.strip()
                 )
                 description = f"{description}\n\n**Sites concernés :**  \n{sites_md}"
                 self.stderr.write(
