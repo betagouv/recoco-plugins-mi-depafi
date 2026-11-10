@@ -1796,3 +1796,165 @@ def test_command_runs_as_target_tenant(tmp_path, request, monkeypatch):
     assert seen["current_site"] == site
     project_pk = seen["project_map"]["GGD Meurthe"]
     assert DepafiProject.objects.filter(project_id=project_pk, site=site).exists()
+
+
+# ---------------------------------------------------------------------------
+# Matching by Lakaa id across runs, project status
+# ---------------------------------------------------------------------------
+
+
+def _action_row(**kwargs):
+    base = {"id": "3333", "name": "Mon action", "topic": "4. Ressources"}
+    base.update(kwargs)
+    return base
+
+
+@pytest.mark.django_db
+def test_import_resources_tags_lakaa_id(tmp_path, request):
+    site = _get_site(request)
+    path = _write_csv(tmp_path, "actions.csv", [_action_row(), _action_row()])
+
+    resource_map = _make_command()._import_resources(path, site)
+
+    resource = Resource.objects.get(pk=resource_map["Mon action"])
+    assert "lakaa_action:3333" in resource.tags.names()
+
+
+@pytest.mark.django_db
+def test_import_resources_matches_renamed_action_by_lakaa_id(tmp_path, request):
+    site = _get_site(request)
+    resource = baker.make(Resource, title="Recyclage des archives", site_origin=site)
+    resource.sites.add(site)
+    resource.tags.add("lakaa_action:3333")
+    new_name = "Mettre en place le recyclage des archives papier"
+    path = _write_csv(
+        tmp_path, "actions.csv", [_action_row(), _action_row(name=new_name)]
+    )
+
+    resource_map = _make_command()._import_resources(path, site)
+
+    assert resource_map == {new_name: resource.pk}
+    assert Resource.objects.filter(sites=site).count() == 1
+    resource.refresh_from_db()
+    assert resource.title == "Recyclage des archives"
+
+
+@pytest.mark.django_db
+def test_import_resources_force_renames_action_matched_by_lakaa_id(tmp_path, request):
+    site = _get_site(request)
+    resource = baker.make(Resource, title="Ancien titre", site_origin=site)
+    resource.sites.add(site)
+    resource.tags.add("lakaa_action:3333")
+    path = _write_csv(
+        tmp_path, "actions.csv", [_action_row(), _action_row(name="Nouveau titre")]
+    )
+
+    _make_command()._import_resources(path, site, force=True)
+
+    resource.refresh_from_db()
+    assert resource.title == "Nouveau titre"
+
+
+@pytest.mark.django_db
+def test_import_resources_tags_resource_matched_by_title(tmp_path, request):
+    """Resources of earlier imports have no id tag: they get one, so later
+    renames still match."""
+    site = _get_site(request)
+    resource = baker.make(Resource, title="Mon action", site_origin=site)
+    resource.sites.add(site)
+    path = _write_csv(tmp_path, "actions.csv", [_action_row(), _action_row()])
+
+    _make_command()._import_resources(path, site)
+
+    assert "lakaa_action:3333" in resource.tags.names()
+    assert Resource.objects.filter(sites=site).count() == 1
+
+
+def _site_row(**kwargs):
+    base = {
+        "Id": "22680",
+        "Nom": "Mon site",
+        "Id externe": "EXT-1",
+        "Organisation": "",
+        "Adresse": "",
+        "Coordonnées": "",
+        "Date de création": "",
+        "Région": "",
+    }
+    base.update(kwargs)
+    return base
+
+
+@pytest.mark.django_db
+def test_import_projects_creates_ready_project_tagged_with_lakaa_id(tmp_path, request):
+    site = _get_site(request)
+    path = _write_csv(tmp_path, "sites.csv", [_SITES_HEADER, _site_row()])
+
+    project_map, _ = _make_command()._import_projects(path, site)
+
+    project = Project.objects.get(pk=project_map["Mon site"])
+    assert project.project_sites.get(site=site).status == "READY"
+    assert "lakaa_site:22680" in project.tags.names()
+
+
+@pytest.mark.django_db
+def test_import_projects_matches_renamed_site_by_lakaa_id(tmp_path, request):
+    site = _get_site(request)
+    existing = make_project_on_site(request)
+    existing.tags.add("lakaa_site:22680")
+    path = _write_csv(
+        tmp_path, "sites.csv", [_SITES_HEADER, _site_row(Nom="Nouveau nom")]
+    )
+
+    project_map, project_ids = _make_command()._import_projects(path, site)
+
+    assert project_map == {"Nouveau nom": existing.pk}
+    assert project_ids == {"22680": existing.pk}
+    assert not Project.objects.filter(name="Nouveau nom").exists()
+
+
+@pytest.mark.django_db
+def test_import_projects_matches_legacy_tag_and_adds_lakaa_id(tmp_path, request):
+    site = _get_site(request)
+    existing = make_project_on_site(request)
+    existing.tags.add("lakaa_id:EXT-1")
+    path = _write_csv(
+        tmp_path, "sites.csv", [_SITES_HEADER, _site_row(Nom="Nouveau nom")]
+    )
+
+    project_map, _ = _make_command()._import_projects(path, site)
+
+    assert project_map == {"Nouveau nom": existing.pk}
+    assert "lakaa_site:22680" in existing.tags.names()
+
+
+@pytest.mark.django_db
+def test_import_projects_force_renames_and_moves_to_ready(tmp_path, request):
+    site = _get_site(request)
+    existing = make_project_on_site(request)
+    existing.tags.add("lakaa_site:22680")
+    existing.project_sites.filter(site=site).update(status="TO_PROCESS")
+    path = _write_csv(
+        tmp_path, "sites.csv", [_SITES_HEADER, _site_row(Nom="Nouveau nom")]
+    )
+
+    _make_command()._import_projects(path, site, force_projects=True)
+
+    existing.refresh_from_db()
+    assert existing.name == "Nouveau nom"
+    assert existing.project_sites.get(site=site).status == "READY"
+
+
+@pytest.mark.django_db
+def test_import_projects_force_keeps_status_of_projects_already_moved_on(
+    tmp_path, request
+):
+    site = _get_site(request)
+    existing = make_project_on_site(request)
+    existing.tags.add("lakaa_site:22680")
+    existing.project_sites.filter(site=site).update(status="IN_PROGRESS")
+    path = _write_csv(tmp_path, "sites.csv", [_SITES_HEADER, _site_row()])
+
+    _make_command()._import_projects(path, site, force_projects=True)
+
+    assert existing.project_sites.get(site=site).status == "IN_PROGRESS"

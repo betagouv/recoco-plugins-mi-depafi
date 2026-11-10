@@ -60,6 +60,45 @@ _SUMMARY_MAX_LENGTH = Resource._meta.get_field("summary").max_length
 _LOCATION_MAX_LENGTH = Realisation._meta.get_field("location").max_length
 
 
+# Imported projects are already-running Lakaa sites, not new requests: they
+# must not land in the advisors' "A traiter" queue.
+_PROJECT_SITE_STATUS = "READY"
+
+# Lakaa ids, stored as tags, identify imported objects across runs: names
+# change between exports (e.g. renamed actions), ids don't.
+_ACTION_TAG = "lakaa_action:{}"
+_SITE_TAG = "lakaa_site:{}"
+# Tag written by earlier imports, from the site's "Id externe".
+_LEGACY_SITE_TAG = "lakaa_id:{}"
+
+
+def _find_resource(site, lakaa_pk, title):
+    """Resource of an action on this site: by Lakaa id, else by title (resources
+    imported before ids were tagged)."""
+    resources = Resource.objects.filter(sites=site)
+    if lakaa_pk:
+        resource = resources.filter(tags__name=_ACTION_TAG.format(lakaa_pk)).first()
+        if resource is not None:
+            return resource
+    return resources.filter(title=title).first()
+
+
+def _find_project(site, lakaa_pk, ext_id, name):
+    """Project of a Lakaa site on this site: by Lakaa id, else by the tag of
+    earlier imports, else by name."""
+    projects = Project.objects.filter(project_sites__site=site)
+    lookups = []
+    if lakaa_pk:
+        lookups.append({"tags__name": _SITE_TAG.format(lakaa_pk)})
+    lookups.append({"tags__name": _LEGACY_SITE_TAG.format(ext_id)})
+    lookups.append({"name": name})
+    for lookup in lookups:
+        project = projects.filter(**lookup).first()
+        if project is not None:
+            return project
+    return None
+
+
 def _resource_status(value):
     return _RESOURCE_STATUS.get((_val(value) or "").lower(), Resource.DRAFT)
 
@@ -314,7 +353,7 @@ class Command(BaseCommand):
             "--force-update-resources",
             action="store_true",
             default=False,
-            help="Overwrite subtitle, category, content, summary, and status for existing resources",
+            help="Overwrite title, subtitle, category, content, summary, and status for existing resources",
         )
         parser.add_argument(
             "--force-update-users",
@@ -332,7 +371,8 @@ class Command(BaseCommand):
             "--force-update-projects",
             action="store_true",
             default=False,
-            help="Overwrite location and coordinates for existing projects",
+            help="Overwrite name, location and coordinates for existing projects, "
+            "and move those still 'A traiter' to 'En attente'",
         )
 
     def handle(self, **options):
@@ -402,6 +442,7 @@ class Command(BaseCommand):
         created_cat = created_res = updated_res = skipped_res = shortened_summaries = 0
 
         for row in tqdm(rows, desc="Actions", unit="action", file=self.stdout._out):
+            lakaa_pk = _val(row.get("id"))
             name = _strip_org(_val(row.get("name")) or "")
             topic = _strip_org(_val(row.get("topic")) or "")
             if not name:
@@ -448,7 +489,7 @@ class Command(BaseCommand):
             subtitle = _val(row.get("impact indication")) or ""
             status = _resource_status(row.get("status"))
 
-            resource = Resource.objects.filter(title=name, sites=site).first()
+            resource = _find_resource(site, lakaa_pk, name)
             if resource is None:
                 resource = Resource.objects.create(
                     title=name,
@@ -462,6 +503,7 @@ class Command(BaseCommand):
                 resource.sites.add(site)
                 created_res += 1
             elif force:
+                resource.title = name
                 resource.subtitle = subtitle
                 resource.category = cat
                 resource.content = content
@@ -469,6 +511,7 @@ class Command(BaseCommand):
                 resource.status = status
                 resource.save(
                     update_fields=[
+                        "title",
                         "subtitle",
                         "category",
                         "content",
@@ -480,6 +523,8 @@ class Command(BaseCommand):
             else:
                 skipped_res += 1
 
+            if lakaa_pk:
+                resource.tags.add(_ACTION_TAG.format(lakaa_pk))
             resource_map[name] = resource.pk
 
         self.stdout.write(
@@ -567,13 +612,13 @@ class Command(BaseCommand):
 
             group_name = _strip_org(_val(row.get("Région")) or "")
             org_name = _strip_org(_val(row.get("Organisation")) or "")
-            tags = [f"lakaa_id:{ext_id}"]
+            tags = [_LEGACY_SITE_TAG.format(ext_id)]
+            if lakaa_pk:
+                tags.append(_SITE_TAG.format(lakaa_pk))
             if group_name:
                 tags.append(group_name)
 
-            existing = Project.objects.filter(
-                name=name, project_sites__site=site
-            ).first()
+            existing = _find_project(site, lakaa_pk, ext_id, name)
             if existing is not None:
                 project_map[name] = existing.pk
                 if lakaa_pk:
@@ -581,14 +626,22 @@ class Command(BaseCommand):
                 # Organisations are synced on every run, not only for new
                 # projects, otherwise --force-update-orgs never takes effect.
                 self._sync_organisation(org_name, group_name, site, force_orgs)
+                if lakaa_pk:
+                    # Lets later runs find the project even if it is renamed.
+                    existing.tags.add(_SITE_TAG.format(lakaa_pk))
                 if force_projects:
                     Project.objects.filter(pk=existing.pk).update(
+                        name=name,
                         location=address,
                         location_x=location_x,
                         location_y=location_y,
                         commune=commune,
                     )
                     existing.tags.add(*tags)
+                    # Projects of earlier imports were left "A traiter".
+                    ProjectSite.objects.filter(
+                        project=existing, site=site, status="TO_PROCESS"
+                    ).update(status=_PROJECT_SITE_STATUS)
                     updated += 1
                 else:
                     skipped += 1
@@ -605,7 +658,10 @@ class Command(BaseCommand):
                 updated_on=timezone.now(),
             )
             ProjectSite.objects.create(
-                project=project, site=site, is_origin=True, status="TO_PROCESS"
+                project=project,
+                site=site,
+                is_origin=True,
+                status=_PROJECT_SITE_STATUS,
             )
             project.sites.add(site)
 
