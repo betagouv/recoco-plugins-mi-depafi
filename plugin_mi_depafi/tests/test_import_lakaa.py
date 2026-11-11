@@ -35,7 +35,7 @@ from plugin_mi_depafi.management.commands.import_lakaa import (
 )
 from plugin_mi_depafi.models import DepafiProject, Realisation
 
-from ..conftest import make_project_on_site
+from ..conftest import make_project_on_site, set_project_perimeter
 from .conftest import make_resource
 
 pytestmark = pytest.mark.django_db
@@ -421,6 +421,56 @@ def test_import_projects_creates_project(tmp_path, current_site):
     assert project.project_sites.get(site=current_site).status == "READY"
     assert {"lakaa_id:EXT-42", "lakaa_site:22680", "Zone Est"} <= set(
         project.tags.names()
+    )
+
+
+@pytest.mark.parametrize(
+    "label,expected",
+    [
+        ("Police nationale", DepafiProject.Perimeter.POLICE_NATIONALE),
+        ("ATE", DepafiProject.Perimeter.ATE),
+        ("sécurité civile", DepafiProject.Perimeter.SECURITE_CIVILE),
+        ("", ""),
+        ("Inconnu", ""),
+    ],
+)
+def test_import_projects_sets_perimeter(tmp_path, current_site, label, expected):
+    cmd = _make_command()
+    project_map, _ = _import_sites(
+        tmp_path, current_site, [_site_row(**{"Périmètre": label})], cmd=cmd
+    )
+
+    profile = DepafiProject.objects.filter(
+        project_id=project_map["Mon site"], site=current_site
+    ).first()
+    assert (profile.perimeter if profile else "") == expected
+    assert ("Unknown perimeter" in cmd.stderr.getvalue()) == (label == "Inconnu")
+
+
+@pytest.mark.parametrize(
+    "initial,force,expected",
+    [
+        ("", False, DepafiProject.Perimeter.ATE),
+        (DepafiProject.Perimeter.SGAMI, False, DepafiProject.Perimeter.SGAMI),
+        (DepafiProject.Perimeter.SGAMI, True, DepafiProject.Perimeter.ATE),
+    ],
+)
+def test_import_projects_perimeter_of_existing_project(
+    tmp_path, request, current_site, initial, force, expected
+):
+    existing = make_project_on_site(request, name="Mon site")
+    set_project_perimeter(existing, initial)
+
+    _import_sites(
+        tmp_path,
+        current_site,
+        [_site_row(**{"Périmètre": "ATE"})],
+        force_projects=force,
+    )
+
+    assert (
+        DepafiProject.objects.get(project=existing, site=current_site).perimeter
+        == expected
     )
 
 

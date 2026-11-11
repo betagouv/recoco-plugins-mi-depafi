@@ -38,7 +38,12 @@ from recoco.apps.projects.models import Project, ProjectSite
 from recoco.apps.projects.utils import assign_collaborator
 from recoco.apps.resources.models import Category, Resource
 
-from plugin_mi_depafi.models import Realisation, RealisationDocument, RealisationPhoto
+from plugin_mi_depafi.models import (
+    DepafiProject,
+    Realisation,
+    RealisationDocument,
+    RealisationPhoto,
+)
 
 # Sentinel values that Lakaa uses to mean "no data"
 _EMPTY = {"n.a", "-", "n.a.", "", None}
@@ -101,6 +106,11 @@ def _find_project(site, lakaa_pk, ext_id, name):
 
 def _resource_status(value):
     return _RESOURCE_STATUS.get((_val(value) or "").lower(), Resource.DRAFT)
+
+
+# Lakaa "Périmètre" labels are the DepafiProject.Perimeter labels
+# ("Police nationale", "ATE"…), matched case-insensitively.
+_PERIMETERS = {label.lower(): value for value, label in DepafiProject.Perimeter.choices}
 
 
 # The Déclarations export is pivoted: every row repeats the same fixed
@@ -371,7 +381,7 @@ class Command(BaseCommand):
             "--force-update-projects",
             action="store_true",
             default=False,
-            help="Overwrite name, location and coordinates for existing projects, "
+            help="Overwrite name, location, coordinates and perimeter for existing projects, "
             "and move those still 'A traiter' to 'En attente'",
         )
 
@@ -563,6 +573,21 @@ class Command(BaseCommand):
                     org.save(update_fields=["group"])
         org.sites.add(site)
 
+    def _sync_perimeter(self, project, perimeter, site, *, force):
+        """Store `perimeter` on the project's DepafiProject profile for `site`.
+
+        An existing perimeter is only replaced when `force` is set; an empty
+        Lakaa value never clears one.
+        """
+        if not perimeter:
+            return
+        # The profile is created by a signal on new projects, but projects
+        # imported before the plugin was enabled may not have one.
+        profile, _ = DepafiProject.objects.get_or_create(project=project, site=site)
+        if profile.perimeter != perimeter and (force or not profile.perimeter):
+            profile.perimeter = perimeter
+            profile.save(update_fields=["perimeter"])
+
     def _import_projects(
         self, sites_path, site, *, force_projects=False, force_orgs=False
     ):
@@ -612,6 +637,12 @@ class Command(BaseCommand):
 
             group_name = _strip_org(_val(row.get("Région")) or "")
             org_name = _strip_org(_val(row.get("Organisation")) or "")
+            perimeter_label = _val(row.get("Périmètre")) or ""
+            perimeter = _PERIMETERS.get(perimeter_label.lower(), "")
+            if perimeter_label and not perimeter:
+                self.stderr.write(
+                    f"  [WARN] Unknown perimeter '{perimeter_label}' for site '{name}'"
+                )
             tags = [_LEGACY_SITE_TAG.format(ext_id)]
             if lakaa_pk:
                 tags.append(_SITE_TAG.format(lakaa_pk))
@@ -626,6 +657,9 @@ class Command(BaseCommand):
                 # Organisations are synced on every run, not only for new
                 # projects, otherwise --force-update-orgs never takes effect.
                 self._sync_organisation(org_name, group_name, site, force_orgs)
+                # The perimeter can be edited in the app: only fill it when
+                # empty, unless --force-update-projects.
+                self._sync_perimeter(existing, perimeter, site, force=force_projects)
                 if lakaa_pk:
                     # Lets later runs find the project even if it is renamed.
                     existing.tags.add(_SITE_TAG.format(lakaa_pk))
@@ -666,6 +700,7 @@ class Command(BaseCommand):
             project.sites.add(site)
 
             self._sync_organisation(org_name, group_name, site, force_orgs)
+            self._sync_perimeter(project, perimeter, site, force=True)
             project.tags.add(*tags)
 
             project_map[name] = project.pk
