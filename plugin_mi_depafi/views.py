@@ -1,7 +1,7 @@
 import csv
 
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.db.models import Count, Exists, OuterRef
+from django.db.models import Count, Exists, OuterRef, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -104,11 +104,25 @@ class DepafiProjectPerimeterUpdateView(ProjectDetailBaseView):
 
 
 class RealisationListView(ProjectDetailBaseView):
-    # FIXME needs permissions handling
+    """Realisations of a project, readable by any logged-in user of the site.
+
+    Realisations are meant to be shared across projects, so unlike the other
+    project tabs this page does not require the `view_project` permission
+    (anonymous users are still redirected by LoginRequiredMixin). Drafts stay
+    work-in-progress, with the same rule as RealisationDetailView: only their
+    creator and those who may edit them (see RealisationWriteMixin) see them.
+    """
+
     template_name = "plugin_mi_depafi/realisation_list.html"
+
+    def check_permissions(self):
+        # Project lookup is already scoped to the current site (get_object).
+        pass
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        user = self.request.user
+        can_manage = has_perm(user, "projects.manage_documents", self.object)
         base_qs = (
             Realisation.on_site.filter(project=self.object)
             .select_related("resource")
@@ -124,6 +138,11 @@ class RealisationListView(ProjectDetailBaseView):
             )
             .order_by("-created_at")
         )
+        if not can_manage:
+            base_qs = base_qs.filter(
+                Q(status=Realisation.PUBLISHED) | Q(created_by=user)
+            )
+        context["can_manage_realisations"] = can_manage
         context["draft_realisations"] = base_qs.filter(status=Realisation.DRAFT)
         context["published_realisations"] = base_qs.filter(status=Realisation.PUBLISHED)
         context["realisations"] = base_qs

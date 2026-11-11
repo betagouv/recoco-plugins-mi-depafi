@@ -35,11 +35,41 @@ def test_realisation_list_redirects_unauthenticated(request, client):
 
 
 @pytest.mark.django_db
-def test_realisation_list_forbidden_for_unprivileged_user(request, client):
+def test_realisation_list_readable_by_any_logged_in_user(request, client):
+    """Non-members see published realisations only, without write actions."""
     project = make_project_on_site(request)
+    resource = make_resource(request)
+    published = baker.make(
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
+    )
+    baker.make(
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
+    )
+
     with login(client):
         response = client.get(list_url(project))
-    assert response.status_code == 403
+
+    assert response.status_code == 200
+    assert list(response.context["published_realisations"]) == [published]
+    assert list(response.context["draft_realisations"]) == []
+    assert response.context["can_manage_realisations"] is False
+    assert create_url(project) not in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_realisation_list_not_found_for_project_of_another_site(request, client):
+    project = baker.make("projects.Project", sites=[baker.make(Site)])
+    with login(client):
+        response = client.get(list_url(project))
+    assert response.status_code == 404
 
 
 @pytest.mark.django_db
