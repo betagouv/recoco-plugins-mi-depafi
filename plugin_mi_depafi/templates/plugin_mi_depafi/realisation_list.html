@@ -116,14 +116,18 @@
                     <!-- Header -->
                     <div class="d-flex justify-content-between align-items-center fr-mb-4w">
                         <h2 class="fr-h4 fr-mb-0">{{ published_realisations|length }} réalisation{{ published_realisations|length|pluralize }} {% if draft_realisations %} et {{ draft_realisations|length }} brouillon{{ draft_realisations|length|pluralize }} {% endif %}</h2>
-                        <a href="{% url 'plugin_mi_depafi:realisation-create' project_id=project.pk %}"
-                           class="fr-btn fr-btn--primary fr-btn--sm">+ Déclarer une réalisation</a>
+                        {% if can_manage_realisations %}
+                            <a href="{% url 'plugin_mi_depafi:realisation-create' project_id=project.pk %}"
+                               class="fr-btn fr-btn--primary fr-btn--sm">+ Déclarer une réalisation</a>
+                        {% endif %}
                     </div>
                     {% if not draft_realisations and not published_realisations %}
                         <div class="fr-callout fr-mt-2w">
                             <p class="fr-callout__text">
                                 Aucune réalisation déclarée pour ce dossier.
-                                <a href="{% url 'plugin_mi_depafi:realisation-create' project_id=project.pk %}">Déclarez la première !</a>
+                                {% if can_manage_realisations %}
+                                    <a href="{% url 'plugin_mi_depafi:realisation-create' project_id=project.pk %}">Déclarez la première !</a>
+                                {% endif %}
                             </p>
                         </div>
                     {% else %}
