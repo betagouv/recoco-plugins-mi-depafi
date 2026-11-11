@@ -4,7 +4,9 @@ Import data from a Lakaa CSV export into Recommandations Collaboratives.
 Import order (respects FK dependencies):
   1. Categories + Resources  (Actions export)
   2. Projects                (Sites export, French headers: "Id", "Nom"…)
-  3. Users                   (Utilisateurs export, site links from "ID des sites")
+  3. Users                   (Utilisateurs export, site links from "ID des sites";
+                              each site's owner is its "Responsable" in the
+                              Sites export when it is one of its members)
   4. Réalisations             (Déclarations export, one indicator per row)
 
 All objects are scoped to the target Django Site given by --site-domain.
@@ -15,9 +17,11 @@ import csv
 import math
 import os
 import re
+import unicodedata
 import urllib.request
 from datetime import datetime
 from html import unescape
+from typing import NamedTuple
 
 import html2text
 from tqdm import tqdm
@@ -34,7 +38,7 @@ from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.geomatics.models import Commune
 from recoco.apps.home.models import UserProfile
 from recoco.apps.plugins.context import tenant_context
-from recoco.apps.projects.models import Project, ProjectSite
+from recoco.apps.projects.models import Project, ProjectMember, ProjectSite
 from recoco.apps.projects.utils import assign_collaborator
 from recoco.apps.resources.models import Category, Resource
 
@@ -249,6 +253,76 @@ def _find_user(email):
     return users.order_by("id").first()
 
 
+# Lakaa roles that can own (be the référent of) a site's project. Lakaa
+# spells them both ways ("hq_manager" / "hq-manager"): roles are normalised
+# with "-" replaced by "_".
+_OWNER_ROLES = ("store_manager", "hq_manager")
+
+# "Typologie d'utilisateurs" of users linked to every site of their region:
+# they only own a site when they are its "Responsable".
+_REGIONAL_REFERENT = "referent regional"
+
+
+def _person_key(name):
+    """`name` normalised for matching: no accents, case, hyphens or extra spaces."""
+    ascii_name = (
+        unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode()
+    )
+    return " ".join(ascii_name.lower().replace("-", " ").split())
+
+
+def _load_responsables(sites_path):
+    """Lakaa site "Id" => normalised name of its "Responsable" (Sites export)."""
+    responsables = {}
+    for row in _load_csv(sites_path):
+        lakaa_pk = _val(row.get("Id"))
+        name = _person_key(_val(row.get("Responsable")))
+        if lakaa_pk and name:
+            responsables[lakaa_pk] = name
+    return responsables
+
+
+class _SiteMember(NamedTuple):
+    user: User
+    name_keys: frozenset  # "first last" and "last first", normalised
+    is_manager: bool
+    is_regional_referent: bool
+
+
+def _pick_owner(members, responsable):
+    """Choose the owner (référent) of a site among its members, in CSV order.
+
+    The site's "Responsable" wins whatever their role. Otherwise the first
+    manager who isn't a regional referent, otherwise the first manager.
+    """
+    if responsable:
+        for member in members:
+            if responsable in member.name_keys:
+                return member.user
+    managers = [m for m in members if m.is_manager]
+    for member in managers:
+        if not member.is_regional_referent:
+            return member.user
+    return managers[0].user if managers else None
+
+
+def _set_owner(project, owner):
+    """Make `owner` the only owner of `project`; True when ownership changed.
+
+    Only touches existing memberships: a new owner becomes a member (and
+    owner) through assign_collaborator afterwards.
+    """
+    demoted = (
+        ProjectMember.objects.filter(project=project, is_owner=True)
+        .exclude(member=owner)
+        .update(is_owner=False)
+    )
+    promoted = ProjectMember.objects.filter(
+        project=project, member=owner, is_owner=False
+    ).update(is_owner=True)
+    return bool(demoted or promoted)
+
+
 def _get_or_create_organization(name, group=None):
     """Organization by case-insensitive name (names are unique across sites)."""
     org = Organization.objects.filter(name__iexact=name).first()
@@ -369,7 +443,8 @@ class Command(BaseCommand):
             "--force-update-users",
             action="store_true",
             default=False,
-            help="Overwrite name and organisation for existing users (project memberships are always added)",
+            help="Overwrite name and organisation for existing users and move project "
+            "ownership to the chosen référent (project memberships are always added)",
         )
         parser.add_argument(
             "--force-update-orgs",
@@ -436,6 +511,7 @@ class Command(BaseCommand):
             users_path,
             project_ids,
             site,
+            responsables=_load_responsables(sites_path),
             force=options["force_update_users"],
         )
 
@@ -717,9 +793,19 @@ class Command(BaseCommand):
     # Phase 3 - Users
     # ------------------------------------------------------------------
 
-    def _import_users(self, users_path, project_ids, site, *, force=False):
+    def _import_users(
+        self, users_path, project_ids, site, *, responsables=None, force=False
+    ):
+        """Create the users and link them to their sites' projects.
+
+        Each project gets a single owner (the core keeps the first one
+        assigned), chosen by _pick_owner once all of the site's members are
+        known. With `force`, ownership of existing projects is moved to it.
+        """
+        responsables = responsables or {}
         rows = _load_csv(users_path)
-        created = updated = skipped = links = unknown_sites = 0
+        created = updated = skipped = links = unknown_sites = owners_moved = 0
+        members_by_site = {}  # Lakaa site "Id" => [_SiteMember], in CSV order
 
         for row in tqdm(rows, desc="Utilisateurs", unit="user", file=self.stdout._out):
             email = (row.get("email") or "").strip().lower()
@@ -763,31 +849,53 @@ class Command(BaseCommand):
                     profile.organization = org
                     profile.save(update_fields=["organization"])
 
-            # Lakaa spells roles both ways ("hq_manager" / "hq-manager").
             role = (row.get("role") or "").strip().replace("-", "_")
-            is_owner = role in ("store_manager", "hq_manager")
+            member = _SiteMember(
+                user=user,
+                name_keys=frozenset(
+                    {
+                        _person_key(f"{first_name} {last_name}"),
+                        _person_key(f"{last_name} {first_name}"),
+                    }
+                ),
+                is_manager=role in _OWNER_ROLES,
+                is_regional_referent=_person_key(row.get("Typologie d'utilisateurs"))
+                == _REGIONAL_REFERENT,
+            )
 
             # "ID des sites" lists the user's Lakaa sites, comma-separated,
             # as ids of the Sites export ("Id" column).
             site_ids = [i.strip() for i in (row.get("ID des sites") or "").split(",")]
-            for lakaa_pk in filter(None, site_ids):
-                project_pk = project_ids.get(lakaa_pk)
-                if project_pk is None:
+            for lakaa_pk in dict.fromkeys(filter(None, site_ids)):
+                if lakaa_pk not in project_ids:
                     self.stderr.write(
                         f"  [WARN] Unknown site id '{lakaa_pk}' for user {email}"
                     )
                     unknown_sites += 1
                     continue
-                project = Project.objects.get(pk=project_pk)
+                members_by_site.setdefault(lakaa_pk, []).append(member)
 
+        for lakaa_pk, members in members_by_site.items():
+            project = Project.objects.get(pk=project_ids[lakaa_pk])
+            responsable = responsables.get(lakaa_pk)
+            owner = _pick_owner(members, responsable)
+            if responsable and not any(responsable in m.name_keys for m in members):
+                self.stderr.write(
+                    f"  [WARN] Responsable '{responsable}' of '{project.name}' isn't one of its "
+                    f"users, owner: {owner.email if owner else 'none'}"
+                )
+            if force and owner is not None and _set_owner(project, owner):
+                owners_moved += 1
+            for member in members:
                 # Use assign_collaborator so permissions are actually
                 # matching (tenant_context already sets the current site).
-                assign_collaborator(user, project, is_owner=is_owner)
+                assign_collaborator(member.user, project, is_owner=member.user == owner)
                 links += 1
 
         self.stdout.write(
             f"  Users: {created} created, {updated} updated, {skipped} skipped  |  "
-            f"Memberships: {links} linked, {unknown_sites} unknown site ids"
+            f"Memberships: {links} linked, {unknown_sites} unknown site ids, "
+            f"{owners_moved} owners moved"
         )
 
     # ------------------------------------------------------------------

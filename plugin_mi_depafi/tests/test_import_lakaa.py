@@ -20,6 +20,7 @@ from recoco.apps.addressbook.models import Organization, OrganizationGroup
 from recoco.apps.geomatics.models import Commune, Department
 from recoco.apps.plugins.resolvers import get_enabled_plugins, set_enabled_plugins
 from recoco.apps.projects.models import Project, ProjectMember
+from recoco.apps.projects.utils import assign_collaborator
 from recoco.apps.resources.models import Category, Resource
 
 from plugin_mi_depafi.apps import PLUGIN_NAME
@@ -885,23 +886,111 @@ def test_import_users_links_every_listed_site(tmp_path, request, current_site):
     assert linked == {p1.pk, p2.pk}
 
 
-def test_import_users_only_first_manager_is_owner(tmp_path, request, current_site):
-    project = make_project_on_site(request)
-    bob = "bob@interieur.gouv.fr"
-
-    _import_users(
-        tmp_path,
-        current_site,
-        [
-            _user_row(**{"ID des sites": "42"}),
-            _user_row(email=bob, **{"ID des sites": "42"}),
-        ],
-        project_ids={"42": project.pk},
+def _member_row(name, role="store_manager", typologie=""):
+    """User row named `name` Martin, linked to Lakaa site 42."""
+    return _user_row(
+        email=f"{name}@interieur.gouv.fr",
+        role=role,
+        **{
+            "first name": name.capitalize(),
+            "last name": "Martin",
+            "ID des sites": "42",
+            "Typologie d'utilisateurs": typologie,
+        },
     )
 
-    assert ProjectMember.objects.filter(project=project, is_owner=True).count() == 1
-    assert ProjectMember.objects.filter(project=project).count() == 2
-    assert User.objects.get(username=bob).has_perm("projects.view_project", project)
+
+def _import_site_members(tmp_path, site, project, rows, responsable="", **kwargs):
+    sites_path = _write_csv(
+        tmp_path, "sites.csv", [_site_row(Id="42", Responsable=responsable)]
+    )
+    cmd = _make_command()
+    _import_users(
+        tmp_path,
+        site,
+        rows,
+        project_ids={"42": project.pk},
+        cmd=cmd,
+        responsables=import_lakaa._load_responsables(sites_path),
+        **kwargs,
+    )
+    return cmd
+
+
+def _owners(project):
+    return [
+        m.member.email.split("@")[0]
+        for m in ProjectMember.objects.filter(project=project, is_owner=True)
+    ]
+
+
+_REGIONAL = "Référent régional"
+
+
+@pytest.mark.parametrize(
+    "rows,responsable,expected",
+    [
+        # No Responsable: the first manager
+        ([("alice",), ("bob",)], "", "alice"),
+        # The Responsable wins whatever their rank, role, accents or name order
+        ([("alice",), ("élise", "store_member")], "MARTIN Elise", "élise"),
+        # Regional referents are passed over...
+        ([("alice", "store_manager", _REGIONAL), ("bob",)], "", "bob"),
+        # ...unless they are the Responsable
+        ([("alice", "store_manager", _REGIONAL), ("bob",)], "Alice Martin", "alice"),
+        # ...or there is no one else
+        (
+            [
+                ("alice", "store_manager", _REGIONAL),
+                ("bob", "store_manager", _REGIONAL),
+            ],
+            "",
+            "alice",
+        ),
+        # A Responsable who isn't a member of the site: the first manager
+        ([("alice",), ("bob",)], "Inconnu Martin", "alice"),
+    ],
+)
+def test_import_users_picks_single_owner(
+    tmp_path, request, current_site, rows, responsable, expected
+):
+    project = make_project_on_site(request)
+
+    cmd = _import_site_members(
+        tmp_path,
+        current_site,
+        project,
+        [_member_row(*row) for row in rows],
+        responsable=responsable,
+    )
+
+    assert _owners(project) == [expected]
+    assert ProjectMember.objects.filter(project=project).count() == len(rows)
+    assert ("isn't one of its users" in cmd.stderr.getvalue()) == (
+        responsable == "Inconnu Martin"
+    )
+
+
+@pytest.mark.parametrize("force,expected", [(True, "bob"), (False, "alice")])
+def test_import_users_force_moves_owner_to_responsable(
+    tmp_path, request, current_site, force, expected
+):
+    project = make_project_on_site(request)
+    alice = baker.make(
+        User, username="alice@interieur.gouv.fr", email="alice@interieur.gouv.fr"
+    )
+    assign_collaborator(alice, project, is_owner=True)
+
+    _import_site_members(
+        tmp_path,
+        current_site,
+        project,
+        [_member_row("alice"), _member_row("bob")],
+        responsable="Bob Martin",
+        force=force,
+    )
+
+    assert _owners(project) == [expected]
 
 
 @pytest.mark.parametrize(
