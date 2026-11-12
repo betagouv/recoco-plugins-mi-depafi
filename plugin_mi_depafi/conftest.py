@@ -45,13 +45,13 @@ def current_site():
     return Site.objects.filter(domain="example.com").first()
 
 
-def make_project_on_site(request):
+def make_project_on_site(request, **kwargs):
     site = get_current_site(request)
     home_models.SiteConfiguration.objects.get_or_create(
         site=site,
         defaults={"enabled_plugins": [PLUGIN_NAME]},
     )
-    project = baker.make(Project)
+    project = baker.make(Project, **kwargs)
     project.project_sites.create(site=site, status="READY", is_origin=True)
     return project
 
