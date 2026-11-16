@@ -17,7 +17,7 @@
     {% vite_asset 'js/plugins/styles/realisation-form.css.js' %}
 {% endblock css %}
 {% block project_detail %}
-<div x-data
+<div x-data="RealisationFormValidation()"
      x-init="$nextTick(() => $store.showRole.init())"
      class="col-12">
 
@@ -272,7 +272,8 @@
                         <button type="submit"
                                 name="status"
                                 value="published"
-                                class="fr-btn">
+                                class="fr-btn"
+                                :disabled="!realisationFormValidation.isValid">
                             Sauvegarder et publier
                         </button>
                     </div>
