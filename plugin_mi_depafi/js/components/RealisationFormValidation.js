@@ -2,12 +2,34 @@ import Alpine from 'alpinejs';
 
 Alpine.data('RealisationFormValidation', () => ({
     isFormValid: false,
-    formData: {
-        resource: '',
-        location: '',
-        date: '',
-        description: '',
+    formErrors: {
+        resource: false,
+        location: false,
+        date: false,
+        description: false,
     },
+    formData: {
+          resource: {
+              value: '',
+              message: "Sélectionnez l'action concernée dans la liste.",
+              focusSelector: '.select-a11y .fr-select',
+          },
+          location: {
+              value: '',
+              message: 'Indiquez le ou les sites ou bâtiments concernés.',
+              focusSelector: '#id_location',
+          },
+          date: {
+              value: '',
+              message: 'Indiquez la date de la réalisation.',
+              focusSelector: '#id_date',
+          },
+          description: {
+              value: '',
+              message: "Décrivez comment l'action a été mise en œuvre.",
+              focusSelector: '#comment-text-ref .ProseMirror',
+          },
+      },
     init() {
         const formFields = this.$el.querySelector('#realisation-form').elements;
         this.formData.resource = formFields.resource.value;
