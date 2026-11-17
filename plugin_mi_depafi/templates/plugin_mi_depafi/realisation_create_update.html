@@ -32,7 +32,8 @@
               enctype="multipart/form-data" 
               novalidate
               @input="updateField($event)"
-              @change="updateField($event)">
+              @change="updateField($event)"
+              @submit="onSubmit($event)">
             {% csrf_token %}
             <fieldset class="fr-fieldset">
 
@@ -61,6 +62,9 @@
                         {% for error in form.resource.errors %}
                             <p class="fr-error-text">{{ error }}</p>
                         {% endfor %}
+                        <template x-if="formErrors.resource">
+                            <p id="resource-error" class="fr-error-text" x-text="formErrors.resource"></p>
+                        </template>
                     </div>
                 </div>
 
@@ -75,6 +79,9 @@
                         {% for error in form.location.errors %}
                             <p class="fr-error-text">{{ error }}</p>
                         {% endfor %}
+                        <template x-if="formErrors.location">
+                            <p id="location-error" class="fr-error-text" x-text="formErrors.location"></p>
+                        </template>
                     </div>
                 </div>
 
@@ -89,6 +96,9 @@
                         {% for error in form.date.errors %}
                             <p class="fr-error-text">{{ error }}</p>
                         {% endfor %}
+                        <template x-if="formErrors.date">
+                            <p id="date-error" class="fr-error-text" x-text="formErrors.date"></p>
+                        </template>
                     </div>
                 </div>
 
@@ -115,6 +125,9 @@
                         {% for error in form.description.errors %}
                             <p class="fr-error-text">{{ error }}</p>
                         {% endfor %}
+                        <template x-if="formErrors.description">
+                            <p id="description-error" class="fr-error-text" x-text="formErrors.description"></p>
+                        </template>
                     </div>
                 </div>
 
