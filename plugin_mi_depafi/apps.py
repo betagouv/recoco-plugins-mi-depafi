@@ -35,7 +35,7 @@ class PluginMiDepafiConfig(AppConfig):
                 "location",
                 "description",
                 "resource__title",
-                "resource__category"
+                "resource__category",
                 "project__name",
                 "project__commune__name",
                 "project__commune__insee",
