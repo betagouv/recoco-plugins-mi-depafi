@@ -81,6 +81,49 @@ _SITE_TAG = "lakaa_site:{}"
 _LEGACY_SITE_TAG = "lakaa_id:{}"
 
 
+# Each export is recognised by the first word of its filename; the rest (export
+# date, separators) changes with every Lakaa delivery and is never hard-coded.
+_EXPORT_PREFIXES = {
+    "actions": "actions",
+    "sites": "sites",
+    "users": "utilisateurs",
+    "reports": "declarations",
+}
+
+
+def _fold(text):
+    """Lowercase and strip accents, so 'Déclarations' (NFC or NFD) matches."""
+    return (
+        unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
+    )
+
+
+def _find_export(data_dir, kind):
+    """Return the path of the single CSV in data_dir for this export kind.
+
+    Raise CommandError when none or several match, naming the candidates so the
+    operator can pass the matching --<kind>-file option instead.
+    """
+    prefix = _EXPORT_PREFIXES[kind]
+    matches = sorted(
+        name
+        for name in os.listdir(data_dir)
+        if name.lower().endswith(".csv") and _fold(name).startswith(prefix)
+    )
+    option = f"--{kind}-file"
+    if not matches:
+        raise CommandError(
+            f"No {kind} export found in {data_dir} "
+            f"(expected a CSV whose name starts with '{prefix}'); use {option}"
+        )
+    if len(matches) > 1:
+        raise CommandError(
+            f"Several {kind} exports found in {data_dir}: {', '.join(matches)}; "
+            f"use {option} to pick one"
+        )
+    return os.path.join(data_dir, matches[0])
+
+
 def _find_resource(site, lakaa_pk, title):
     """Resource of an action on this site: by Lakaa id, else by title (resources
     imported before ids were tagged)."""
@@ -413,26 +456,18 @@ class Command(BaseCommand):
             required=True,
             help="Directory containing the Lakaa CSV files",
         )
-        parser.add_argument(
-            "--actions-file",
-            default="Actions MI - CSV - 05.11.2026.csv",
-            help="Filename of the actions export inside --data-dir",
-        )
-        parser.add_argument(
-            "--sites-file",
-            default="Sites MI - CSV - 05.11.26.csv",
-            help="Filename of the sites export inside --data-dir",
-        )
-        parser.add_argument(
-            "--users-file",
-            default="Utilisateurs MI – CSV - 05.11.26.csv",
-            help="Filename of the users export inside --data-dir",
-        )
-        parser.add_argument(
-            "--reports-file",
-            default="Déclarations MI - CSV - 05.11.26.csv",
-            help="Filename of the declarations export inside --data-dir",
-        )
+        for kind, label in (
+            ("actions", "actions"),
+            ("sites", "sites"),
+            ("users", "users"),
+            ("reports", "declarations"),
+        ):
+            parser.add_argument(
+                f"--{kind}-file",
+                help=f"Filename of the {label} export inside --data-dir. Defaults "
+                f"to the only CSV there whose name starts with "
+                f"'{_EXPORT_PREFIXES[kind]}' (case and accents ignored)",
+            )
         parser.add_argument(
             "--force-update-resources",
             action="store_true",
@@ -468,17 +503,28 @@ class Command(BaseCommand):
             raise CommandError(f"No Site found for domain '{domain}'") from err
 
         data_dir = options["data_dir"]
+        if not os.path.isdir(data_dir):
+            raise CommandError(f"Data directory not found: {data_dir}")
 
-        actions_path = os.path.join(data_dir, options["actions_file"])
-        sites_path = os.path.join(data_dir, options["sites_file"])
-        users_path = os.path.join(data_dir, options["users_file"])
-        reports_path = os.path.join(data_dir, options["reports_file"])
+        paths = {}
+        for kind in _EXPORT_PREFIXES:
+            filename = options[f"{kind}_file"]
+            if filename:
+                path = os.path.join(data_dir, filename)
+                if not os.path.exists(path):
+                    raise CommandError(f"File not found: {path}")
+            else:
+                path = _find_export(data_dir, kind)
+            paths[kind] = path
 
-        for path in (actions_path, sites_path, users_path, reports_path):
-            if not os.path.exists(path):
-                raise CommandError(f"File not found: {path}")
+        actions_path = paths["actions"]
+        sites_path = paths["sites"]
+        users_path = paths["users"]
+        reports_path = paths["reports"]
 
         self.stdout.write(f"Target site: {site.name} ({site.domain})")
+        for kind, path in paths.items():
+            self.stdout.write(f"  {kind}: {os.path.basename(path)}")
 
         # Act as the target tenant for the whole run: signal handlers (e.g. the
         # DepafiProject profile created on project save) need the site's enabled

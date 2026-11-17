@@ -1210,10 +1210,84 @@ def test_command_rejects_unknown_site_domain(tmp_path):
 
 
 def test_command_resolves_site_before_reading_files(tmp_path, current_site):
-    with pytest.raises(CommandError, match="File not found"):
+    with pytest.raises(CommandError, match="No actions export found"):
         call_command(
             "import_lakaa", site_domain=current_site.domain, data_dir=str(tmp_path)
         )
+
+
+def _touch_exports(tmp_path, *names):
+    for name in names:
+        (tmp_path / name).touch()
+
+
+def _discovered_paths(tmp_path, current_site, monkeypatch, **options):
+    seen = {}
+
+    def fake_import(self, site, *paths_and_options):
+        seen["paths"] = paths_and_options[:4]
+
+    monkeypatch.setattr(Command, "_import", fake_import)
+    call_command(
+        "import_lakaa",
+        site_domain=current_site.domain,
+        data_dir=str(tmp_path),
+        **options,
+    )
+    return [p.rsplit("/", 1)[-1] for p in seen["paths"]]
+
+
+def test_command_finds_exports_whatever_their_date(tmp_path, current_site, monkeypatch):
+    """Lakaa dates every export in its filename: the command must find each one
+    by its leading word, ignoring case, accents and older non-CSV exports."""
+    _touch_exports(
+        tmp_path,
+        "Actions MI - CSV - 12.01.2027.csv",
+        "SITES MI - CSV - 12.01.27.csv",
+        "Utilisateurs MI – CSV - 12.01.27.csv",
+        "De\u0301clarations MI - CSV - 12.01.27.csv",  # NFD, as macOS writes it
+        "202606090732-sites.xlsx",
+    )
+
+    assert _discovered_paths(tmp_path, current_site, monkeypatch) == [
+        "Actions MI - CSV - 12.01.2027.csv",
+        "SITES MI - CSV - 12.01.27.csv",
+        "Utilisateurs MI – CSV - 12.01.27.csv",
+        "De\u0301clarations MI - CSV - 12.01.27.csv",
+    ]
+
+
+def test_command_rejects_several_exports_of_one_kind(tmp_path, current_site):
+    _touch_exports(
+        tmp_path,
+        "Actions.csv",
+        "Sites MI - 05.11.26.csv",
+        "Sites MI - 12.01.27.csv",
+        "Utilisateurs.csv",
+        "Déclarations.csv",
+    )
+
+    with pytest.raises(CommandError, match="Several sites exports.*--sites-file"):
+        call_command(
+            "import_lakaa", site_domain=current_site.domain, data_dir=str(tmp_path)
+        )
+
+
+def test_command_file_option_overrides_discovery(tmp_path, current_site, monkeypatch):
+    _touch_exports(
+        tmp_path,
+        "Actions.csv",
+        "Sites MI - 05.11.26.csv",
+        "Sites MI - 12.01.27.csv",
+        "Utilisateurs.csv",
+        "Déclarations.csv",
+    )
+
+    paths = _discovered_paths(
+        tmp_path, current_site, monkeypatch, sites_file="Sites MI - 12.01.27.csv"
+    )
+
+    assert paths[1] == "Sites MI - 12.01.27.csv"
 
 
 def test_command_runs_as_target_tenant(tmp_path, current_site, monkeypatch):
@@ -1222,14 +1296,8 @@ def test_command_runs_as_target_tenant(tmp_path, current_site, monkeypatch):
     baker.make(
         "home.SiteConfiguration", site=current_site, enabled_plugins=[PLUGIN_NAME]
     )
-    sites_path = _write_csv(
-        tmp_path, "Sites MI - CSV - 05.11.26.csv", [_site_row(Nom="GGD Meurthe")]
-    )
-    for filename in (
-        "Actions MI - CSV - 05.11.2026.csv",
-        "Utilisateurs MI – CSV - 05.11.26.csv",
-        "Déclarations MI - CSV - 05.11.26.csv",
-    ):
+    sites_path = _write_csv(tmp_path, "Sites.csv", [_site_row(Nom="GGD Meurthe")])
+    for filename in ("Actions.csv", "Utilisateurs.csv", "Déclarations.csv"):
         (tmp_path / filename).touch()
 
     seen = {}
