@@ -31,4 +31,8 @@ Alpine.data('RealisationFormValidation', () => ({
         this.formData[name] = value;
         this.validateForm();
     },
+    syncResourceSelect() {
+        this.formData.resource = document.getElementById('id_resource').value;
+        this.validateForm();
+    }
 }));
