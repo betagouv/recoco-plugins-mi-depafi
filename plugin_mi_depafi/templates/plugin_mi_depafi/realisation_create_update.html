@@ -48,7 +48,9 @@
                 </div>
 
                 <!-- Action réalisée -->
-                <div class="fr-fieldset__element">
+                <div class="fr-fieldset__element"
+                     @click="syncResourceSelect()"
+                     @keydown="syncResourceSelect()">
                     <div x-data="realisationResourceSelect"
                         class="fr-input-group {% if form.resource.errors %}fr-input-group--error{% endif %} fr-mb-3w">
                         <label class="fr-label d-flex" for="{{ form.resource.id_for_label }}">
