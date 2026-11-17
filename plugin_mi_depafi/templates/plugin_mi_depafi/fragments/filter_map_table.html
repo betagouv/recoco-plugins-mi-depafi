@@ -13,6 +13,9 @@
                 </div>
             </div>
             <div class="col-auto">
+                {% include "fragments/filter_generic.html" with label="Catégorie" queryparam="category" default_option="Toutes les catégories" a11y_label="Sélectionnez une catégorie pour filtrer les réalisations" values=categories current_value=request.GET.category x_model="selectedCategory" on_change="onCategorySelected" js_activate=True %}
+            </div>
+            <div class="col-auto">
                 {% include "projects/project/fragments/departments_selector/departments_selector_dsfr.html" with filter_by_regions=True zone_objects="regions" select_all=True label_filter="Territoire :" extra_classes="inline-chevron " %}
             </div>
         </div>

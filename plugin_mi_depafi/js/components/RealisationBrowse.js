@@ -17,10 +17,11 @@ Alpine.data('RealisationBrowse', (regionsData) => ({
   selectedDepartments: [],
   isDepartmentSelectorReset: true,
   selectedPerimeter: '',
+  selectedCategory: '',
   loading: true,
 
   get hasActiveFilters() {
-    return this.searchQuery !== '' || !this.isDepartmentSelectorReset || this.selectedPerimeter !== '';
+    return this.searchQuery !== '' || !this.isDepartmentSelectorReset || this.selectedPerimeter !== '' || this.selectedCategory !== '';
   },
 
   async init() {
@@ -45,6 +46,7 @@ Alpine.data('RealisationBrowse', (regionsData) => ({
     if (this.searchQuery) params.set('search', this.searchQuery);
     this.selectedDepartments.forEach((d) => params.append('departments', d));
     if (this.selectedPerimeter) params.set('perimeter', this.selectedPerimeter);
+    if (this.selectedCategory) params.set('category', this.selectedCategory);
     this.realisations = (await api.get(`/api/realisations/map/?${params}`)).data;
     this.loading = false;
   },
@@ -54,6 +56,10 @@ Alpine.data('RealisationBrowse', (regionsData) => ({
   }, 400),
 
   async onPerimeterSelected() {
+    await this.fetchData();
+  },
+
+  async onCategorySelected() {
     await this.fetchData();
   },
 
@@ -72,6 +78,7 @@ Alpine.data('RealisationBrowse', (regionsData) => ({
     // Clear the perimeter before resetting the departments selector: its
     // reset emits `selected-departments`, which triggers the fetch.
     this.selectedPerimeter = '';
+    this.selectedCategory = '';
     this.$dispatch('reset-departments-selector');
     this.isDepartmentSelectorReset = true;
   },
