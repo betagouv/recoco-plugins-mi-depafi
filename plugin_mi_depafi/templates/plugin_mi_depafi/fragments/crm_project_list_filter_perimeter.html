@@ -1,3 +1,3 @@
 <div x-data="{ selectedPerimeter: '' }">
-    {% include "plugin_mi_depafi/fragments/filter_perimeter.html" with rounded_version=True js_activate=True on_change="$dispatch('plugin-filter-change', { perimeter: $event.target.value })" %}
+    {% include "fragments/filter_generic.html" with label="Périmètre" queryparam="perimeter" default_option="Tous les périmètres" a11y_label="Sélectionnez un perimètre pour filtrer les sites" values=perimeter current_value=request.GET.perimeter rounded_version=True js_activate=True x_model="selectedPerimeter" on_change="$dispatch('plugin-filter-change', { perimeter: $event.target.value })" %}
 </div>
