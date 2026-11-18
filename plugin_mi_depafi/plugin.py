@@ -127,6 +127,10 @@ class MiDepafiPlugin:
         )
 
     @hookimpl
+    def conversation_activity_verbs(self):
+        return [RealisationVerbs.PUBLISHED]
+
+    @hookimpl
     def send_digests_for_staff_users(self, site, user, dry_run):
         return send_new_realisations_digest(site, user, dry_run)
 

@@ -15,6 +15,15 @@ class OnSiteRealisationField(serializers.PrimaryKeyRelatedField):
         return Realisation.on_site.all()
 
 
+class ActivityRealisationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Realisation
+        fields = ("model", "id", "feed_label")
+
+    model = serializers.ReadOnlyField(default="Realisation")
+    feed_label = serializers.ReadOnlyField()
+
+
 class RealisationNodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = RealisationNode

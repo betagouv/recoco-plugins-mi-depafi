@@ -6,14 +6,13 @@ from django.dispatch import Signal, receiver
 from notifications.signals import notify
 
 from recoco import verbs as recoco_verbs
-from recoco.apps.conversations.models import Message
 from recoco.apps.plugins.resolvers import get_enabled_plugins
 from recoco.apps.projects.models import Project
 from recoco.utils import get_group_for_site
 
 from . import verbs
 from .apps import PLUGIN_NAME
-from .models import DepafiProject, RealisationNode
+from .models import DepafiProject
 
 # Sent when a Realisation transitions to PUBLISHED.
 # Provides: realisation (Realisation instance), published_by (User instance)
@@ -25,26 +24,13 @@ realisation_deleted = Signal()
 
 
 @receiver(realisation_published)
-def on_realisation_published(sender, realisation, published_by, **kwargs):
-    message = Message.objects.create(
-        project=realisation.project,
-        posted_by=published_by,
-    )
-    RealisationNode.objects.create(
-        message=message,
-        position=0,
-        realisation=realisation,
-    )
-
-
-@receiver(realisation_published)
 def log_realisation_published(sender, realisation, published_by, **kwargs):
     action.send(
         published_by,
         verb=verbs.Realisation.PUBLISHED,
         action_object=realisation,
         target=realisation.project,
-        public=False,
+        public=True,
     )
 
 

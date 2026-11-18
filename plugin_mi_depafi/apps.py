@@ -10,9 +10,12 @@ class PluginMiDepafiConfig(AppConfig):
         from actstream import registry
         from watson import search as watson
 
-        from recoco.apps.conversations.serializers import NodePolymorphicSerializer
+        from recoco.apps.conversations.serializers import GenericRelatedField
         from recoco.apps.projects import signals as project_signals
         from recoco.utils import strip_accents
+        
+        from .models import Realisation
+        from .serializers import ActivityRealisationSerializer
 
         from . import signals as plugin_signals  # noqa: F401 - registers signal receivers
 
@@ -21,13 +24,11 @@ class PluginMiDepafiConfig(AppConfig):
         project_signals.project_validated.connect(
             plugin_signals.notify_staff_on_project_validated
         )
-        from .models import Realisation, RealisationNode
-        from .serializers import RealisationNodeSerializer
 
         registry.register(Realisation)
 
-        NodePolymorphicSerializer.model_serializer_mapping[RealisationNode] = (
-            RealisationNodeSerializer
+        GenericRelatedField.model_serializer_mapping[Realisation] = (
+            ActivityRealisationSerializer
         )
 
         class RealisationSearchAdapter(watson.SearchAdapter):
