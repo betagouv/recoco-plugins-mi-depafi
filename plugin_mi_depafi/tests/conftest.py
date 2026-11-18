@@ -18,7 +18,12 @@ def make_resource(request, **kwargs):
     return baker.make(Resource, sites=[get_current_site(request)], **kwargs)
 
 
-def make_published_realisation(request, project=None, perimeter=None):
+def make_site_category(request, **kwargs):
+    """Create a resource Category assigned to the current site."""
+    return baker.make("resources.Category", sites=[get_current_site(request)], **kwargs)
+
+
+def make_published_realisation(request, project=None, perimeter=None, category=None):
     """Create a published Realisation on the current site.
 
     A project is created on the site when none is given. When `perimeter`
@@ -31,7 +36,7 @@ def make_published_realisation(request, project=None, perimeter=None):
         Realisation,
         site=get_current_site(request),
         project=project,
-        resource=make_resource(request),
+        resource=make_resource(request, category=category),
         status=Realisation.PUBLISHED,
     )
 
@@ -95,6 +100,10 @@ def crm_list_url():
 
 def csv_url():
     return reverse(f"{PLUGIN_NAME}:crm-realisation-csv")
+
+
+def browse_url():
+    return reverse(f"{PLUGIN_NAME}:realisation-browse")
 
 
 def map_api_url():
