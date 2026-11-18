@@ -57,7 +57,7 @@
                                 mis à jour le {{ realisation.updated_at|date:"d F Y" }}
                             </p>
                             {% if realisation.description %}
-                            <p class="fr-text--sm fr-mb-2w">{{ realisation.description|truncatewords:30 }}</p>
+                            <p class="fr-text--sm fr-mb-2w">{{ realisation.description_rendered|safe|truncatewords:30 }}</p>
                             {% endif %}
                             {% with photos=realisation.photos.all %}
                             {% if photos %}
