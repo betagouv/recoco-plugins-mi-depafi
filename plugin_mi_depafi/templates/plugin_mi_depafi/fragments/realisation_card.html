@@ -51,6 +51,14 @@
                 </div>
             {% endif %}
         {% endwith %}
+        {% with documents=realisation.documents.all %}
+            {% if documents %}
+            <p class="fr-text--sm fr-mb-2w">
+                <span class="fr-icon-file-pdf-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
+                {{ documents|length }} document{{ documents|length|pluralize }}
+            </p>
+            {% endif %}
+        {% endwith %}
         <!-- Footer: like + action -->
         <div class="d-flex {% if realisation.status == 'draft' %}justify-content-end {% else %}justify-content-between {% endif %}align-items-center">
             {% if realisation.status == 'draft' %}
