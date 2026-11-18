@@ -53,3 +53,10 @@
   display: flex;
   border: 1px solid #e5e5e5;
 }
+
+.fr-input-group--error {
+  .select-a11y > .fr-select,
+  .tiptap.ProseMirror {
+    box-shadow: inset 0 -2px 0 0 var(--border-plain-error);
+  }
+}
