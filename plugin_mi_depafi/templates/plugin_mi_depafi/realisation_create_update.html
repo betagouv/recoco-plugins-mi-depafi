@@ -53,41 +53,44 @@
                      @click="syncResourceSelect()"
                      @keydown="syncResourceSelect()">
                     <div x-data="realisationResourceSelect"
-                        class="fr-input-group {% if form.resource.errors %}fr-input-group--error{% endif %} fr-mb-3w">
+                        class="fr-input-group {% if form.resource.errors %}fr-input-group--error{% endif %} fr-mb-3w"
+                        :class="{ 'fr-input-group--error': formErrors.resource }">
                         <label class="fr-label d-flex" for="{{ form.resource.id_for_label }}">
                             {{ form.resource.label }} <span class="fr-hint-text fr-ml-1v">*</span>
                         </label>
-                        <span class="fr-hint-text fr-my-1w">{{ form.resource.help_text }}</span>
+                        <span id="{{ form.resource.auto_id }}_helptext" class="fr-hint-text fr-my-1w">{{ form.resource.help_text }}</span>
                         {{ form.resource }}
                         {% for error in form.resource.errors %}
                             <p class="fr-error-text">{{ error }}</p>
                         {% endfor %}
                         <template x-if="formErrors.resource">
-                            <p id="resource-error" class="fr-error-text" x-text="formErrors.resource"></p>
+                            <p id="resource-error" class="fr-error-text" x-text="formData.resource.message"></p>
                         </template>
                     </div>
                 </div>
 
                 <!-- Site ou bâtiment concerné -->
                 <div class="fr-fieldset__element">
-                    <div class="fr-input-group {% if form.location.errors %}fr-input-group--error{% endif %} fr-mb-3w">
+                    <div class="fr-input-group {% if form.location.errors %}fr-input-group--error{% endif %} fr-mb-3w"
+                         :class="{ 'fr-input-group--error': formErrors.location }">
                         <label class="fr-label d-flex" for="{{ form.location.id_for_label }}">
                             {{ form.location.label }} <span class="fr-hint-text fr-ml-1v">*</span>
                         </label>
-                        <span class="fr-hint-text fr-my-1w">{{ form.location.help_text }}</span>
+                        <span id="{{ form.location.auto_id }}_helptext" class="fr-hint-text fr-my-1w">{{ form.location.help_text }}</span>
                         {{ form.location }}
                         {% for error in form.location.errors %}
                             <p class="fr-error-text">{{ error }}</p>
                         {% endfor %}
                         <template x-if="formErrors.location">
-                            <p id="location-error" class="fr-error-text" x-text="formErrors.location"></p>
+                            <p id="location-error" class="fr-error-text" x-text="formData.location.message"></p>
                         </template>
                     </div>
                 </div>
 
                 <!-- Date de réalisation -->
                 <div class="fr-fieldset__element">
-                    <div class="fr-input-group {% if form.date.errors %}fr-input-group--error{% endif %} fr-mb-3w">
+                    <div class="fr-input-group {% if form.date.errors %}fr-input-group--error{% endif %} fr-mb-3w"
+                         :class="{ 'fr-input-group--error': formErrors.date }">
                         <label class="fr-label d-flex" for="{{ form.date.id_for_label }}">
                             {{ form.date.label }} <span class="fr-hint-text fr-ml-1v">*</span>
                         </label>
@@ -97,7 +100,7 @@
                             <p class="fr-error-text">{{ error }}</p>
                         {% endfor %}
                         <template x-if="formErrors.date">
-                            <p id="date-error" class="fr-error-text" x-text="formErrors.date"></p>
+                            <p id="date-error" class="fr-error-text" x-text="formData.date.message"></p>
                         </template>
                     </div>
                 </div>
@@ -108,7 +111,7 @@
                         <label class="fr-label d-flex" for="{{ form.partners.id_for_label }}">
                             {{ form.partners.label }}
                         </label>
-                        <span class="fr-hint-text fr-my-1w">{{ form.partners.help_text }}</span>
+                        <span id="{{ form.partners.auto_id }}_helptext" class="fr-hint-text fr-my-1w">{{ form.partners.help_text }}</span>
                         {{ form.partners }}
                         {% for error in form.partners.errors %}
                             <p class="fr-error-text">{{ error }}</p>
@@ -118,7 +121,8 @@
 
                 <!-- Description de l'action -->
                 <div class="fr-fieldset__element">
-                    <div class="fr-input-group {% if form.description.errors %}fr-input-group--error{% endif %} fr-mb-3w">
+                    <div class="fr-input-group {% if form.description.errors %}fr-input-group--error{% endif %} fr-mb-3w"
+                         :class="{ 'fr-input-group--error': formErrors.description }">
                         <label class="fr-label d-flex fr-mb-1w" for="id_description">{{ form.description.label }} <span class="fr-hint-text fr-ml-1v">*</span></label>
                         <span class="fr-hint-text fr-my-1w">{{ form.description.help_text }}</span>
                         {% include "tools/editor.html" with input_name=form.description.name initial_content=form.description.value|default:'' initial_content_escapejs=True %}
@@ -126,7 +130,7 @@
                             <p class="fr-error-text">{{ error }}</p>
                         {% endfor %}
                         <template x-if="formErrors.description">
-                            <p id="description-error" class="fr-error-text" x-text="formErrors.description"></p>
+                            <p id="description-error" class="fr-error-text" x-text="formData.description.message"></p>
                         </template>
                     </div>
                 </div>
@@ -137,7 +141,7 @@
                         <label class="fr-label d-flex" for="{{ form.key_figures.id_for_label }}">
                             {{ form.key_figures.label }}
                         </label>
-                        <span class="fr-hint-text fr-my-1w">{{ form.key_figures.help_text }}</span>
+                        <span id="{{ form.key_figures.auto_id }}_helptext" class="fr-hint-text fr-my-1w">{{ form.key_figures.help_text }}</span>
                         {{ form.key_figures }}
                         {% for error in form.key_figures.errors %}
                             <p class="fr-error-text">{{ error }}</p>
@@ -293,8 +297,7 @@
                         <button type="submit"
                                 name="status"
                                 value="published"
-                                class="fr-btn"
-                                :disabled="!isFormValid">
+                                class="fr-btn">
                             Sauvegarder et publier
                         </button>
                     </div>
