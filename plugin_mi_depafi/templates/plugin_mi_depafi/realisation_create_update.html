@@ -189,78 +189,77 @@
                         </div>
                     </div>
                 </div>
-                {% switch "MI_futur" %}
-                    <!-- Documents -->
-                    <div class="fr-fieldset__element">
-                        <div class="fr-mb-4w">
-                            <p class="fr-label fr-mb-1v d-flex align-items-baseline">
-                                Documents
-                            </p>
-                            <span class="fr-hint-text fr-mb-1w d-block">Ajoutez un ou plusieurs fichiers au format PDF. Taille maximale par fichier : xx Mo.</span>
-                            <!-- Existing documents (edit mode) -->
-                            {% if realisation %}
+                
+                <!-- Documents -->
+                <div class="fr-fieldset__element">
+                    <div class="fr-mb-4w">
+                        <p class="fr-label fr-mb-1v d-flex align-items-baseline">
+                            Documents
+                        </p>
+                        <span class="fr-hint-text fr-mb-1w d-block">Ajoutez un ou plusieurs fichiers au format PDF. Taille maximale par fichier : 500 Mo.</span>
+                        <!-- Existing documents (edit mode) -->
+                        {% if realisation %}
                             {% with existing_documents=realisation.documents.all %}
-                            {% if existing_documents %}
-                            <div class="fr-mb-3w" x-data="{ toDelete: [] }">
-                                <div class="d-flex flex-column gap-2">
-                                    {% for document in existing_documents %}
-                                    <div class="d-flex justify-content-between flex-shrink-0 realisation-form__document"
-                                        x-show="!toDelete.includes({{ document.pk }})">
-                                        <a href="{{ document.file.url }}"
-                                        target="_blank"
-                                        rel="noopener"
-                                        class="d-flex align-items-center gap-2 text-decoration-none fr-pl-1w fr-py-1v">
-                                            <span class="fr-icon-file-pdf-line doc-icon" aria-hidden="true"></span>
-                                            <span class="fr-text--sm fr-mb-0">{{ document.filename }}</span>
-                                        </a>
+                                {% if existing_documents %}
+                                    <div class="fr-mb-3w" x-data="{ toDelete: [] }">
+                                        <div class="d-flex flex-column gap-2">
+                                            {% for document in existing_documents %}
+                                            <div class="justify-content-between flex-shrink-0 realisation-form__document"
+                                                x-show="!toDelete.includes({{ document.pk }})">
+                                                <a href="{{ document.file.url }}"
+                                                target="_blank"
+                                                rel="noopener"
+                                                class="d-flex align-items-center gap-2 text-decoration-none fr-pl-1w fr-py-1v">
+                                                    <span class="fr-icon-file-pdf-line doc-icon" aria-hidden="true"></span>
+                                                    <span class="fr-text--sm fr-mb-0">{{ document.filename }}</span>
+                                                </a>
+                                                <button type="button"
+                                                        class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line doc-remove-btn"
+                                                        @click="toDelete.push({{ document.pk }})"
+                                                        title="Supprimer ce document"
+                                                        aria-label="Supprimer ce document"></button>
+                                            </div>
+                                            {% endfor %}
+                                            <template x-for="documentId in toDelete" :key="documentId">
+                                                <input type="hidden" name="delete_documents" :value="documentId">
+                                            </template>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endwith %}
+                        {% endif %}
+                        <div x-data="realisationDocumentList">
+                            <!-- Browse button -->
+                            <label for="document-upload-input" class="fr-btn fr-btn--tertiary cursor-pointer">
+                                Parcourir
+                            </label>
+                            <input x-ref="documentInput"
+                                id="document-upload-input"
+                                type="file"
+                                name="documents"
+                                accept="application/pdf"
+                                multiple
+                                class="fr-sr-only"
+                                @change="addDocuments($event)">
+                            <!-- File cards -->
+                            <div class="d-flex flex-column gap-2 fr-mt-2w" x-show="documents.length">
+                                <template x-for="(document, index) in documents" :key="document.name + index">
+                                    <div class="d-flex justify-content-between flex-shrink-0 realisation-form__document">
+                                        <span class="d-flex align-items-center gap-2 fr-pl-1w fr-py-1v">
+                                            <span class="fr-icon-file-pdf-line fr-icon--sm doc-icon" aria-hidden="true"></span>
+                                            <span class="fr-text--sm fr-mb-0" x-text="document.name"></span>
+                                        </span>
                                         <button type="button"
                                                 class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line doc-remove-btn"
-                                                @click="toDelete.push({{ document.pk }})"
-                                                title="Supprimer ce document"
-                                                aria-label="Supprimer ce document"></button>
+                                                @click="removeDocument(index)"
+                                                :title="'Supprimer ' + document.name"
+                                                :aria-label="'Supprimer ' + document.name"></button>
                                     </div>
-                                    {% endfor %}
-                                    <template x-for="documentId in toDelete" :key="documentId">
-                                        <input type="hidden" name="delete_documents" :value="documentId">
-                                    </template>
-                                </div>
-                            </div>
-                            {% endif %}
-                            {% endwith %}
-                            {% endif %}
-                            <div x-data="realisationDocumentList">
-                                <!-- Browse button -->
-                                <label for="document-upload-input" class="fr-btn fr-btn--tertiary cursor-pointer">
-                                    Parcourir
-                                </label>
-                                <input x-ref="documentInput"
-                                    id="document-upload-input"
-                                    type="file"
-                                    name="documents"
-                                    accept="application/pdf"
-                                    multiple
-                                    class="fr-sr-only"
-                                    @change="addDocuments($event)">
-                                <!-- File cards -->
-                                <div class="d-flex flex-column gap-2 fr-mt-2w" x-show="documents.length">
-                                    <template x-for="(document, index) in documents" :key="document.name + index">
-                                        <div class="d-flex justify-content-between flex-shrink-0 realisation-form__document">
-                                            <span class="d-flex align-items-center gap-2 fr-pl-1w fr-py-1v">
-                                                <span class="fr-icon-file-pdf-line fr-icon--sm doc-icon" aria-hidden="true"></span>
-                                                <span class="fr-text--sm fr-mb-0" x-text="document.name"></span>
-                                            </span>
-                                            <button type="button"
-                                                    class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line doc-remove-btn"
-                                                    @click="removeDocument(index)"
-                                                    :title="'Supprimer ' + document.name"
-                                                    :aria-label="'Supprimer ' + document.name"></button>
-                                        </div>
-                                    </template>
-                                </div>
+                                </template>
                             </div>
                         </div>
                     </div>
-                {% endswitch %}
+                </div>
                 <!-- Actions -->
                 <div class="fr-fieldset__element">
                     <div class="d-flex justify-content-end gap-2 fr-mt-4w">

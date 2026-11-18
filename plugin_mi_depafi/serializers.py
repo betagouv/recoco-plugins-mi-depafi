@@ -15,6 +15,15 @@ class OnSiteRealisationField(serializers.PrimaryKeyRelatedField):
         return Realisation.on_site.all()
 
 
+class ActivityRealisationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Realisation
+        fields = ("model", "id", "feed_label")
+
+    model = serializers.ReadOnlyField(default="Realisation")
+    feed_label = serializers.ReadOnlyField()
+
+
 class RealisationNodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = RealisationNode
@@ -73,7 +82,8 @@ class RealisationNodeSerializer(serializers.ModelSerializer):
 
     def get_like_toggle_url(self, obj):
         return reverse(
-            "plugin_mi_depafi:realisation-like-toggle", kwargs={"pk": obj.realisation_id}
+            "plugin_mi_depafi:realisation-like-toggle",
+            kwargs={"pk": obj.realisation_id},
         )
 
     def get_detail_url(self, obj):

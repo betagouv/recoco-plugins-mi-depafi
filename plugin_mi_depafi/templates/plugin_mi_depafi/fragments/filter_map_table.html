@@ -13,13 +13,16 @@
                 </div>
             </div>
             <div class="col-auto">
+                {% include "fragments/filter_generic.html" with label="Catégorie" queryparam="category" default_option="Toutes les catégories" a11y_label="Sélectionnez une catégorie pour filtrer les réalisations" values=categories current_value=request.GET.category x_model="selectedCategory" on_change="onCategorySelected" js_activate=True %}
+            </div>
+            <div class="col-auto">
                 {% include "projects/project/fragments/departments_selector/departments_selector_dsfr.html" with filter_by_regions=True zone_objects="regions" select_all=True label_filter="Territoire :" extra_classes="inline-chevron " %}
             </div>
         </div>
     </div>
     <div class="row fr-mt-3v">
         <div class="col-auto">
-            {% include "plugin_mi_depafi/fragments/filter_perimeter.html" with js_activate=True %}
+            {% include "fragments/filter_generic.html" with label="Périmètre" queryparam="perimeter" default_option="Tous les périmètres" a11y_label="Sélectionnez un perimètre pour filtrer les sites" values=perimeter current_value=request.GET.perimeter x_model="selectedPerimeter" on_change="onPerimeterSelected" js_activate=True %}
         </div>
     
         <button class="fr-btn fr-btn--tertiary-no-outline" :disabled="!hasActiveFilters" @click="onClickResetQuery">

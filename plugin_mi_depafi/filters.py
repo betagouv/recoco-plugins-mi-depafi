@@ -4,6 +4,7 @@ from django.contrib.sites.models import Site
 from django_filters import fields as filter_fields
 
 from recoco.apps.geomatics import models as geomatics_models
+from recoco.apps.resources.models import Category
 
 from .models import DepafiProject, Realisation
 
@@ -33,6 +34,11 @@ class DepartmentFilter(django_filters.ModelMultipleChoiceFilter):
     field_class = DepartmentChoiceField
 
 
+def site_categories(request=None):
+    """Resource categories of the current site, built per request."""
+    return Category.on_site.order_by("name")
+
+
 class RealisationFilter(django_filters.FilterSet):
     """Filter for the CRM list of realisations"""
 
@@ -59,11 +65,21 @@ class RealisationFilter(django_filters.FilterSet):
         label="Périmètre",
         choices=DepafiProject.Perimeter.choices,
         method="filter_perimeter",
+        # The select template renders its own "all perimeters" option.
+        empty_label=None,
+    )
+
+    category = django_filters.ModelChoiceFilter(
+        label="Catégorie",
+        field_name="resource__category",
+        queryset=site_categories,
+        # The select template renders its own "all categories" option.
+        empty_label=None,
     )
 
     class Meta:
         model = Realisation
-        fields = ["q", "status", "departments", "perimeter"]
+        fields = ["q", "status", "departments", "perimeter", "category"]
 
     def filter_perimeter(self, queryset, name, value):
         # A project has one profile per site: match the perimeter of the

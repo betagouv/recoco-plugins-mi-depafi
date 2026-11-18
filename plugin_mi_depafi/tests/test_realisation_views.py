@@ -11,12 +11,14 @@ from recoco.utils import assign_site_staff, login
 from ..conftest import make_project_on_site
 from ..models import Realisation, RealisationLike, RealisationNode, RealisationPhoto
 from .conftest import (
+    browse_url,
     create_url,
     delete_url,
     detail_url,
     like_toggle_url,
     list_url,
     make_resource,
+    make_site_category,
     publish_url,
     update_url,
 )
@@ -1276,3 +1278,21 @@ def test_realisation_detail_draft_hidden_from_read_only_user(request, client):
         assign_perm("list_projects", user, get_current_site(request))
         response = client.get(detail_url(realisation))
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Realisation browse
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_realisation_browse_lists_current_site_categories(request, client):
+    category = make_site_category(request, name="Energie")
+    baker.make("resources.Category", sites=[baker.make(Site)])
+    make_project_on_site(request)  # enables the plugin on the site
+
+    with login(client):
+        response = client.get(browse_url())
+
+    assert response.status_code == 200
+    assert response.context["categories"] == [(str(category.pk), "Energie")]
