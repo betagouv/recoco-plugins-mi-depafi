@@ -5,7 +5,7 @@ from model_bakery import baker
 from recoco.utils import login
 
 from ..models import DepafiProject
-from .conftest import make_published_realisation, map_api_url
+from .conftest import make_published_realisation, make_site_category, map_api_url
 
 # ---------------------------------------------------------------------------
 # Perimeter filter
@@ -80,3 +80,22 @@ def test_map_api_ignores_invalid_filter_values(request, client):
 
     assert response.status_code == 200
     assert realisation.pk in {item["id"] for item in response.json()}
+
+
+# ---------------------------------------------------------------------------
+# Category filter
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_map_api_filters_by_category(request, client):
+    energy = make_site_category(request)
+    in_energy = make_published_realisation(request, category=energy)
+    make_published_realisation(request, category=make_site_category(request))
+    make_published_realisation(request)
+
+    with login(client):
+        response = client.get(map_api_url(), {"category": energy.pk})
+
+    assert response.status_code == 200
+    assert {item["id"] for item in response.json()} == {in_energy.pk}
