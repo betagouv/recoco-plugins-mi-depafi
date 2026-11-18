@@ -65,24 +65,27 @@
             </section>
             {% endif %}
 
-            {% switch "MI_futur" %}
-                <!-- Documents -->
-                {% with documents=realisation.documents.all %}
+        
+            <!-- Documents -->
+            {% with documents=realisation.documents.all %}
                 {% if documents %}
-                <section class="fr-mb-3w">
-                    <h3 class="realisation-modal__content--title">Documents</h3>
-                    <ul class="list-unstyled">
-                        {% for document in documents %}
-                        <li class="realisation-modal__document fr-mb-1w d-flex justify-content-between align-items-center">
-                            <span class="fr-icon-file-line fr-icon--sm fr-mr-1v realisation-modal__document--text" aria-hidden="true"> {{ document|filename }} </span>
-                            <a href="{{ document.file.url }}" class="fr-btn fr-btn--tertiary fr-px-3v fr-py-1v realisation-modal__document--download">Télécharger</a>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </section>
+                    <section class="fr-mb-3w">
+                        <h3 class="realisation-modal__content--title">Documents</h3>
+                        <ul class="list-unstyled">
+                            {% for document in documents %}
+                            <li class="realisation-modal__document fr-mb-1w d-flex justify-content-between align-items-center">
+                                <span class="fr-icon-file-line fr-icon--sm fr-mr-1v realisation-modal__document--text" aria-hidden="true"> {{ document|filename }} ({{ document.file.size|filesizeformat }})</span>
+                                <div>
+                                    <a href="{{ document.file.url }}" class="fr-btn fr-btn--tertiary fr-px-3v fr-py-1v realisation-modal__document--download">Télécharger</a>
+                                    <a href="{{ document.file.url }}" class="fr-btn fr-btn--tertiary fr-px-3v fr-py-1v realisation-modal__document--download" target="_blank" title="Prévisualiser le fichier joint - nouvelle fenêtre">Prévisualiser</a>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </section>
                 {% endif %}
-                {% endwith %}
-            {% endswitch %}
+            {% endwith %}
+        
 
             {% if realisation.photos.all %}
                 <div class="realisation-modal__content--last-btn">

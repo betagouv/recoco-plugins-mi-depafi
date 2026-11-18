@@ -12,6 +12,10 @@ class PluginMiDepafiConfig(AppConfig):
 
         from recoco.apps.conversations.serializers import GenericRelatedField
         from recoco.apps.projects import signals as project_signals
+        from recoco.utils import strip_accents
+        
+        from .models import Realisation
+        from .serializers import ActivityRealisationSerializer
 
         from . import signals as plugin_signals  # noqa: F401 - registers signal receivers
 
@@ -20,8 +24,6 @@ class PluginMiDepafiConfig(AppConfig):
         project_signals.project_validated.connect(
             plugin_signals.notify_staff_on_project_validated
         )
-        from .models import Realisation
-        from .serializers import ActivityRealisationSerializer
 
         registry.register(Realisation)
 
@@ -30,14 +32,23 @@ class PluginMiDepafiConfig(AppConfig):
         )
 
         class RealisationSearchAdapter(watson.SearchAdapter):
-            def get_title(self, obj):
-                return str(obj.resource)
+            fields = (
+                "location",
+                "description",
+                "resource__title",
+                "resource__category",
+                "project__name",
+                "project__commune__name",
+                "project__commune__insee",
+                "project__commune__postal",
+                "project__commune__department__name",
+                "project__commune__department__code",
+                "project__commune__department__region__name",
+            )
 
-            def get_description(self, obj):
-                return obj.description
-
-            def get_content(self, obj):
-                return f"{obj.project.name} {obj.partners} {obj.resource.title}"
+            def prepare_content(self, content):
+                content = super().prepare_content(content)
+                return strip_accents(content)
 
         watson.register(Realisation, adapter_cls=RealisationSearchAdapter)
 
