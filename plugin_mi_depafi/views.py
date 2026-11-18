@@ -126,7 +126,7 @@ class RealisationListView(ProjectDetailBaseView):
         base_qs = (
             Realisation.on_site.filter(project=self.object)
             .select_related("resource")
-            .prefetch_related("photos")
+            .prefetch_related("photos", "documents")
             .annotate(
                 like_count=Count("likes"),
                 user_liked=Exists(
