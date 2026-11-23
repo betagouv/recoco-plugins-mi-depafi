@@ -19,7 +19,11 @@
 {% block project_detail %}
 <div x-data="RealisationFormValidation()"
      x-init="$nextTick(() => $store.showRole.init())"
-     class="col-12">
+     class="col-12 realisation-form">
+
+    <template x-if="isSubmitting">
+        {% include "tools/loader.html" with message="Merci de patienter, votre réalisation et ses fichiers sont en cours d'envoi" %}
+    </template>
 
     {% include "projects/project/navigation.html" %}
     {% include "projects/project/fragments/project_banner/banner_wrapper.html" with part="open" %}
@@ -27,7 +31,10 @@
     <div class="fr-container fr-py-4w">
         <h1 class="fr-h3 fr-mb-4w">{% firstof page_title "Déclarer une action réalisée" %}</h1>
 
-        <form method="post" enctype="multipart/form-data" novalidate>
+        <form method="post"
+              enctype="multipart/form-data"
+              novalidate
+              @submit="isSubmitting = true">
             {% csrf_token %}
             <fieldset class="fr-fieldset">
 
