@@ -24,7 +24,7 @@ class DepafiProjectPerimeterForm(forms.ModelForm):
 
 class RealisationForm(forms.ModelForm):
     description = MarkdownxFormField(
-        required=True,
+        required=False,
         label="Description de l'action",
         help_text="Comment vous l'avez mise en oeuvre, les éventuelles difficultés rencontrées et solutions trouvées, etc.",
     )
