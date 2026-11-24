@@ -3,15 +3,23 @@
     <div class="row">
         <div :class="{'col-8 col-xl-9': panelConfig.isOpen, 'col-12': !panelConfig.isOpen }" class="fr-p-0 position-relative">
             <div id="realisations-map"></div>
+            
+            <template x-if="loading">
+                {% include "tools/loader.html" with message="Recherche des sites et réalisations en cours" %}
+            </template>
             {% include "projects/project/fragments/map/grey_scale_toggle.html" with is_checked=False %}
         </div>
     
         <!--Side pannel-->
         <template x-if="panelConfig.isOpen">
             <div class="col-4 col-xl-3 map-panel fr-pl-2w">
+                <!--Loader-->
+                <div x-show="loading" class="text-center fr-py-4w text-muted">
+                    Chargement…
+                </div>
                 <!--Project details display Mode-->
                 <template x-if="panelConfig.mode == 'projectDetails'">
-                    <div>
+                    <div x-show="!loading">
                         <!--Btn close-->
                         <button @click="closePanel()"
                                 class="fr-btn--close fr-btn map-panel__close-btn">
@@ -40,11 +48,7 @@
                         <div class="map-panel__subtitle-container">
                             <h2 class="map-panel__subtitle">Réalisations (<span x-text="selectedProject.realisationsCount"></span>)</h2>
                         </div>
-    
-                        <div x-show="loading" class="text-center fr-py-4w text-muted">
-                            Chargement…
-                        </div>
-    
+
                         <template x-if="!loading && sidebarRealisations.length === 0">
                             <div class="fr-callout fr-mt-2w">
                                 <p class="fr-callout__text">Aucune réalisation trouvée.</p>
@@ -64,7 +68,7 @@
     
                 <!--Project list display Mode-->
                 <template x-if="panelConfig.mode == 'projectList'">
-                    <div>
+                    <div x-show="!loading">
                         <h2>
                             <span x-text="panelProjectListTitle"></span>
                         </h2>
