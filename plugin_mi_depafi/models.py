@@ -44,10 +44,12 @@ class Realisation(PluginModel):
     )
     location = models.CharField(
         max_length=255,
+        blank=True,
         verbose_name="Site ou bâtiment concerné",
     )
     date = models.DateField(
         null=True,
+        blank=True,
         verbose_name="Date de réalisation",
     )
     partners = models.CharField(
@@ -56,6 +58,7 @@ class Realisation(PluginModel):
         verbose_name="Partenaires",
     )
     description = models.TextField(
+        blank=True,
         verbose_name="Description de l'action",
     )
     key_figures = models.TextField(
