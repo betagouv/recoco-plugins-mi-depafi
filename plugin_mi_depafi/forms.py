@@ -28,18 +28,11 @@ class RealisationForm(forms.ModelForm):
         label="Description de l'action",
         help_text="Comment vous l'avez mise en oeuvre, les éventuelles difficultés rencontrées et solutions trouvées, etc.",
     )
-    # Not rendered in the template: status is submitted through the
-    # "Sauvegarder en brouillon" / "Sauvegarder et publier" buttons. The
-    # choice field validates that only "draft" or "published" is accepted.
-    status = forms.ChoiceField(
-        choices=Realisation.STATUS_CHOICES,
-        required=False,
-        initial=Realisation.DRAFT,
-    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["resource"].queryset = Resource.on_site.all()
+        self.fields["status"].initial = Realisation.DRAFT
 
     class Meta:
         model = Realisation
@@ -50,6 +43,7 @@ class RealisationForm(forms.ModelForm):
             "partners",
             "description",
             "key_figures",
+            "status"
         ]
         widgets = {
             "resource": forms.Select(attrs={"class": "fr-select"}),
@@ -78,3 +72,12 @@ class RealisationForm(forms.ModelForm):
     def clean_description(self):
         desc = self.cleaned_data["description"]
         return nh3.clean(desc)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("status") == Realisation.DRAFT:
+            return cleaned_data
+
+        for field in Realisation.MANDATORY_TO_PUBLISH:
+            if not cleaned_data.get(field):
+                self.add_error(field, self.fields[field].error_messages["required"])
