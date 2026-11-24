@@ -77,6 +77,7 @@
                     {% if realisation.status == 'draft' %}
                         <button type="submit"
                                 class="fr-btn fr-btn--sm"
+                                {% if not realisation.ready_to_publish %}disabled{% endif %}
                                 hx-get="{% url 'plugin_mi_depafi:realisation-publish' project_id=realisation.project_id pk=realisation.pk %}"
                                 hx-target="#realisation-modal-content"
                                 hx-swap="innerHTML">Publier</button>
