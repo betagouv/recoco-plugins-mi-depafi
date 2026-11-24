@@ -65,7 +65,7 @@ function RealisationsMap() {
     },
 
     initMap() {
-      this.map = L.map('realisations-map').setView([46.5, 2.5], 6);
+      this.map = L.map('realisations-map').setView([34, -34], 3);
       L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -114,6 +114,10 @@ function RealisationsMap() {
         this.markersByProject[project.id] = marker;
         this.clusterGroup.addLayer(marker);
       });
+      const bounds = this.clusterGroup.getBounds();
+      if (bounds.isValid()) {
+        this.map.fitBounds(bounds, { padding: [15, 15] });
+      }
     },
 
     syncPanelWithFilters() {
