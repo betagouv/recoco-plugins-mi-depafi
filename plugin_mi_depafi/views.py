@@ -276,6 +276,7 @@ class RealisationPublishView(RealisationWriteMixin, ProjectDetailBaseView):
         old_status = realisation.status
         if old_status != Realisation.PUBLISHED:
             realisation.status = Realisation.PUBLISHED
+            # todo check that MANDATORY_FIELDS are filled
             realisation.save(update_fields=["status", "updated_at"])
             notify_if_published(realisation, old_status, request.user)
         return redirect(
