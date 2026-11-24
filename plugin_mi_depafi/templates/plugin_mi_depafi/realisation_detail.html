@@ -15,7 +15,7 @@
         <ul class="d-flex list-unstyled fr-m-0 gap-3">
             <li class="fr-pb-0 realisation-modal__subtitle">
                 <span class="fr-icon-calendar-event-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span>
-                Date de la réalisation : {{ realisation.created_at|date:"d/m/Y" }}
+                Date de la réalisation : {{ realisation.date|date:"d/m/Y" }}
             </li>
             {% if realisation.location %}
             <li class="fr-pb-0 realisation-modal__subtitle">
