@@ -82,13 +82,11 @@
                                 hx-swap="innerHTML">Publier</button>
                     {% endif %}
                 {% endif %}
-                {% switch "MI_futur" %}
-                    <button type="button"
-                        class="fr-btn fr-btn--sm"
-                        hx-get="{% url 'plugin_mi_depafi:realisation-detail' pk=realisation.pk %}"
-                        hx-target="#realisation-modal-content"
-                        hx-swap="innerHTML">Voir la réalisation</button>
-                {% endswitch %}
+                <button type="button"
+                    class="fr-btn fr-btn--sm"
+                    hx-get="{% url 'plugin_mi_depafi:realisation-detail' pk=realisation.pk %}"
+                    hx-target="#realisation-modal-content"
+                    hx-swap="innerHTML">Voir la réalisation</button>
             </div>
         </div>
     </div>
