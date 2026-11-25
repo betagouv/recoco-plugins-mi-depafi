@@ -15,7 +15,8 @@ from ..conftest import make_project_on_site
 from ..plugin import MiDepafiPlugin
 from ..models import Realisation
 from ..signals import notify_staff_on_project_validated, realisation_published
-from .conftest import create_url, delete_url, make_resource
+from .conftest import create_url, delete_url, make_resource, field_resource_ready_to_publish
+
 
 # ---------------------------------------------------------------------------
 # CRM tracing: actstream actions logged on publish and deletion
@@ -34,8 +35,8 @@ def test_realisation_publish_logs_actstream_action(request, client):
             {
                 "resource": resource.pk,
                 "partners": "",
-                "description": "",
                 "status": "published",
+                **field_resource_ready_to_publish,
             },
         )
 

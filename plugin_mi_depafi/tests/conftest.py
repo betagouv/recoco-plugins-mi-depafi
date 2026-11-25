@@ -108,3 +108,6 @@ def browse_url():
 
 def map_api_url():
     return reverse("plugin-mi-depafi-realisations-map")
+
+
+field_resource_ready_to_publish = {"location": "Mairie", "description": "Une description"}
