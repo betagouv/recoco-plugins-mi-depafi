@@ -94,6 +94,7 @@ class Realisation(PluginModel):
     def description_rendered(self):
         return render_markdown(self.description)
 
+    @property
     def ready_to_publish(self):
         return all(getattr(self, field) for field in self.MANDATORY_TO_PUBLISH)
 
