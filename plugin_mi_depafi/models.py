@@ -3,11 +3,10 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.urls import reverse
-from markdownx.utils import markdownify
 
 from recoco.apps.conversations.models import Node
 from recoco.apps.plugins.models import PluginModel
-from recoco.utils import truncate_string
+from recoco.utils import render_markdown, truncate_string
 
 FEED_LABEL_MAX_LENGTH = 50
 
@@ -91,8 +90,7 @@ class Realisation(PluginModel):
 
     @property
     def description_rendered(self):
-        # FIXME Security: does it need a sanity postprocessing?
-        return markdownify(self.description)
+        return render_markdown(self.description)
 
     def __str__(self):
         return str(self.resource)
