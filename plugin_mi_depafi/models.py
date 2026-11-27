@@ -22,6 +22,8 @@ class Realisation(PluginModel):
         (PUBLISHED, "Publié"),
     ]
 
+    MANDATORY_TO_PUBLISH = ["location", "status", "description"]
+
     project = models.ForeignKey(
         "projects.Project",
         on_delete=models.CASCADE,
@@ -91,6 +93,10 @@ class Realisation(PluginModel):
     @property
     def description_rendered(self):
         return render_markdown(self.description)
+
+    @property
+    def ready_to_publish(self):
+        return all(getattr(self, field) for field in self.MANDATORY_TO_PUBLISH)
 
     def __str__(self):
         return str(self.resource)

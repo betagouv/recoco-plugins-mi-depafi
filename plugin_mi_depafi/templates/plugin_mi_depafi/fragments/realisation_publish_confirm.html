@@ -2,6 +2,7 @@
     <span class="fr-icon-warning-line fr-mr-1w" aria-hidden="true"></span>
     Confirmer la publication
 </h1>
+{% if realisation.ready_to_publish %}
 <p>
     Voulez-vous vraiment publier la réalisation
     <strong>{{ realisation.resource.title }}</strong> ?
@@ -20,4 +21,12 @@
             Publier
         </button>
     </form>
+{% else %}
+    <p>Il manque des champs pour publier cette réalisation.</p>
+        <a href="{% url 'plugin_mi_depafi:realisation-update' project_id=realisation.project_id pk=realisation.pk %}">
+            <button class="fr-btn fr-btn--warning">
+                Modifier la réalisation
+            </button>
+        </a>
+{% endif %}
 </div>

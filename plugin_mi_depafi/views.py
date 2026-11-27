@@ -319,6 +319,12 @@ class RealisationPublishView(RealisationWriteMixin, ProjectDetailBaseView):
         self.object = self.get_object()
         self.check_permissions()
         realisation = self._get_realisation()
+        if not realisation.ready_to_publish:
+            return render(
+                request,
+                "plugin_mi_depafi/fragments/realisation_publish_confirm.html",
+                {"realisation": realisation},
+            )
         old_status = realisation.status
         if old_status != Realisation.PUBLISHED:
             realisation.status = Realisation.PUBLISHED
