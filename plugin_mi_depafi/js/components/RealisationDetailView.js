@@ -1,4 +1,5 @@
 import Alpine from "alpinejs";
+import { trackOpenModalRealDetails } from "../utils/trackingMatomo";
 
 Alpine.data("realisationDetailView", (initialView = "detail") => ({
   currentView: initialView,
@@ -6,6 +7,7 @@ Alpine.data("realisationDetailView", (initialView = "detail") => ({
   photoToDisplay: null,
 
   init() {
+    trackOpenModalRealDetails();
     const photosData = document.getElementById("realisation-photos-data").textContent;
     this.photos = JSON.parse(photosData);
     this.photos.forEach((photo, index) => {

@@ -28,6 +28,7 @@
                         <tr>
                             <td class="text-ellipsis" :title="site[0].project.name">
                                 <a class="fr-link"
+                                   @click="trackClickGoToProject()"
                                     :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', site[0].project.id)"
                                     x-text="site[0].project.name"></a>
                             </td>

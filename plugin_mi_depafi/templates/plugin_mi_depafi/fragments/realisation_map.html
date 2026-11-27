@@ -27,7 +27,7 @@
                         </button>
                         <!--Project Name-->
                         <p class="fr-mb-0">
-                            <a class="map-panel__title fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', selectedProject.id)">
+                            <a class="map-panel__title fr-link fr-link--underline" @click="trackClickGoToProject()" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', selectedProject.id)">
                                 <span x-text="selectedProject.name"></span>
                             </a>
                         </p>
@@ -59,7 +59,7 @@
                             {% include "plugin_mi_depafi/fragments/realisation_map_card.html" %}
                         </template>
                         <div class="map-panel__bottom-info map-panel__bottom-info--align-right">
-                            <a class="fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', selectedProject.id)">Voir le dossier
+                            <a class="fr-link fr-link--underline" @click="trackClickGoToProject()" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', selectedProject.id)">Voir le dossier
                                 <span class="fr-icon-arrow-right-line fr-icon--sm" aria-hidden="true"></span>
                             </a>
                         </div>
@@ -84,7 +84,7 @@
                             <div>
                                 <hr class="map-panel__separator fr-pb-1w">
                                 <!--Site name-->
-                                <p class="map-panel__subtitle fr-mt-0 fr-mb-3v"><a class="fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', project.id)" x-text="project.name"></a></p>
+                                <p class="map-panel__subtitle fr-mt-0 fr-mb-3v"><a class="fr-link fr-link--underline" @click="trackClickGoToProject()" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', project.id)" x-text="project.name"></a></p>
     
                                 <!--Location-->
                                 <p class="map-panel__info fr-mb-3v">
@@ -108,7 +108,7 @@
                                     <template x-if="project.count > 2">
                                         <p class="map-panel__additional-realisation fr-mb-0" x-text="additionalRealisationsLabel(project)"></p>
                                     </template>
-                                    <a class="fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', project.id)">Voir le dossier
+                                    <a class="fr-link fr-link--underline" @click="trackClickGoToProject()" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', project.id)">Voir le dossier
                                         <span class="fr-icon-arrow-right-line fr-icon--sm" aria-hidden="true"></span>
                                     </a>
                                 </div>

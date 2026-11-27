@@ -24,6 +24,7 @@ class MiDepafiPlugin:
         "realisationListCrm": "js/apps/realisationListCrm.js",
         "realisationForm": "js/apps/realisationForm.js",
         "realisationInviteOnTaskDone": "js/utils/RealisationInviteOnTaskDone.js",
+        "trackingMatomo": "js/utils/trackingMatomo.js",
         "realisationFormStyles": "js/styles/realisation-form.css.js",
         "realisationListStyles": "js/styles/realisation-list.css.js",
         "realisationModalStyles": "js/styles/fragments/realisation-modal.css.js",
