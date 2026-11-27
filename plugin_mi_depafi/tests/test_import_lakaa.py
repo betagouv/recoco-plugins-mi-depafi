@@ -395,6 +395,16 @@ def test_import_resources_force_renames_action_matched_by_lakaa_id(
 # ---------------------------------------------------------------------------
 
 
+def _set_lakaa_id(project, site, lakaa_id):
+    DepafiProject.objects.update_or_create(
+        project=project, site=site, defaults={"lakaa_import_id": lakaa_id}
+    )
+
+
+def _lakaa_id(project, site):
+    return DepafiProject.objects.get(project=project, site=site).lakaa_import_id
+
+
 def test_import_projects_creates_project(tmp_path, current_site):
     project_map, project_ids = _import_sites(
         tmp_path,
@@ -420,9 +430,8 @@ def test_import_projects_creates_project(tmp_path, current_site):
     assert project.location_x == pytest.approx(6.1844)
     assert timezone.localtime(project.created_on).date() == date(2025, 3, 27)
     assert project.project_sites.get(site=current_site).status == "READY"
-    assert {"lakaa_id:EXT-42", "lakaa_site:22680", "Zone Est"} <= set(
-        project.tags.names()
-    )
+    assert _lakaa_id(project, current_site) == "22680"
+    assert set(project.tags.names()) == {"Zone Est"}
 
 
 @pytest.mark.parametrize(
@@ -563,7 +572,7 @@ def test_import_projects_force_updates_tags_of_existing_project(
         force_projects=True,
     )
 
-    assert {"lakaa_id:EXT-1", "Mon groupe"} <= set(existing.tags.names())
+    assert set(existing.tags.names()) == {"Mon groupe"}
 
 
 def test_import_projects_force_updates_location(tmp_path, request, current_site):
@@ -750,7 +759,7 @@ def test_import_projects_matches_renamed_site_by_lakaa_id(
     tmp_path, request, current_site
 ):
     existing = make_project_on_site(request)
-    existing.tags.add("lakaa_site:22680")
+    _set_lakaa_id(existing, current_site, "22680")
 
     project_map, project_ids = _import_sites(
         tmp_path, current_site, [_site_row(Nom="Nouveau nom")]
@@ -761,18 +770,36 @@ def test_import_projects_matches_renamed_site_by_lakaa_id(
     assert not Project.objects.filter(name="Nouveau nom").exists()
 
 
-def test_import_projects_matches_legacy_tag_and_adds_lakaa_id(
+def test_import_projects_matched_by_name_gets_lakaa_id(tmp_path, request, current_site):
+    existing = make_project_on_site(request, name="Mon site")
+
+    _, project_ids = _import_sites(tmp_path, current_site, [_site_row()])
+
+    assert project_ids == {"22680": existing.pk}
+    assert _lakaa_id(existing, current_site) == "22680"
+
+
+def test_import_projects_does_not_match_by_name_project_of_other_lakaa_site(
     tmp_path, request, current_site
 ):
-    existing = make_project_on_site(request)
-    existing.tags.add("lakaa_id:EXT-1")
+    other = make_project_on_site(request, name="Mon site")
+    _set_lakaa_id(other, current_site, "999")
 
-    project_map, _ = _import_sites(
-        tmp_path, current_site, [_site_row(Nom="Nouveau nom")]
-    )
+    _, project_ids = _import_sites(tmp_path, current_site, [_site_row()])
 
-    assert project_map == {"Nouveau nom": existing.pk}
-    assert "lakaa_site:22680" in existing.tags.names()
+    assert project_ids["22680"] != other.pk
+    assert _lakaa_id(other, current_site) == "999"
+
+
+def test_import_projects_ignores_lakaa_id_of_other_site(
+    tmp_path, request, current_site
+):
+    other = make_project_on_site(request, name="Autre nom")
+    _set_lakaa_id(other, baker.make(Site), "22680")
+
+    _, project_ids = _import_sites(tmp_path, current_site, [_site_row()])
+
+    assert project_ids["22680"] != other.pk
 
 
 @pytest.mark.parametrize(
@@ -782,7 +809,7 @@ def test_import_projects_force_renames_and_moves_unprocessed_to_ready(
     tmp_path, request, current_site, status, expected
 ):
     existing = make_project_on_site(request)
-    existing.tags.add("lakaa_site:22680")
+    _set_lakaa_id(existing, current_site, "22680")
     existing.project_sites.update(status=status)
 
     _import_sites(
