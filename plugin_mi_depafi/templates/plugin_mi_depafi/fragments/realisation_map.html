@@ -3,15 +3,23 @@
     <div class="row">
         <div :class="{'col-8 col-xl-9': panelConfig.isOpen, 'col-12': !panelConfig.isOpen }" class="fr-p-0 position-relative">
             <div id="realisations-map"></div>
+            
+            <template x-if="loading">
+                {% include "tools/loader.html" with message="Recherche des sites et réalisations en cours" %}
+            </template>
             {% include "projects/project/fragments/map/grey_scale_toggle.html" with is_checked=False %}
         </div>
     
         <!--Side pannel-->
         <template x-if="panelConfig.isOpen">
             <div class="col-4 col-xl-3 map-panel fr-pl-2w">
+                <!--Loader-->
+                <div x-show="loading" class="text-center fr-py-4w text-muted">
+                    Chargement…
+                </div>
                 <!--Project details display Mode-->
                 <template x-if="panelConfig.mode == 'projectDetails'">
-                    <div>
+                    <div x-show="!loading">
                         <!--Btn close-->
                         <button @click="closePanel()"
                                 class="fr-btn--close fr-btn map-panel__close-btn">
@@ -19,7 +27,7 @@
                         </button>
                         <!--Project Name-->
                         <p class="fr-mb-0">
-                            <a class="map-panel__title fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', selectedProject.id)">
+                            <a class="map-panel__title fr-link fr-link--underline" @click="trackClickGoToProject()" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', selectedProject.id)">
                                 <span x-text="selectedProject.name"></span>
                             </a>
                         </p>
@@ -40,11 +48,7 @@
                         <div class="map-panel__subtitle-container">
                             <h2 class="map-panel__subtitle">Réalisations (<span x-text="selectedProject.realisationsCount"></span>)</h2>
                         </div>
-    
-                        <div x-show="loading" class="text-center fr-py-4w text-muted">
-                            Chargement…
-                        </div>
-    
+
                         <template x-if="!loading && sidebarRealisations.length === 0">
                             <div class="fr-callout fr-mt-2w">
                                 <p class="fr-callout__text">Aucune réalisation trouvée.</p>
@@ -55,7 +59,7 @@
                             {% include "plugin_mi_depafi/fragments/realisation_map_card.html" %}
                         </template>
                         <div class="map-panel__bottom-info map-panel__bottom-info--align-right">
-                            <a class="fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', selectedProject.id)">Voir le dossier
+                            <a class="fr-link fr-link--underline" @click="trackClickGoToProject()" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', selectedProject.id)">Voir le dossier
                                 <span class="fr-icon-arrow-right-line fr-icon--sm" aria-hidden="true"></span>
                             </a>
                         </div>
@@ -64,7 +68,7 @@
     
                 <!--Project list display Mode-->
                 <template x-if="panelConfig.mode == 'projectList'">
-                    <div>
+                    <div x-show="!loading">
                         <h2>
                             <span x-text="panelProjectListTitle"></span>
                         </h2>
@@ -80,7 +84,7 @@
                             <div>
                                 <hr class="map-panel__separator fr-pb-1w">
                                 <!--Site name-->
-                                <p class="map-panel__subtitle fr-mt-0 fr-mb-3v"><a class="fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', project.id)" x-text="project.name"></a></p>
+                                <p class="map-panel__subtitle fr-mt-0 fr-mb-3v"><a class="fr-link fr-link--underline" @click="trackClickGoToProject()" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', project.id)" x-text="project.name"></a></p>
     
                                 <!--Location-->
                                 <p class="map-panel__info fr-mb-3v">
@@ -104,7 +108,7 @@
                                     <template x-if="project.count > 2">
                                         <p class="map-panel__additional-realisation fr-mb-0" x-text="additionalRealisationsLabel(project)"></p>
                                     </template>
-                                    <a class="fr-link fr-link--underline" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', project.id)">Voir le dossier
+                                    <a class="fr-link fr-link--underline" @click="trackClickGoToProject()" :href="'{% url 'plugin_mi_depafi:realisation-list' project_id=9999 %}'.replace('9999', project.id)">Voir le dossier
                                         <span class="fr-icon-arrow-right-line fr-icon--sm" aria-hidden="true"></span>
                                     </a>
                                 </div>

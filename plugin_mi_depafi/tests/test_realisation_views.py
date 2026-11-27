@@ -21,7 +21,10 @@ from .conftest import (
     make_site_category,
     publish_url,
     update_url,
+    field_resource_ready_to_publish,
 )
+
+# Fields required by Realisation.MANDATORY_TO_PUBLISH (status is always set)
 
 # ---------------------------------------------------------------------------
 # Realisation list
@@ -37,11 +40,41 @@ def test_realisation_list_redirects_unauthenticated(request, client):
 
 
 @pytest.mark.django_db
-def test_realisation_list_forbidden_for_unprivileged_user(request, client):
+def test_realisation_list_readable_by_any_logged_in_user(request, client):
+    """Non-members see published realisations only, without write actions."""
     project = make_project_on_site(request)
+    resource = make_resource(request)
+    published = baker.make(
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.PUBLISHED,
+    )
+    baker.make(
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=resource,
+        status=Realisation.DRAFT,
+    )
+
     with login(client):
         response = client.get(list_url(project))
-    assert response.status_code == 403
+
+    assert response.status_code == 200
+    assert list(response.context["published_realisations"]) == [published]
+    assert list(response.context["draft_realisations"]) == []
+    assert response.context["can_manage_realisations"] is False
+    assert create_url(project) not in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_realisation_list_not_found_for_project_of_another_site(request, client):
+    project = baker.make("projects.Project", sites=[baker.make(Site)])
+    with login(client):
+        response = client.get(list_url(project))
+    assert response.status_code == 404
 
 
 @pytest.mark.django_db
@@ -227,8 +260,8 @@ def test_realisation_create_saves_published(request, client):
             {
                 "resource": resource.pk,
                 "partners": "",
-                "description": "",
                 "status": "published",
+                **field_resource_ready_to_publish
             },
         )
 
@@ -522,6 +555,7 @@ def test_realisation_update_can_publish_draft(request, client):
                 "partners": "",
                 "description": "",
                 "status": "published",
+                **field_resource_ready_to_publish
             },
         )
     realisation.refresh_from_db()
@@ -626,7 +660,48 @@ def test_realisation_publish_forbidden_for_unprivileged_user(request, client):
 
 
 @pytest.mark.django_db
-def test_realisation_publish_rejects_get(request, client):
+def test_realisation_publish_get_forbidden_for_unprivileged_user(request, client):
+    project = make_project_on_site(request)
+    realisation = baker.make(
+        Realisation,
+        site=Site.objects.get_current(),
+        project=project,
+        resource=make_resource(request),
+        status=Realisation.DRAFT,
+        **field_resource_ready_to_publish,
+    )
+    with login(client):
+        response = client.get(publish_url(project, realisation))
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_realisation_publish_get_shows_confirm_when_ready(request, client):
+    project = make_project_on_site(request)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(
+            Realisation,
+            site=Site.objects.get_current(),
+            project=project,
+            resource=make_resource(request, title="Mon action"),
+            status=Realisation.DRAFT,
+            created_by=user,
+            **field_resource_ready_to_publish,
+        )
+        response = client.get(publish_url(project, realisation))
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Voulez-vous vraiment publier" in content
+    assert "Il manque des champs" not in content
+    realisation.refresh_from_db()
+    assert realisation.status == Realisation.DRAFT
+
+
+@pytest.mark.django_db
+def test_realisation_publish_get_shows_missing_fields_when_not_ready(
+    request, client
+):
     project = make_project_on_site(request)
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)
@@ -639,9 +714,36 @@ def test_realisation_publish_rejects_get(request, client):
             created_by=user,
         )
         response = client.get(publish_url(project, realisation))
-    assert response.status_code == 405
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Il manque des champs" in content
+    assert update_url(project, realisation) in content
+    assert "Voulez-vous vraiment publier" not in content
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("missing_field", ["location", "description"])
+def test_realisation_publish_post_refuses_incomplete_draft(
+    request, client, missing_field
+):
+    project = make_project_on_site(request)
+    with login(client) as user:
+        project_utils.assign_collaborator(user, project, is_owner=True)
+        realisation = baker.make(
+            Realisation,
+            site=Site.objects.get_current(),
+            project=project,
+            resource=make_resource(request),
+            status=Realisation.DRAFT,
+            created_by=user,
+            **{**field_resource_ready_to_publish, missing_field: ""},
+        )
+        response = client.post(publish_url(project, realisation))
+    assert response.status_code == 200
+    assert "Il manque des champs" in response.content.decode()
     realisation.refresh_from_db()
     assert realisation.status == Realisation.DRAFT
+    assert not RealisationNode.objects.filter(realisation=realisation).exists()
 
 
 @pytest.mark.django_db
@@ -656,6 +758,7 @@ def test_realisation_publish_publishes_draft_and_notifies(request, client):
             resource=make_resource(request),
             status=Realisation.DRAFT,
             created_by=user,
+            **field_resource_ready_to_publish,
         )
         expected_url = list_url(project)
         response = client.post(publish_url(project, realisation))
@@ -679,6 +782,7 @@ def test_realisation_publish_already_published_is_noop(request, client):
             resource=make_resource(request),
             status=Realisation.PUBLISHED,
             created_by=user,
+            **field_resource_ready_to_publish,
         )
         response = client.post(publish_url(project, realisation))
     assert response.status_code == 302
@@ -1205,6 +1309,7 @@ def test_realisation_update_allowed_for_staff_on_published(request, client):
         resource=resource,
         status=Realisation.PUBLISHED,
         created_by=baker.make("auth.User"),
+        **field_resource_ready_to_publish
     )
     with login(client) as user:
         assign_site_staff(get_current_site(request), user)

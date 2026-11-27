@@ -8,7 +8,8 @@ from recoco.utils import assign_site_staff, login
 
 from ..conftest import make_project_on_site
 from ..models import Realisation
-from .conftest import create_url, delete_url, make_resource, update_url
+from .conftest import create_url, delete_url, make_resource, update_url, field_resource_ready_to_publish
+
 
 # ---------------------------------------------------------------------------
 # Staff access to published realisations / draft author restriction
@@ -53,7 +54,8 @@ def test_realisation_update_staff_can_save_published(request, client):
             {
                 "resource": resource.pk,
                 "partners": "Staff édité",
-                "description": "",
+                "location": "Mairie",
+                "description": "Une description",
                 "status": "published",
             },
         )
@@ -72,6 +74,7 @@ def test_realisation_update_non_staff_member_cannot_access_published(request, cl
         project=project,
         resource=resource,
         status=Realisation.PUBLISHED,
+        **field_resource_ready_to_publish
     )
     with login(client) as user:
         project_utils.assign_collaborator(user, project, is_owner=True)

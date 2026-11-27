@@ -13,7 +13,8 @@ class PluginMiDepafiConfig(AppConfig):
         from recoco.apps.conversations.serializers import GenericRelatedField
         from recoco.apps.projects import signals as project_signals
         from recoco.utils import strip_accents
-        
+        from recoco.apps.plugins.search import PluginSearchAdapter
+
         from .models import Realisation
         from .serializers import ActivityRealisationSerializer
 
@@ -31,7 +32,7 @@ class PluginMiDepafiConfig(AppConfig):
             ActivityRealisationSerializer
         )
 
-        class RealisationSearchAdapter(watson.SearchAdapter):
+        class RealisationSearchAdapter(PluginSearchAdapter):
             fields = (
                 "location",
                 "description",

@@ -3,11 +3,10 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.urls import reverse
-from markdownx.utils import markdownify
 
 from recoco.apps.conversations.models import Node
 from recoco.apps.plugins.models import PluginModel
-from recoco.utils import truncate_string
+from recoco.utils import render_markdown, truncate_string
 
 FEED_LABEL_MAX_LENGTH = 50
 
@@ -22,6 +21,8 @@ class Realisation(PluginModel):
         (DRAFT, "Brouillon"),
         (PUBLISHED, "Publié"),
     ]
+
+    MANDATORY_TO_PUBLISH = ["location", "status", "description"]
 
     project = models.ForeignKey(
         "projects.Project",
@@ -91,8 +92,11 @@ class Realisation(PluginModel):
 
     @property
     def description_rendered(self):
-        # FIXME Security: does it need a sanity postprocessing?
-        return markdownify(self.description)
+        return render_markdown(self.description)
+
+    @property
+    def ready_to_publish(self):
+        return all(getattr(self, field) for field in self.MANDATORY_TO_PUBLISH)
 
     def __str__(self):
         return str(self.resource)

@@ -73,12 +73,10 @@ _LOCATION_MAX_LENGTH = Realisation._meta.get_field("location").max_length
 # must not land in the advisors' "A traiter" queue.
 _PROJECT_SITE_STATUS = "READY"
 
-# Lakaa ids, stored as tags, identify imported objects across runs: names
-# change between exports (e.g. renamed actions), ids don't.
+# Lakaa ids identify imported objects across runs: names change between exports
+# (e.g. renamed actions), ids don't. Projects store theirs on their DepafiProject
+# profile; resources have no profile, so theirs is kept as a tag.
 _ACTION_TAG = "lakaa_action:{}"
-_SITE_TAG = "lakaa_site:{}"
-# Tag written by earlier imports, from the site's "Id externe".
-_LEGACY_SITE_TAG = "lakaa_id:{}"
 
 
 # Each export is recognised by the first word of its filename; the rest (export
@@ -135,20 +133,23 @@ def _find_resource(site, lakaa_pk, title):
     return resources.filter(title=title).first()
 
 
-def _find_project(site, lakaa_pk, ext_id, name):
-    """Project of a Lakaa site on this site: by Lakaa id, else by the tag of
-    earlier imports, else by name."""
+def _find_project(site, lakaa_pk, name):
+    """Project of a Lakaa site on this site: by the Lakaa id of its profile, else
+    by name (projects that don't come from Lakaa, so have no Lakaa id yet)."""
     projects = Project.objects.filter(project_sites__site=site)
-    lookups = []
-    if lakaa_pk:
-        lookups.append({"tags__name": _SITE_TAG.format(lakaa_pk)})
-    lookups.append({"tags__name": _LEGACY_SITE_TAG.format(ext_id)})
-    lookups.append({"name": name})
-    for lookup in lookups:
-        project = projects.filter(**lookup).first()
-        if project is not None:
-            return project
-    return None
+    if not lakaa_pk:
+        return projects.filter(name=name).first()
+    profiles = DepafiProject.objects.filter(site=site)
+    project = projects.filter(
+        pk__in=profiles.filter(lakaa_import_id=lakaa_pk).values("project")
+    ).first()
+    if project is not None:
+        return project
+    return (
+        projects.filter(name=name)
+        .exclude(pk__in=profiles.exclude(lakaa_import_id=None).values("project"))
+        .first()
+    )
 
 
 def _resource_status(value):
@@ -695,20 +696,25 @@ class Command(BaseCommand):
                     org.save(update_fields=["group"])
         org.sites.add(site)
 
-    def _sync_perimeter(self, project, perimeter, site, *, force):
-        """Store `perimeter` on the project's DepafiProject profile for `site`.
+    def _sync_profile(self, project, lakaa_pk, perimeter, site, *, force):
+        """Store the Lakaa id and `perimeter` on the project's DepafiProject
+        profile for `site`.
 
         An existing perimeter is only replaced when `force` is set; an empty
         Lakaa value never clears one.
         """
-        if not perimeter:
-            return
         # The profile is created by a signal on new projects, but projects
         # imported before the plugin was enabled may not have one.
         profile, _ = DepafiProject.objects.get_or_create(project=project, site=site)
-        if profile.perimeter != perimeter and (force or not profile.perimeter):
+        update_fields = []
+        if lakaa_pk and profile.lakaa_import_id != lakaa_pk:
+            profile.lakaa_import_id = lakaa_pk
+            update_fields.append("lakaa_import_id")
+        if perimeter and (force or not profile.perimeter):
             profile.perimeter = perimeter
-            profile.save(update_fields=["perimeter"])
+            update_fields.append("perimeter")
+        if update_fields:
+            profile.save(update_fields=update_fields)
 
     def _import_projects(
         self, sites_path, site, *, force_projects=False, force_orgs=False
@@ -726,7 +732,6 @@ class Command(BaseCommand):
             )
             if not name:
                 continue
-            ext_id = _val(row.get("Id externe")) or name
 
             address = _val(row.get("Adresse"))
             location_x = location_y = None
@@ -765,13 +770,7 @@ class Command(BaseCommand):
                 self.stderr.write(
                     f"  [WARN] Unknown perimeter '{perimeter_label}' for site '{name}'"
                 )
-            tags = [_LEGACY_SITE_TAG.format(ext_id)]
-            if lakaa_pk:
-                tags.append(_SITE_TAG.format(lakaa_pk))
-            if group_name:
-                tags.append(group_name)
-
-            existing = _find_project(site, lakaa_pk, ext_id, name)
+            existing = _find_project(site, lakaa_pk, name)
             if existing is not None:
                 project_map[name] = existing.pk
                 if lakaa_pk:
@@ -781,10 +780,10 @@ class Command(BaseCommand):
                 self._sync_organisation(org_name, group_name, site, force_orgs)
                 # The perimeter can be edited in the app: only fill it when
                 # empty, unless --force-update-projects.
-                self._sync_perimeter(existing, perimeter, site, force=force_projects)
-                if lakaa_pk:
-                    # Lets later runs find the project even if it is renamed.
-                    existing.tags.add(_SITE_TAG.format(lakaa_pk))
+                # The Lakaa id lets later runs find the project even if renamed.
+                self._sync_profile(
+                    existing, lakaa_pk, perimeter, site, force=force_projects
+                )
                 if force_projects:
                     Project.objects.filter(pk=existing.pk).update(
                         name=name,
@@ -793,7 +792,8 @@ class Command(BaseCommand):
                         location_y=location_y,
                         commune=commune,
                     )
-                    existing.tags.add(*tags)
+                    if group_name:
+                        existing.tags.add(group_name)
                     # Projects of earlier imports were left "A traiter".
                     ProjectSite.objects.filter(
                         project=existing, site=site, status="TO_PROCESS"
@@ -822,8 +822,9 @@ class Command(BaseCommand):
             project.sites.add(site)
 
             self._sync_organisation(org_name, group_name, site, force_orgs)
-            self._sync_perimeter(project, perimeter, site, force=True)
-            project.tags.add(*tags)
+            self._sync_profile(project, lakaa_pk, perimeter, site, force=True)
+            if group_name:
+                project.tags.add(group_name)
 
             project_map[name] = project.pk
             if lakaa_pk:

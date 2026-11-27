@@ -1,11 +1,11 @@
 import csv
 
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.db.models import Count, Exists, OuterRef
+from django.db.models import Count, Exists, OuterRef, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.generic import DetailView, ListView, TemplateView, View
+from django.views.generic import ListView, TemplateView, View
 from django_filters.views import BaseFilterView, FilterView
 
 from recoco.apps.geomatics.models import Region
@@ -103,12 +103,53 @@ class DepafiProjectPerimeterUpdateView(ProjectDetailBaseView):
         return self.render_to_response(context)
 
 
-class RealisationListView(ProjectDetailBaseView):
-    # FIXME needs permissions handling
+class RealisationReadBaseView(ProjectDetailBaseView):
+    """Base for realisation read views, open to any logged-in user of the site.
+
+    Realisations are meant to be shared across projects, so unlike the other
+    project views these do not require the `view_project` permission
+    (anonymous users are still redirected by LoginRequiredMixin).
+
+    As in ProjectDetailBaseView, `self.object` is the project. Views whose URL
+    only carries the realisation (`pk`, no `project_id`) resolve the project
+    from it; the realisation is then available as `self.realisation`.
+    """
+
+    def check_permissions(self):
+        # get_object already scopes the project to the current site, and the
+        # realisation (if any) to its own site.
+        pass
+
+    def get_realisation_queryset(self):
+        return Realisation.on_site.all()
+
+    def get_object(self):
+        if self.pk_url_kwarg not in self.kwargs:
+            self.realisation = get_object_or_404(
+                self.get_realisation_queryset(), pk=self.kwargs["pk"]
+            )
+            self.kwargs[self.pk_url_kwarg] = self.realisation.project_id
+        # 404 if the project is no longer shared with the current site.
+        return super().get_object()
+
+    def can_manage_realisations(self):
+        """Same rule as RealisationWriteMixin."""
+        return has_perm(self.request.user, "projects.manage_documents", self.object)
+
+
+class RealisationListView(RealisationReadBaseView):
+    """Realisations of a project, readable by any logged-in user of the site.
+
+    Drafts stay work-in-progress, with the same rule as RealisationDetailView:
+    only their creator and those who may edit them see them.
+    """
+
     template_name = "plugin_mi_depafi/realisation_list.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        user = self.request.user
+        can_manage = self.can_manage_realisations()
         base_qs = (
             Realisation.on_site.filter(project=self.object)
             .select_related("resource")
@@ -124,6 +165,11 @@ class RealisationListView(ProjectDetailBaseView):
             )
             .order_by("-created_at")
         )
+        if not can_manage:
+            base_qs = base_qs.filter(
+                Q(status=Realisation.PUBLISHED) | Q(created_by=user)
+            )
+        context["can_manage_realisations"] = can_manage
         context["draft_realisations"] = base_qs.filter(status=Realisation.DRAFT)
         context["published_realisations"] = base_qs.filter(status=Realisation.PUBLISHED)
         context["realisations"] = base_qs
@@ -273,6 +319,12 @@ class RealisationPublishView(RealisationWriteMixin, ProjectDetailBaseView):
         self.object = self.get_object()
         self.check_permissions()
         realisation = self._get_realisation()
+        if not realisation.ready_to_publish:
+            return render(
+                request,
+                "plugin_mi_depafi/fragments/realisation_publish_confirm.html",
+                {"realisation": realisation},
+            )
         old_status = realisation.status
         if old_status != Realisation.PUBLISHED:
             realisation.status = Realisation.PUBLISHED
@@ -316,16 +368,16 @@ class RealisationDeleteView(RealisationWriteMixin, ProjectDetailBaseView):
         )
 
 
-class RealisationLikeToggleView(LoginRequiredMixin, View):
-    def post(self, request, pk):
-        # Both filters are needed: on_site keeps the realisation's own site,
-        # project_sites keeps the project still shared with this site.
-        realisation = get_object_or_404(
-            Realisation.on_site,
-            pk=pk,
-            status=Realisation.PUBLISHED,
-            project__project_sites__site=request.site,
-        )
+class RealisationLikeToggleView(RealisationReadBaseView):
+    http_method_names = ["post"]
+
+    def get_realisation_queryset(self):
+        return Realisation.on_site.filter(status=Realisation.PUBLISHED)
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        self.check_permissions()
+        realisation = self.realisation
         like, created = RealisationLike.objects.get_or_create(
             realisation=realisation, user=request.user
         )
@@ -345,42 +397,39 @@ class RealisationLikeToggleView(LoginRequiredMixin, View):
         )
 
 
-class RealisationDetailView(LoginRequiredMixin, DetailView):
-    model = Realisation
+class RealisationDetailView(RealisationReadBaseView):
     template_name = "plugin_mi_depafi/realisation_detail.html"
-    context_object_name = "realisation"
 
-    def get_queryset(self):
-        # Same double scoping as RealisationLikeToggleView: realisation of this
-        # site, on a project still shared with this site.
-        return (
-            Realisation.on_site.select_related("resource", "project")
-            .prefetch_related("photos", "documents")
-            .filter(project__project_sites__site=self.request.site)
-            .distinct()
-        )
+    def get_realisation_queryset(self):
+        return Realisation.on_site.select_related(
+            "resource", "project"
+        ).prefetch_related("photos", "documents")
 
-    def get_object(self, queryset=None):
+    def check_permissions(self):
         # Published realisations are visible to any logged-in user, but drafts
         # are work-in-progress: only their creator and those who may edit them
         # (see RealisationWriteMixin) can read them.
-        realisation = super().get_object(queryset)
-        user = self.request.user
+        realisation = self.realisation
         if (
             realisation.status != Realisation.PUBLISHED
-            and realisation.created_by_id != user.pk
-            and not has_perm(user, "projects.manage_documents", realisation.project)
+            and realisation.created_by_id != self.request.user.pk
+            and not self.can_manage_realisations()
         ):
             raise Http404
-        return realisation
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["photos_data"] = [
-            {"id": photo.pk, "url": photo.image.url}
-            for photo in self.object.photos.all()
-        ]
-        return context
+        # This is a modal fragment opened from many pages (browse, CRM,
+        # resource sidebar): skip the project page context, which is heavy
+        # and marks the project notifications as seen.
+        realisation = self.realisation
+        return {
+            "project": self.object,
+            "realisation": realisation,
+            "photos_data": [
+                {"id": photo.pk, "url": photo.image.url}
+                for photo in realisation.photos.all()
+            ],
+        }
 
 
 class RealisationPickProjectView(LoginRequiredMixin, View):

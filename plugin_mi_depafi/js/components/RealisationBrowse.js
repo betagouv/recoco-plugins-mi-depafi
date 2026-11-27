@@ -1,6 +1,11 @@
 import Alpine from 'alpinejs';
 import _ from 'lodash';
 import api from "@core/js/utils/api";
+import {
+  trackClickSitesAndRealisation,
+  trackClickSitesAndRealisationTableView,
+  trackClickGoToProject,
+} from "../utils/trackingMatomo";
 
 const REALISATION_VIEWS_NAME = {
   MAP : "realisation-map",
@@ -19,12 +24,14 @@ Alpine.data('RealisationBrowse', (regionsData) => ({
   selectedPerimeter: '',
   selectedCategory: '',
   loading: true,
+  trackClickGoToProject,
 
   get hasActiveFilters() {
     return this.searchQuery !== '' || !this.isDepartmentSelectorReset || this.selectedPerimeter !== '' || this.selectedCategory !== '';
   },
 
   async init() {
+    trackClickSitesAndRealisation();
     this.urlParamInit();
     await this.fetchData();
   },
@@ -35,6 +42,9 @@ Alpine.data('RealisationBrowse', (regionsData) => ({
       this.displayedViewName = view;
     }
     this.$watch('displayedViewName', () => {
+      if (this.displayedViewName === this.viewsName.TABLE) {
+        trackClickSitesAndRealisationTableView();
+      }
       urlParams.set("view", this.displayedViewName)
       history.replaceState(null, '', `${window.location.pathname}?${urlParams}`);
     })

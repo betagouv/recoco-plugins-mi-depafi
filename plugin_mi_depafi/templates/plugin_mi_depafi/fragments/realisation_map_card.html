@@ -7,7 +7,7 @@
             x-text="realisation.resource.title"></a>
         </h2>
         <p class="fr-mb-0 realisation-card__date">
-            Date de réalisation : <span x-text="new Date(realisation.updated_at).toLocaleDateString('fr-FR')"></span>
+            Date de réalisation : <span x-text="new Date(realisation.date).toLocaleDateString('fr-FR')"></span>
         </p>
         <template x-if="realisation.photos.length > 0">
             <div class="d-flex gap-1 flex-wrap fr-mt-1w">
